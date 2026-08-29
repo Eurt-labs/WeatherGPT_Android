@@ -210,6 +210,6 @@ cd WeatherGPT_Android
 
 ## 👥 Contributors & Acknowledgements
 
-- **Team**: Eurt Labs
+- **Team**: Sentinel Core
 - **Event**: Smart India Hackathon (SIH) 2026 — Problem Statement **26068**
 - **Repository**: [https://github.com/Eurt-labs/WeatherGPT_Android.git](https://github.com/Eurt-labs/WeatherGPT_Android.git)
