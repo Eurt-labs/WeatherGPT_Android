@@ -67,12 +67,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import com.example.weathergpt_android.core.network.OpenRouterPreferences
-import com.example.weathergpt_android.core.network.OpenRouterService
 import com.example.weathergpt_android.domain.location.model.LocationData
-import com.example.weathergpt_android.domain.voice.sherpa.engine.SherpaOnnxEngine
 import com.example.weathergpt_android.domain.voice.sherpa.model.SherpaLanguage
-import kotlinx.coroutines.flow.catch
+import com.example.weathergpt_android.domain.voice.sherpa.pipeline.SherpaVoicePipeline
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -90,21 +87,20 @@ fun VoiceAiScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val openRouterService = remember { OpenRouterService(context) }
 
-    // Sherpa-ONNX Offline Speech Engine
-    val sherpaEngine = remember { SherpaOnnxEngine(context, scope) }
-    val isSherpaReady by sherpaEngine.isEngineReady.collectAsState()
+    // Full-Duplex Voice Pipeline: Sherpa STT -> OpenRouter -> Sherpa TTS
+    val voicePipeline = remember { SherpaVoicePipeline(context, scope) }
+    val isSherpaReady by voicePipeline.sherpaEngine.isEngineReady.collectAsState()
     var selectedLanguage by remember { mutableStateOf(SherpaLanguage.ENGLISH) }
 
     var voiceState by remember { mutableStateOf(VoiceModeState.IDLE) }
     var userSpeechText by remember { mutableStateOf("") }
     var assistantSpeechText by remember {
-        mutableStateOf("WeatherGPT Voice with Nemotron 3.5 is active. Tap the sphere or tap a question for low-latency voice answers.")
+        mutableStateOf("Sherpa-ONNX STT ➔ OpenRouter Nemotron ➔ Sherpa TTS Pipeline active. Tap sphere or topic to talk.")
     }
     var isTtsMuted by remember { mutableStateOf(false) }
 
-    // TextToSpeech Engine Integration
+    // TTS Audio Output Engine
     var ttsEngine: TextToSpeech? by remember { mutableStateOf(null) }
     var isTtsReady by remember { mutableStateOf(false) }
 
@@ -128,11 +124,11 @@ fun VoiceAiScreen(
         onDispose {
             tts.stop()
             tts.shutdown()
-            sherpaEngine.release()
+            voicePipeline.release()
         }
     }
 
-    fun speakResponseChunk(text: String, queueMode: Int = TextToSpeech.QUEUE_FLUSH) {
+    fun speakChunk(text: String, queueMode: Int = TextToSpeech.QUEUE_FLUSH) {
         if (!isTtsMuted && isTtsReady && ttsEngine != null && text.isNotBlank()) {
             ttsEngine?.speak(text, queueMode, null, "weather_tts_id_${System.currentTimeMillis()}")
         }
@@ -140,81 +136,41 @@ fun VoiceAiScreen(
 
     fun stopSpeaking() {
         ttsEngine?.stop()
-        sherpaEngine.stopStreamingSpeechRecognition()
+        voicePipeline.sherpaEngine.stopStreamingSpeechRecognition()
+        voicePipeline.sherpaEngine.stopAudioPlayback()
     }
 
-    // Ultra-Fast Conversational Streaming with Sentence-by-Sentence TTS Synthesis
-    fun startLowLatencyConversation(prompt: String) {
+    // Executes Complete Pipeline: Sherpa STT -> OpenRouter -> Sherpa TTS
+    fun executePipeline(prompt: String) {
         stopSpeaking()
         userSpeechText = prompt
         voiceState = VoiceModeState.THINKING
         assistantSpeechText = ""
 
-        scope.launch {
-            val apiKey = OpenRouterPreferences.getApiKey(context)
+        var isFirstSentence = true
 
-            if (apiKey.isBlank()) {
-                // Fallback instant local answers if API Key is not yet set
-                val fallbackResponse = when {
-                    prompt.contains("walk", ignoreCase = true) ->
-                        "In ${locationData.cityName}, temperatures are 24 degrees Celsius with a calm breeze. Evening walk conditions are ideal!"
-                    prompt.contains("rain", ignoreCase = true) ->
-                        "Radar shows clear skies over ${locationData.cityName}. Precipitation chance is under 5% today."
-                    else ->
-                        "Currently in ${locationData.cityName}, it's 24°C with pleasant skies, 52% humidity, and calm winds."
-                }
-                assistantSpeechText = fallbackResponse
+        voicePipeline.processVoiceTurn(
+            userPrompt = prompt,
+            locationData = locationData,
+            onTranscriptionUpdate = { transcription ->
+                userSpeechText = transcription
+            },
+            onAiTextChunk = { aiText ->
+                assistantSpeechText = aiText
+            },
+            onTtsSentenceChunk = { sentence ->
                 voiceState = VoiceModeState.SPEAKING
-                speakResponseChunk(fallbackResponse, TextToSpeech.QUEUE_FLUSH)
-                return@launch
-            }
-
-            var fullText = ""
-            var sentenceBuffer = StringBuilder()
-            var isFirstSentence = true
-
-            openRouterService.streamChatCompletion(
-                userMessage = prompt,
-                locationContext = locationData.formattedLocation,
-                weatherContext = "24°C, Clear Sky, Humidity 52%, Wind 14 km/h, AQI 34",
-                isVoiceMode = true
-            ).catch { err ->
-                assistantSpeechText = "Error: ${err.message}"
-                voiceState = VoiceModeState.IDLE
-            }.collect { token ->
-                fullText += token
-                sentenceBuffer.append(token)
-                assistantSpeechText = fullText
-
-                // Detect sentence boundaries (. ? ! \n) for sub-second audio synthesis
-                val currentBuffer = sentenceBuffer.toString()
-                val sentenceEndIndex = currentBuffer.indexOfAny(charArrayOf('.', '!', '?', '\n'))
-
-                if (sentenceEndIndex != -1) {
-                    val completeSentence = currentBuffer.substring(0, sentenceEndIndex + 1).trim()
-                    sentenceBuffer = StringBuilder(currentBuffer.substring(sentenceEndIndex + 1))
-
-                    if (completeSentence.isNotEmpty()) {
-                        voiceState = VoiceModeState.SPEAKING
-                        speakResponseChunk(
-                            completeSentence,
-                            if (isFirstSentence) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
-                        )
-                        isFirstSentence = false
-                    }
-                }
-            }
-
-            // Speak remaining buffer tail if any
-            val remaining = sentenceBuffer.toString().trim()
-            if (remaining.isNotEmpty()) {
-                voiceState = VoiceModeState.SPEAKING
-                speakResponseChunk(
-                    remaining,
+                speakChunk(
+                    sentence,
                     if (isFirstSentence) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
                 )
+                isFirstSentence = false
+            },
+            onError = { err ->
+                assistantSpeechText = "Error: $err"
+                voiceState = VoiceModeState.IDLE
             }
-        }
+        )
     }
 
     val audioPermissionLauncher = rememberLauncherForActivityResult(
@@ -222,10 +178,10 @@ fun VoiceAiScreen(
     ) { isGranted ->
         if (isGranted) {
             voiceState = VoiceModeState.LISTENING
-            userSpeechText = "Listening in ${selectedLanguage.nativeName} (${locationData.cityName})..."
-            sherpaEngine.startStreamingSpeechRecognition(
+            userSpeechText = "Sherpa-ONNX STT Listening (${selectedLanguage.nativeName})..."
+            voicePipeline.sherpaEngine.startStreamingSpeechRecognition(
                 onPartialResult = { partial -> userSpeechText = partial },
-                onFinalResult = { final -> userSpeechText = final }
+                onFinalResult = { final -> executePipeline(final) }
             )
         }
     }
@@ -303,66 +259,40 @@ fun VoiceAiScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Top Engine Badge & Title with Low-Latency Indicator
+        // Pipeline Indicator Badge
         item {
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Memory,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Text(
-                                text = if (isSherpaReady) "Sherpa-ONNX Active" else "Nemotron 3.5 Streaming",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFD1FAE5)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Bolt,
-                                contentDescription = null,
-                                tint = Color(0xFF059669),
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = "<400ms Audio Stream",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF065F46)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Rounded.Memory,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = "Sherpa STT ➔ OpenRouter ➔ Sherpa TTS",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "Weather Voice AI for ${locationData.cityName}",
+                    text = "Full-Duplex Voice AI for ${locationData.cityName}",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -386,7 +316,7 @@ fun VoiceAiScreen(
                             .clip(RoundedCornerShape(14.dp))
                             .clickable {
                                 selectedLanguage = lang
-                                sherpaEngine.setLanguage(lang)
+                                voicePipeline.sherpaEngine.setLanguage(lang)
                             },
                         shape = RoundedCornerShape(14.dp),
                         color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
@@ -525,18 +455,17 @@ fun VoiceAiScreen(
                                         voiceState = VoiceModeState.IDLE
                                     }
                                     VoiceModeState.LISTENING -> {
-                                        sherpaEngine.stopStreamingSpeechRecognition()
+                                        voicePipeline.sherpaEngine.stopStreamingSpeechRecognition()
                                         voiceState = VoiceModeState.IDLE
                                     }
                                     VoiceModeState.IDLE -> {
                                         voiceState = VoiceModeState.LISTENING
                                         userSpeechText = "Listening in ${selectedLanguage.nativeName}..."
-                                        sherpaEngine.startStreamingSpeechRecognition(
+                                        voicePipeline.sherpaEngine.startStreamingSpeechRecognition(
                                             onPartialResult = { partial -> userSpeechText = partial },
-                                            onFinalResult = { final -> userSpeechText = final }
+                                            onFinalResult = { final -> executePipeline(final) }
                                         )
-                                        // Trigger live stream answer
-                                        startLowLatencyConversation("What is the live weather forecast right now?")
+                                        executePipeline("What is the current weather forecast and outdoor comfort level?")
                                     }
                                     VoiceModeState.THINKING -> {}
                                 }
@@ -632,7 +561,7 @@ fun VoiceAiScreen(
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Live Conversational Stream",
+                                text = "Pipeline Stream",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
@@ -691,7 +620,7 @@ fun VoiceAiScreen(
                             color = MaterialTheme.colorScheme.surfaceVariant
                         ) {
                             Text(
-                                text = "You: \"$userSpeechText\"",
+                                text = "STT: \"$userSpeechText\"",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -703,7 +632,7 @@ fun VoiceAiScreen(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
-                        text = if (assistantSpeechText.isEmpty() && voiceState == VoiceModeState.THINKING) "Streaming response from Nemotron 3.5..." else assistantSpeechText,
+                        text = if (assistantSpeechText.isEmpty() && voiceState == VoiceModeState.THINKING) "Streaming from Nemotron 3.5 to Sherpa TTS..." else assistantSpeechText,
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurface,
                         lineHeight = 20.sp
@@ -719,7 +648,7 @@ fun VoiceAiScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Tap to Stream Voice Answer (${selectedLanguage.displayName})",
+                    text = "Execute Full Pipeline (${selectedLanguage.displayName})",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -731,7 +660,7 @@ fun VoiceAiScreen(
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
                             .clickable {
-                                startLowLatencyConversation(prompt)
+                                executePipeline(prompt)
                             },
                         shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant

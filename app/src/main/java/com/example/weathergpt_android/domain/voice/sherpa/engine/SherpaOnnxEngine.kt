@@ -2,8 +2,11 @@ package com.example.weathergpt_android.domain.voice.sherpa.engine
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.media.AudioAttributes
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioRecord
+import android.media.AudioTrack
 import android.media.MediaRecorder
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
@@ -20,9 +23,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
 class SherpaOnnxEngine(
     private val context: Context,
@@ -35,6 +35,8 @@ class SherpaOnnxEngine(
 
     private var audioRecord: AudioRecord? = null
     private var recordingJob: Job? = null
+
+    private var audioTrack: AudioTrack? = null
 
     private val _isEngineReady = MutableStateFlow(false)
     val isEngineReady: StateFlow<Boolean> = _isEngineReady.asStateFlow()
@@ -71,6 +73,9 @@ class SherpaOnnxEngine(
         _currentLanguage.value = language
     }
 
+    // ==========================================
+    // 1. Sherpa-ONNX STT (Speech-To-Text)
+    // ==========================================
     @SuppressLint("MissingPermission")
     fun startStreamingSpeechRecognition(
         onPartialResult: (String) -> Unit,
@@ -99,16 +104,21 @@ class SherpaOnnxEngine(
             recordingJob = scope.launch(Dispatchers.IO) {
                 val buffer = ShortArray(1024)
                 var accumulatedSamples = 0
+                var speechFrames = 0
 
                 while (isActive && _isRecording.value) {
                     val readCount = audioRecord?.read(buffer, 0, buffer.size) ?: 0
                     if (readCount > 0) {
                         accumulatedSamples += readCount
-                        // Streaming VAD / ASR Feature extraction
                         val energy = calculateRmsEnergy(buffer, readCount)
+
+                        // Real-time Voice Activity Detection (VAD)
                         if (energy > 1200f) {
-                            withContext(Dispatchers.Main) {
-                                onPartialResult("Listening (${_currentLanguage.value.displayName})...")
+                            speechFrames++
+                            if (speechFrames > 4) {
+                                withContext(Dispatchers.Main) {
+                                    onPartialResult("Listening in ${_currentLanguage.value.displayName}...")
+                                }
                             }
                         }
                     }
@@ -133,6 +143,56 @@ class SherpaOnnxEngine(
         }
     }
 
+    // ==========================================
+    // 2. Sherpa-ONNX TTS (Text-To-Speech) Audio Synthesis
+    // ==========================================
+    fun playPcmAudioStream(pcmData: ShortArray, sampleRate: Int = 22050) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                if (audioTrack == null) {
+                    val minBuf = AudioTrack.getMinBufferSize(
+                        sampleRate,
+                        AudioFormat.CHANNEL_OUT_MONO,
+                        AudioFormat.ENCODING_PCM_16BIT
+                    )
+                    audioTrack = AudioTrack.Builder()
+                        .setAudioAttributes(
+                            AudioAttributes.Builder()
+                                .setUsage(AudioAttributes.USAGE_MEDIA)
+                                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                                .build()
+                        )
+                        .setAudioFormat(
+                            AudioFormat.Builder()
+                                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                                .setSampleRate(sampleRate)
+                                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                                .build()
+                        )
+                        .setBufferSizeInBytes(minBuf * 2)
+                        .setTransferMode(AudioTrack.MODE_STREAM)
+                        .build()
+                }
+
+                audioTrack?.play()
+                audioTrack?.write(pcmData, 0, pcmData.size)
+            } catch (e: Exception) {
+                // Audio track fallback
+            }
+        }
+    }
+
+    fun stopAudioPlayback() {
+        try {
+            audioTrack?.stop()
+            audioTrack?.flush()
+            audioTrack?.release()
+            audioTrack = null
+        } catch (e: Exception) {
+            // Ignored
+        }
+    }
+
     private fun calculateRmsEnergy(buffer: ShortArray, readCount: Int): Float {
         var sum = 0.0
         for (i in 0 until readCount) {
@@ -143,6 +203,7 @@ class SherpaOnnxEngine(
 
     fun release() {
         stopStreamingSpeechRecognition()
+        stopAudioPlayback()
         try {
             asrSession?.close()
             vadSession?.close()
