@@ -27,29 +27,6 @@ class OpenRouterService(private val context: Context) {
         .retryOnConnectionFailure(true)
         .build()
 
-    private fun resolveModel(configuredModel: String, prompt: String): String {
-        if (configuredModel != OpenRouterPreferences.MODEL_AUTO && configuredModel.isNotBlank()) {
-            return configuredModel
-        }
-        // Automatic language router: If Indic / regional script detected, route to Llama 3.3 70B
-        return if (isIndicText(prompt)) {
-            OpenRouterPreferences.MODEL_LLAMA_3_3_FREE
-        } else {
-            OpenRouterPreferences.MODEL_NEMOTRON_3_5
-        }
-    }
-
-    private fun isIndicText(text: String): Boolean {
-        for (char in text) {
-            val code = char.code
-            // Devanagari (Hindi/Marathi), Bengali, Gujarati, Tamil, Telugu, Kannada, Malayalam (0x0900..0x0D7F)
-            if (code in 0x0900..0x0D7F) {
-                return true
-            }
-        }
-        return false
-    }
-
     /**
      * Real-time Server-Sent Events (SSE) streaming flow for instant token rendering
      */
@@ -61,28 +38,27 @@ class OpenRouterService(private val context: Context) {
         isVoiceMode: Boolean = false
     ): Flow<String> = flow {
         val apiKey = OpenRouterPreferences.getApiKey(context)
-        val configuredModel = OpenRouterPreferences.getSelectedModel(context)
-        val resolvedModel = resolveModel(configuredModel, userMessage)
+        val selectedModel = OpenRouterPreferences.getSelectedModel(context)
 
         val systemPrompt = if (isVoiceMode) {
             """
-                You are WeatherGPT Voice, an ultra-fast AI meteorologist.
+                You are WeatherGPT Voice, an ultra-fast AI meteorologist powered by Google Gemma 4.
                 Location: $locationContext
                 Live Weather: $weatherContext
                 
                 CRITICAL INSTRUCTIONS FOR LOW LATENCY:
-                - Give a direct, punchy, 1-to-2 sentence answer in the same language as the user.
+                - Give a direct, punchy, 1-to-2 sentence answer in the same language as the user (English, Hindi, Marathi, etc.).
                 - Never use markdown bolding, bullet points, or preamble like 'Sure!' or 'Here is the forecast:'.
                 - Speak naturally for immediate audio playback.
             """.trimIndent()
         } else {
             """
-                You are WeatherGPT, an advanced AI meteorologist.
+                You are WeatherGPT, an advanced AI meteorologist powered by Google Gemma 4.
                 Location: $locationContext
                 Live Weather: $weatherContext
                 
                 Guidelines:
-                - Provide clear, concise, actionable weather intelligence and advice in the user's language.
+                - Provide clear, concise, actionable weather intelligence and advice in the user's language (English, Hindi, Marathi, Bengali, Tamil, Telugu, etc.).
                 - Keep responses crisp and immediately useful.
             """.trimIndent()
         }
@@ -112,7 +88,7 @@ class OpenRouterService(private val context: Context) {
         )
 
         val jsonBody = JSONObject().apply {
-            put("model", resolvedModel)
+            put("model", selectedModel)
             put("messages", messagesArray)
             put("stream", true)
             put("temperature", 0.3) // Lower temperature for faster, deterministic decoding
@@ -187,13 +163,12 @@ class OpenRouterService(private val context: Context) {
         history: List<Pair<String, String>> = emptyList()
     ): Result<String> = withContext(Dispatchers.IO) {
         val apiKey = OpenRouterPreferences.getApiKey(context)
-        val configuredModel = OpenRouterPreferences.getSelectedModel(context)
-        val resolvedModel = resolveModel(configuredModel, userMessage)
+        val selectedModel = OpenRouterPreferences.getSelectedModel(context)
 
         val messagesArray = JSONArray().apply {
             put(JSONObject().apply {
                 put("role", "system")
-                put("content", "You are WeatherGPT. Location: $locationContext. Weather: $weatherContext. Be concise and fast.")
+                put("content", "You are WeatherGPT powered by Google Gemma 4. Location: $locationContext. Weather: $weatherContext. Be concise and fast in the user's language.")
             })
             for ((role, text) in history.takeLast(4)) {
                 put(JSONObject().apply {
@@ -208,7 +183,7 @@ class OpenRouterService(private val context: Context) {
         }
 
         val jsonBody = JSONObject().apply {
-            put("model", resolvedModel)
+            put("model", selectedModel)
             put("messages", messagesArray)
             put("temperature", 0.4)
             put("max_tokens", 350)

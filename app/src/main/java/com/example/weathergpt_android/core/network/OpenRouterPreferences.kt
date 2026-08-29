@@ -8,44 +8,31 @@ object OpenRouterPreferences {
     private const val KEY_API_KEY = "openrouter_api_key"
     private const val KEY_MODEL = "openrouter_model"
 
-    const val MODEL_AUTO = "auto"
+    // Primary Unified Multilingual Model
+    const val MODEL_GEMMA_4_31B_FREE = "google/gemma-4-31b-it:free"
     const val MODEL_NEMOTRON_3_5 = "nvidia/nemotron-3.5-lightning"
     const val MODEL_LLAMA_3_3_FREE = "meta-llama/llama-3.3-70b-instruct:free"
-    const val MODEL_QWEN_2_5_FREE = "qwen/qwen-2.5-72b-instruct:free"
-    const val MODEL_GEMMA_2_FREE = "google/gemma-2-9b-it:free"
 
-    const val DEFAULT_MODEL = MODEL_AUTO
+    const val DEFAULT_MODEL = MODEL_GEMMA_4_31B_FREE
 
     val AVAILABLE_MODELS = listOf(
         ModelOption(
-            id = MODEL_AUTO,
-            name = "⚡ Smart Auto-Switch (Recommended)",
-            tag = "Auto: Nemotron 3.5 (EN) ↔ Llama 3.3 70B (Indic)",
+            id = MODEL_GEMMA_4_31B_FREE,
+            name = "Google: Gemma 4 31B (Free)",
+            tag = "Default • Universal Multilingual & Fast Voice AI",
+            isMultilingual = true
+        ),
+        ModelOption(
+            id = MODEL_LLAMA_3_3_FREE,
+            name = "Meta: Llama 3.3 70B (Free)",
+            tag = "Free • 70B Deep Reasoning & Indic AI",
             isMultilingual = true
         ),
         ModelOption(
             id = MODEL_NEMOTRON_3_5,
-            name = "Nemotron 3.5 Lightning",
-            tag = "Ultra-Fast Inference (English)",
+            name = "NVIDIA: Nemotron 3.5",
+            tag = "Fast English Specialist",
             isMultilingual = false
-        ),
-        ModelOption(
-            id = MODEL_LLAMA_3_3_FREE,
-            name = "Llama 3.3 70B (Free)",
-            tag = "Free • Fluent Hindi / Marathi / Tamil / Telugu",
-            isMultilingual = true
-        ),
-        ModelOption(
-            id = MODEL_QWEN_2_5_FREE,
-            name = "Qwen 2.5 72B (Free)",
-            tag = "Free • Top Indic Multilingual Reasoning",
-            isMultilingual = true
-        ),
-        ModelOption(
-            id = MODEL_GEMMA_2_FREE,
-            name = "Gemma 2 9B (Free)",
-            tag = "Free • Google Lightweight Multilingual",
-            isMultilingual = true
         )
     )
 
