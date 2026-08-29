@@ -1,8 +1,6 @@
 package com.example.weathergpt_android.domain.assistant.ui
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -29,9 +27,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Key
-import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Thermostat
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -63,6 +61,7 @@ import com.example.weathergpt_android.core.network.OpenRouterPreferences
 import com.example.weathergpt_android.core.network.OpenRouterService
 import com.example.weathergpt_android.domain.assistant.model.ChatMessage
 import com.example.weathergpt_android.domain.location.model.LocationData
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -88,7 +87,7 @@ fun GptChatScreen(
         mutableStateListOf(
             ChatMessage(
                 id = "1",
-                text = "Hello! I'm WeatherGPT powered by Nemotron 3.5 Lightning via OpenRouter. Ask me anything regarding live weather in ${locationData.cityName}, microclimates, outdoor safety, or clothing advice.",
+                text = "Hello! I'm WeatherGPT with Ultra-Low Latency streaming powered by Nemotron 3.5 Lightning. Ask anything about weather in ${locationData.cityName}!",
                 isUser = false,
                 timestamp = "Just now"
             )
@@ -118,44 +117,50 @@ fun GptChatScreen(
         messages.add(userMsg)
         inputText = ""
 
+        // Instant placeholder for streaming answer
+        val assistantMsgId = UUID.randomUUID().toString()
+        val assistantPlaceholder = ChatMessage(
+            id = assistantMsgId,
+            text = "",
+            isUser = false,
+            timestamp = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
+        )
+        messages.add(assistantPlaceholder)
         isGenerating = true
-        scope.launch {
-            listState.animateScrollToItem(messages.size)
 
-            val history = messages.dropLast(1).takeLast(6).map {
+        scope.launch {
+            listState.animateScrollToItem(messages.size - 1)
+
+            val history = messages.dropLast(2).takeLast(6).map {
                 (if (it.isUser) "user" else "assistant") to it.text
             }
 
-            val result = openRouterService.generateChatCompletion(
+            var accumulatedText = ""
+
+            openRouterService.streamChatCompletion(
                 userMessage = userText,
                 locationContext = locationData.formattedLocation,
                 weatherContext = "24°C, Clear Sky, Humidity 52%, Wind 14 km/h, AQI 34",
-                history = history
-            )
+                history = history,
+                isVoiceMode = false
+            ).catch { err ->
+                val index = messages.indexOfFirst { it.id == assistantMsgId }
+                if (index != -1) {
+                    messages[index] = messages[index].copy(
+                        text = "Error: ${err.message ?: "Could not stream response. Check API key in settings."}"
+                    )
+                }
+                isGenerating = false
+            }.collect { token ->
+                accumulatedText += token
+                val index = messages.indexOfFirst { it.id == assistantMsgId }
+                if (index != -1) {
+                    messages[index] = messages[index].copy(text = accumulatedText)
+                }
+                listState.scrollToItem(messages.size - 1)
+            }
 
             isGenerating = false
-
-            result.onSuccess { reply ->
-                messages.add(
-                    ChatMessage(
-                        id = UUID.randomUUID().toString(),
-                        text = reply,
-                        isUser = false,
-                        timestamp = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
-                    )
-                )
-                listState.animateScrollToItem(messages.size)
-            }.onFailure { error ->
-                messages.add(
-                    ChatMessage(
-                        id = UUID.randomUUID().toString(),
-                        text = "Nemotron 3.5: ${error.message ?: "Failed to connect to OpenRouter. Please verify your API key in Settings."}",
-                        isUser = false,
-                        timestamp = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
-                    )
-                )
-                listState.animateScrollToItem(messages.size)
-            }
         }
     }
 
@@ -165,7 +170,7 @@ fun GptChatScreen(
             .statusBarsPadding()
             .imePadding()
     ) {
-        // Dedicated Chat Header with Model Badge & API Key Shortcut
+        // Dedicated Chat Header with Latency Badge & API Key Shortcut
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = MaterialTheme.colorScheme.surface,
@@ -215,19 +220,30 @@ fun GptChatScreen(
                             Spacer(modifier = Modifier.width(6.dp))
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer
+                                color = Color(0xFFD1FAE5) // Low-latency Green badge
                             ) {
-                                Text(
-                                    text = "Nemotron 3.5",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Bolt,
+                                        contentDescription = null,
+                                        tint = Color(0xFF059669),
+                                        modifier = Modifier.size(11.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                    Text(
+                                        text = "Fast Stream",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF065F46)
+                                    )
+                                }
                             }
                         }
                         Text(
-                            text = "OpenRouter AI • ${locationData.cityName}",
+                            text = "Nemotron 3.5 Lightning • ${locationData.cityName}",
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -307,7 +323,7 @@ fun GptChatScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Tap here to add your OpenRouter API Key for Nemotron 3.5",
+                        text = "Tap here to add your OpenRouter API Key for instant responses",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF92400E)
@@ -332,29 +348,6 @@ fun GptChatScreen(
         ) {
             items(messages, key = { it.id }) { msg ->
                 ChatBubble(message = msg)
-            }
-
-            if (isGenerating) {
-                item {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(start = 12.dp, top = 4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Nemotron 3.5 Lightning is reasoning...",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
             }
         }
 
@@ -412,7 +405,7 @@ fun GptChatScreen(
                     onValueChange = { inputText = it },
                     placeholder = {
                         Text(
-                            text = "Ask Nemotron 3.5 about weather...",
+                            text = "Ask Nemotron 3.5 (Fast Stream)...",
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
@@ -470,7 +463,7 @@ fun GptChatScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Enter your OpenRouter API Key to query Nemotron 3.5 Lightning directly:",
+                        text = "Enter your OpenRouter API Key to query Nemotron 3.5 Lightning directly with SSE Streaming:",
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -527,12 +520,29 @@ private fun ChatBubble(message: ChatMessage) {
             modifier = Modifier.fillMaxWidth(0.85f)
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
-                Text(
-                    text = message.text,
-                    fontSize = 14.sp,
-                    color = if (message.isUser) Color.White else MaterialTheme.colorScheme.onSurface,
-                    lineHeight = 20.sp
-                )
+                if (message.text.isEmpty() && !message.isUser) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Streaming response...",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    Text(
+                        text = message.text,
+                        fontSize = 14.sp,
+                        color = if (message.isUser) Color.White else MaterialTheme.colorScheme.onSurface,
+                        lineHeight = 20.sp
+                    )
+                }
 
                 if (message.weatherHighlight != null) {
                     Spacer(modifier = Modifier.height(8.dp))

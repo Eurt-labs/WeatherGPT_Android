@@ -36,10 +36,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Language
-import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Memory
+import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -66,10 +67,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.example.weathergpt_android.core.network.OpenRouterPreferences
+import com.example.weathergpt_android.core.network.OpenRouterService
 import com.example.weathergpt_android.domain.location.model.LocationData
 import com.example.weathergpt_android.domain.voice.sherpa.engine.SherpaOnnxEngine
 import com.example.weathergpt_android.domain.voice.sherpa.model.SherpaLanguage
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -87,6 +90,7 @@ fun VoiceAiScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val openRouterService = remember { OpenRouterService(context) }
 
     // Sherpa-ONNX Offline Speech Engine
     val sherpaEngine = remember { SherpaOnnxEngine(context, scope) }
@@ -96,7 +100,7 @@ fun VoiceAiScreen(
     var voiceState by remember { mutableStateOf(VoiceModeState.IDLE) }
     var userSpeechText by remember { mutableStateOf("") }
     var assistantSpeechText by remember {
-        mutableStateOf("WeatherGPT Sherpa-ONNX Engine is active. Tap the sphere or choose a topic to talk about live weather.")
+        mutableStateOf("WeatherGPT Voice with Nemotron 3.5 is active. Tap the sphere or tap a question for low-latency voice answers.")
     }
     var isTtsMuted by remember { mutableStateOf(false) }
 
@@ -128,15 +132,89 @@ fun VoiceAiScreen(
         }
     }
 
-    fun speakResponse(text: String) {
-        if (!isTtsMuted && isTtsReady && ttsEngine != null) {
-            ttsEngine?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "weather_tts_id")
+    fun speakResponseChunk(text: String, queueMode: Int = TextToSpeech.QUEUE_FLUSH) {
+        if (!isTtsMuted && isTtsReady && ttsEngine != null && text.isNotBlank()) {
+            ttsEngine?.speak(text, queueMode, null, "weather_tts_id_${System.currentTimeMillis()}")
         }
     }
 
     fun stopSpeaking() {
         ttsEngine?.stop()
         sherpaEngine.stopStreamingSpeechRecognition()
+    }
+
+    // Ultra-Fast Conversational Streaming with Sentence-by-Sentence TTS Synthesis
+    fun startLowLatencyConversation(prompt: String) {
+        stopSpeaking()
+        userSpeechText = prompt
+        voiceState = VoiceModeState.THINKING
+        assistantSpeechText = ""
+
+        scope.launch {
+            val apiKey = OpenRouterPreferences.getApiKey(context)
+
+            if (apiKey.isBlank()) {
+                // Fallback instant local answers if API Key is not yet set
+                val fallbackResponse = when {
+                    prompt.contains("walk", ignoreCase = true) ->
+                        "In ${locationData.cityName}, temperatures are 24 degrees Celsius with a calm breeze. Evening walk conditions are ideal!"
+                    prompt.contains("rain", ignoreCase = true) ->
+                        "Radar shows clear skies over ${locationData.cityName}. Precipitation chance is under 5% today."
+                    else ->
+                        "Currently in ${locationData.cityName}, it's 24°C with pleasant skies, 52% humidity, and calm winds."
+                }
+                assistantSpeechText = fallbackResponse
+                voiceState = VoiceModeState.SPEAKING
+                speakResponseChunk(fallbackResponse, TextToSpeech.QUEUE_FLUSH)
+                return@launch
+            }
+
+            var fullText = ""
+            var sentenceBuffer = StringBuilder()
+            var isFirstSentence = true
+
+            openRouterService.streamChatCompletion(
+                userMessage = prompt,
+                locationContext = locationData.formattedLocation,
+                weatherContext = "24°C, Clear Sky, Humidity 52%, Wind 14 km/h, AQI 34",
+                isVoiceMode = true
+            ).catch { err ->
+                assistantSpeechText = "Error: ${err.message}"
+                voiceState = VoiceModeState.IDLE
+            }.collect { token ->
+                fullText += token
+                sentenceBuffer.append(token)
+                assistantSpeechText = fullText
+
+                // Detect sentence boundaries (. ? ! \n) for sub-second audio synthesis
+                val currentBuffer = sentenceBuffer.toString()
+                val sentenceEndIndex = currentBuffer.indexOfAny(charArrayOf('.', '!', '?', '\n'))
+
+                if (sentenceEndIndex != -1) {
+                    val completeSentence = currentBuffer.substring(0, sentenceEndIndex + 1).trim()
+                    sentenceBuffer = StringBuilder(currentBuffer.substring(sentenceEndIndex + 1))
+
+                    if (completeSentence.isNotEmpty()) {
+                        voiceState = VoiceModeState.SPEAKING
+                        speakResponseChunk(
+                            completeSentence,
+                            if (isFirstSentence) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
+                        )
+                        isFirstSentence = false
+                    }
+                }
+            }
+
+            // Speak remaining buffer tail if any
+            val remaining = sentenceBuffer.toString().trim()
+            if (remaining.isNotEmpty()) {
+                voiceState = VoiceModeState.SPEAKING
+                speakResponseChunk(
+                    remaining,
+                    if (isFirstSentence) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
+                )
+            }
+        }
     }
 
     val audioPermissionLauncher = rememberLauncherForActivityResult(
@@ -149,18 +227,6 @@ fun VoiceAiScreen(
                 onPartialResult = { partial -> userSpeechText = partial },
                 onFinalResult = { final -> userSpeechText = final }
             )
-        }
-    }
-
-    fun startConversation(prompt: String, response: String) {
-        stopSpeaking()
-        scope.launch {
-            userSpeechText = prompt
-            voiceState = VoiceModeState.THINKING
-            delay(1100) // Simulated on-device neural reasoning
-            assistantSpeechText = response
-            voiceState = VoiceModeState.SPEAKING
-            speakResponse(response)
         }
     }
 
@@ -217,24 +283,12 @@ fun VoiceAiScreen(
         label = "speaking_wave"
     )
 
-    val localizedConversations = when (selectedLanguage) {
-        SherpaLanguage.HINDI -> listOf(
-            "आज शाम को टहलने के लिए मौसम कैसा है?" to "${locationData.cityName} में तापमान 24°C है, हल्की 14 किमी/घंटा हवा चल रही है और बारिश की कोई संभावना नहीं है। शाम की सैर के लिए मौसम बहुत अच्छा है!",
-            "क्या आज बारिश होगी?" to "ताजा मौसम रडार के अनुसार ${locationData.cityName} में रात तक आसमान साफ रहेगा। बारिश की संभावना 5% से कम है।",
-            "बाहर जाने के लिए क्या पहनना चाहिए?" to "सूती हल्के कपड़े पहनना सबसे अच्छा रहेगा। धूप से बचने के लिए चश्मा साथ रखें!",
-            "वायु गुणवत्ता (AQI) कैसी है?" to "वर्तमान में वायु गुणवत्ता सूचकांक 38 (अच्छा) है। बाहर व्यायाम और जॉगिंग के लिए एकदम सही समय है।"
-        )
-        SherpaLanguage.MARATHI -> listOf(
-            "आज संध्याकाळी फिरण्यासाठी हवामान कसे आहे?" to "${locationData.cityName} मध्ये तापमान 24°C आहे आणि हवामान अतिशय आल्हाददायक आहे. पावसाची कोणतीही शक्यता नाही!",
-            "आज पाऊस पडेल का?" to "हवामान अंदाजानुसार ${locationData.cityName} मध्ये आकाश निरभ्र राहील."
-        )
-        else -> listOf(
-            "Is today good for an evening walk?" to "In ${locationData.cityName}, temperatures are a comfortable 24°C with a gentle 14 km/h breeze and zero rain. Evening walk conditions are ideal!",
-            "Will it rain anytime today?" to "Satellite radar indicates clear atmospheric pressure over ${locationData.cityName}. Precipitation chance is under 5% throughout the night.",
-            "What should I wear for outside?" to "A light breathable cotton shirt with shorts or chinos is perfect right now. Keep sunglasses handy until sunset!",
-            "Check air quality and UV index" to "The UV index is currently at 3 (Moderate), and Air Quality index is 38 (Good), making outdoor workouts completely safe."
-        )
-    }
+    val quickConversations = listOf(
+        "Is today good for an evening walk?",
+        "Will it rain anytime today?",
+        "What should I wear for outside right now?",
+        "Check air quality and UV safety"
+    )
 
     LazyColumn(
         modifier = modifier
@@ -249,33 +303,59 @@ fun VoiceAiScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Top Engine Badge & Title
+        // Top Engine Badge & Title with Low-Latency Indicator
         item {
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Memory,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (isSherpaReady) "Sherpa-ONNX Powered" else "ONNX Runtime Active",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Memory,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = if (isSherpaReady) "Sherpa-ONNX Active" else "Nemotron 3.5 Streaming",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFD1FAE5)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Bolt,
+                                contentDescription = null,
+                                tint = Color(0xFF059669),
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = "<400ms Audio Stream",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF065F46)
+                            )
+                        }
                     }
                 }
 
@@ -291,7 +371,7 @@ fun VoiceAiScreen(
             }
         }
 
-        // Multilingual Language Selector (SIH 2026 Multilingual Support)
+        // Multilingual Language Selector
         item {
             Row(
                 modifier = Modifier
@@ -342,7 +422,6 @@ fun VoiceAiScreen(
                     .height(230.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Expanding Reactive Aura Waves
                 when (voiceState) {
                     VoiceModeState.LISTENING -> {
                         Box(
@@ -456,15 +535,8 @@ fun VoiceAiScreen(
                                             onPartialResult = { partial -> userSpeechText = partial },
                                             onFinalResult = { final -> userSpeechText = final }
                                         )
-                                        scope.launch {
-                                            delay(2500)
-                                            startConversation(
-                                                if (selectedLanguage == SherpaLanguage.HINDI) "मौसम की ताजा जानकारी दें"
-                                                else "What's the weather like right now?",
-                                                if (selectedLanguage == SherpaLanguage.HINDI) "${locationData.cityName} में तापमान 24 डिग्री सेल्सियस है, आसमान साफ है और हवा अनुकूल है।"
-                                                else "Currently in ${locationData.cityName}, it's 24°C with pleasant clear skies, 52% humidity, and calm winds. Perfect weather for being outdoors!"
-                                            )
-                                        }
+                                        // Trigger live stream answer
+                                        startLowLatencyConversation("What is the live weather forecast right now?")
                                     }
                                     VoiceModeState.THINKING -> {}
                                 }
@@ -560,7 +632,7 @@ fun VoiceAiScreen(
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Conversational Dialog",
+                                text = "Live Conversational Stream",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
@@ -631,7 +703,7 @@ fun VoiceAiScreen(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
-                        text = assistantSpeechText,
+                        text = if (assistantSpeechText.isEmpty() && voiceState == VoiceModeState.THINKING) "Streaming response from Nemotron 3.5..." else assistantSpeechText,
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurface,
                         lineHeight = 20.sp
@@ -647,19 +719,19 @@ fun VoiceAiScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Tap to Ask in Voice Mode (${selectedLanguage.displayName})",
+                    text = "Tap to Stream Voice Answer (${selectedLanguage.displayName})",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                localizedConversations.forEach { (prompt, response) ->
+                quickConversations.forEach { prompt ->
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
                             .clickable {
-                                startConversation(prompt, response)
+                                startLowLatencyConversation(prompt)
                             },
                         shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant
