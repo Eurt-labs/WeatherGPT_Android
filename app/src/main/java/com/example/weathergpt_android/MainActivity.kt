@@ -28,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +45,8 @@ import com.example.weathergpt_android.core.theme.AppThemeMode
 import com.example.weathergpt_android.core.theme.ThemePreferences
 import com.example.weathergpt_android.core.theme.WeatherGPTTheme
 import com.example.weathergpt_android.domain.assistant.ui.GptChatScreen
+import com.example.weathergpt_android.domain.location.model.LocationData
+import com.example.weathergpt_android.domain.location.provider.LocationProvider
 import com.example.weathergpt_android.domain.news.ui.NewsScreen
 import com.example.weathergpt_android.domain.notifications.ui.NotificationSheet
 import com.example.weathergpt_android.domain.profile.ui.ProfileSheet
@@ -79,6 +82,11 @@ fun WeatherGPTApp(
     onThemeChange: (AppThemeMode) -> Unit = {}
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    val locationProvider = remember { LocationProvider(context) }
+    var locationData by remember { mutableStateOf(locationProvider.getInitialCachedLocation()) }
+
     var currentTab by remember { mutableStateOf(NavTab.WEATHER) }
     var isInitialLaunchGreeting by remember { mutableStateOf(true) } // Clean launch welcome window
     var isTopIslandVisible by remember { mutableStateOf(true) } // Scroll-aware top island visibility
@@ -93,10 +101,8 @@ fun WeatherGPTApp(
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 val delta = available.y
                 if (delta < -10f) {
-                    // Scrolling down -> fade out top island
                     isTopIslandVisible = false
                 } else if (delta > 10f) {
-                    // Scrolling up -> fade in top island
                     isTopIslandVisible = true
                 }
                 return Offset.Zero
@@ -107,7 +113,15 @@ fun WeatherGPTApp(
     // Runtime Permission Requester for Location, Microphone, and Notifications
     val permissionsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { _ -> }
+    ) { permissions ->
+        val locationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (locationGranted) {
+            locationProvider.fetchRealtimeLocation(scope) { resolved ->
+                locationData = resolved
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         val permissionsToRequest = mutableListOf(
@@ -125,6 +139,11 @@ fun WeatherGPTApp(
 
         if (missingPermissions.isNotEmpty()) {
             permissionsLauncher.launch(missingPermissions.toTypedArray())
+        } else {
+            // Already granted, trigger live location fetch
+            locationProvider.fetchRealtimeLocation(scope) { resolved ->
+                locationData = resolved
+            }
         }
     }
 
@@ -159,9 +178,9 @@ fun WeatherGPTApp(
                 label = "tab_content_transition"
             ) { tab ->
                 when (tab) {
-                    NavTab.WEATHER -> HomeScreen()
+                    NavTab.WEATHER -> HomeScreen(locationData = locationData)
                     NavTab.NEWS -> NewsScreen()
-                    NavTab.VOICE_AI -> VoiceAiScreen()
+                    NavTab.VOICE_AI -> VoiceAiScreen(locationData = locationData)
                     NavTab.GPT -> GptChatScreen()
                     NavTab.SETTINGS -> SettingsScreen(
                         currentTheme = currentTheme,
@@ -216,7 +235,7 @@ fun WeatherGPTApp(
             ProfileSheet(
                 userName = "$userName Saraswat",
                 userEmail = "dhruv@weathergpt.ai",
-                location = "San Francisco, CA",
+                location = locationData.formattedLocation,
                 onDismissRequest = { showProfileSheet = false }
             )
         }

@@ -32,11 +32,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.weathergpt_android.domain.location.model.LocationData
 import com.example.weathergpt_android.domain.weather.model.WeatherScenario
 
 @Composable
 fun HomeScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    locationData: LocationData = LocationData.DEFAULT
 ) {
     var selectedScenario by remember { mutableStateOf(WeatherScenario.SUNNY) }
 
@@ -46,7 +48,7 @@ fun HomeScreen(
             start = 16.dp,
             end = 16.dp,
             top = 104.dp, // Clearance for top island
-            bottom = 110.dp // Clearance for bottom floating island
+            bottom = 110.dp // Clearance for bottom attached nav bar
         ),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
@@ -79,7 +81,7 @@ fun HomeScreen(
             }
         }
 
-        // Real-time Primary Weather Overview Card
+        // Real-time Primary Weather Overview Card (Connected to Real Location)
         item {
             AnimatedContent(
                 targetState = selectedScenario,
@@ -92,7 +94,7 @@ fun HomeScreen(
                     temperature = current.temp,
                     condition = current.condition,
                     highLow = current.highLow,
-                    location = "San Francisco, CA"
+                    location = locationData.formattedLocation
                 )
             }
         }

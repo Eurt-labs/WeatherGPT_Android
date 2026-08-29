@@ -141,6 +141,26 @@ com.example.weathergpt_android/
 - **Status Bar Blending Fix**: Configured `WindowCompat.getInsetsController` to ensure dark status bar icons on Light theme and light icons on Dark theme, preventing blending with device clocks and battery indicators.
 - **Unclipped Notification Badge**: Fixed clipping issue by moving the red notification dot outside the inner circular container, rendering a crisp, perfectly positioned notification badge.
 
+### [Version 1.4.0] - Real-time Location Resolution with Caching & ChatGPT-Style Conversational Voice Mode
+
+#### 1. Real-time Location Resolution & Caching Engine (`domain/location`)
+- Built `LocationData` model, `LocationCache` (`SharedPreferences`), and asynchronous `LocationProvider`.
+- **Fast Startup & Offline Caching**: Loads last-known location instantly from disk cache on app launch.
+- **Live Reverse Geocoding**: Automatically resolves GPS/Network coordinates into human-readable city, state/region, and country using Android's native `Geocoder` on `Dispatchers.IO`.
+- Dynamically updates [HomeScreen.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/weather/ui/HomeScreen.kt), [VoiceAiScreen.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/voice/ui/VoiceAiScreen.kt), and [ProfileSheet.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/profile/ui/ProfileSheet.kt) with the user's real location.
+
+#### 2. ChatGPT-Style Conversational Voice Mode (`domain/voice`)
+- **Fluid Morphing Voice Sphere**:
+  - `IDLE`: Subtle ambient breathing pulse with gentle rotation.
+  - `LISTENING`: Reactive dual-ring waveform listening for user speech.
+  - `THINKING`: Swirling energy core analyzing atmospheric pressures and microclimates.
+  - `SPEAKING`: Morphing audio equalizer wave bars with live speech output.
+- **Native Android Text-to-Speech (TTS)**: The assistant audibly speaks out natural conversational weather forecasts and answers in real-time.
+- **Conversational Turn-Taking & Controls**:
+  - Live transcription dialog cards.
+  - Mute/Unmute TTS audio speech button.
+  - Tap-to-interrupt and instant conversational follow-up suggestions (e.g. walk timing, rain chances, clothing recommendations, UV/Air quality).
+
 ---
 
 ## 🐛 Bug Fixes & Diagnostics Log
