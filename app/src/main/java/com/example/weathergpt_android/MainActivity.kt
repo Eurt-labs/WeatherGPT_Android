@@ -69,6 +69,7 @@ fun WeatherGPTApp(
     var showNotificationSheet by remember { mutableStateOf(false) }
     var showProfileSheet by remember { mutableStateOf(false) }
     var notificationCount by remember { mutableIntStateOf(3) }
+    var showGreetingHero by remember { mutableStateOf(true) } // Initial greeting on fresh launch
     val userName = "Dhruv"
 
     // Runtime Permission Requester for Location, Microphone, and Notifications
@@ -111,7 +112,12 @@ fun WeatherGPTApp(
             when (tab) {
                 NavTab.WEATHER -> HomeScreen(
                     userName = userName,
-                    onNavigateToGpt = { currentTab = NavTab.GPT }
+                    showGreeting = showGreetingHero,
+                    onDismissGreeting = { showGreetingHero = false },
+                    onNavigateToGpt = {
+                        showGreetingHero = false
+                        currentTab = NavTab.GPT
+                    }
                 )
                 NavTab.NEWS -> NewsScreen()
                 NavTab.VOICE_AI -> VoiceAiScreen()
@@ -144,6 +150,9 @@ fun WeatherGPTApp(
             modifier = Modifier.align(Alignment.BottomCenter),
             currentTab = currentTab,
             onTabSelected = { selected ->
+                if (selected != NavTab.WEATHER) {
+                    showGreetingHero = false // Auto-dismiss initial greeting once user navigates
+                }
                 currentTab = selected
             }
         )

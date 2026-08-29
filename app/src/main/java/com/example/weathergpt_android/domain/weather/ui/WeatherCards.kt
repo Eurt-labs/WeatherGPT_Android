@@ -63,12 +63,15 @@ import com.example.weathergpt_android.domain.weather.model.DayForecast
 import com.example.weathergpt_android.domain.weather.model.HourlyForecast
 import kotlin.math.roundToInt
 
+import androidx.compose.material.icons.rounded.Close
+
 @Composable
 fun GreetingHeroCard(
     userName: String = "Dhruv",
     weatherStatus: String = "today's weather is good",
     aiSuggestion: String = "Go for a pleasant evening walk around the park.",
-    onAiSuggestionClick: () -> Unit = {}
+    onAiSuggestionClick: () -> Unit = {},
+    onDismiss: (() -> Unit)? = null
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "floating_hero")
     val floatOffset by infiniteTransition.animateFloat(
@@ -130,20 +133,43 @@ fun GreetingHeroCard(
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .offset { IntOffset(0, floatOffset.roundToInt()) }
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(WeatherAmberLight),
-                    contentAlignment = Alignment.Center
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.WbSunny,
-                        contentDescription = "Sunny Weather",
-                        tint = WeatherAmber,
-                        modifier = Modifier.size(28.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .offset { IntOffset(0, floatOffset.roundToInt()) }
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(WeatherAmberLight),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.WbSunny,
+                            contentDescription = "Sunny Weather",
+                            tint = WeatherAmber,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+
+                    if (onDismiss != null) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable(onClick = onDismiss),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Close,
+                                contentDescription = "Dismiss Greeting",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
+                    }
                 }
             }
 
