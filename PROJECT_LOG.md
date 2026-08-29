@@ -180,15 +180,14 @@ com.example.weathergpt_android/
   - 🇮🇳 **Telugu / తెలుగు** (`te-IN`)
 - Real-time localized weather intelligence dialog with native audio TTS output.
 
-### [Version 2.6.0] - Multi-Provider Auto-Failover Chain (Zero HTTP 429 Errors)
+### [Version 2.7.0] - Pure Dedicated Google Gemma 4 31B Setup
 
-#### 1. High-Reliability Multi-Provider Pipeline (`core/network`)
-- Diagnosed upstream Google AI Studio shared quota rate limiting (`HTTP 429`) on `google/gemma-4-31b-it:free`.
-- Implemented **Dual Server & Client Failover Pipeline**:
-  - **Primary**: `meta-llama/llama-3.3-70b-instruct:free` (DeepInfra/Chutes - high limits, full Indic multilingual).
-  - **Secondary Fallback**: `qwen/qwen-2.5-72b-instruct:free` (DeepInfra/Hyperbolic - top Indic benchmark).
-  - **Tertiary Fallback**: `nvidia/nemotron-3.5-lightning` (CoreWeave/DeepInfra - 100% uptime, ultra-fast).
-- Configured OpenRouter server-side `"route": "fallback"` and client-side HTTP 429 auto-catch retry loop to ensure requests never fail.
+#### 1. Pure Dedicated AI Engine (`core/network`)
+- With Google AI Studio integration connected, removed all secondary model switching and locked the entire app exclusively to **`google/gemma-4-31b-it:free`**:
+  - Direct SSE streaming for both Chat and Voice AI modes.
+  - Full native multilingual reasoning in English, Hindi, Marathi, Bengali, Tamil, and Telugu.
+  - Zero model switching or multi-model fallback clutter.
+- Updated [SettingsScreen.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/settings/ui/SettingsScreen.kt) with dedicated Google Gemma 4 31B testing diagnostic.
 
 ---
 

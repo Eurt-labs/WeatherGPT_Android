@@ -21,14 +21,14 @@ class OpenRouterService(private val context: Context) {
     // Ultra-low latency optimized HTTP/2 client with persistent connection pooling
     private val client = OkHttpClient.Builder()
         .connectionPool(ConnectionPool(8, 5, TimeUnit.MINUTES))
-        .connectTimeout(10, TimeUnit.SECONDS)
+        .connectTimeout(12, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(10, TimeUnit.SECONDS)
+        .writeTimeout(12, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
         .build()
 
     /**
-     * Real-time Server-Sent Events (SSE) streaming flow with automatic multi-provider fallback
+     * Real-time Server-Sent Events (SSE) streaming flow for instant token rendering via Google Gemma 4 31B
      */
     fun streamChatCompletion(
         userMessage: String,
@@ -38,22 +38,22 @@ class OpenRouterService(private val context: Context) {
         isVoiceMode: Boolean = false
     ): Flow<String> = flow {
         val apiKey = OpenRouterPreferences.getApiKey(context)
-        val candidateModels = OpenRouterPreferences.FALLBACK_MODELS
+        val model = OpenRouterPreferences.MODEL_GEMMA_4_31B
 
         val systemPrompt = if (isVoiceMode) {
             """
-                You are WeatherGPT Voice, an ultra-fast AI meteorologist.
+                You are WeatherGPT Voice, an ultra-fast AI meteorologist powered by Google Gemma 4.
                 Location: $locationContext
                 Live Weather: $weatherContext
                 
                 CRITICAL INSTRUCTIONS FOR LOW LATENCY:
-                - Give a direct, punchy, 1-to-2 sentence answer in the user's language (English, Hindi, Marathi, etc.).
+                - Give a direct, punchy, 1-to-2 sentence answer in the user's language (English, Hindi, Marathi, Bengali, Tamil, Telugu, etc.).
                 - Never use markdown bolding, bullet points, or preamble like 'Sure!' or 'Here is the forecast:'.
                 - Speak naturally for immediate audio playback.
             """.trimIndent()
         } else {
             """
-                You are WeatherGPT, an advanced AI meteorologist.
+                You are WeatherGPT, an advanced AI meteorologist powered by Google Gemma 4.
                 Location: $locationContext
                 Live Weather: $weatherContext
                 
@@ -87,105 +87,74 @@ class OpenRouterService(private val context: Context) {
             }
         )
 
-        // Try candidate models in order if an HTTP 429 occurs
-        var succeeded = false
-        var lastError = ""
+        val jsonBody = JSONObject().apply {
+            put("model", model)
+            put("messages", messagesArray)
+            put("stream", true)
+            put("temperature", 0.3)
+            put("max_tokens", if (isVoiceMode) 120 else 450)
+        }
 
-        for (model in candidateModels) {
-            val jsonBody = JSONObject().apply {
-                // Multi-model array for OpenRouter server-side fallback
-                val modelsArray = JSONArray().apply {
-                    put(model)
-                    for (m in candidateModels) {
-                        if (m != model) put(m)
-                    }
-                }
-                put("models", modelsArray)
-                put("route", "fallback")
-                put("messages", messagesArray)
-                put("stream", true)
-                put("temperature", 0.3)
-                put("max_tokens", if (isVoiceMode) 120 else 450)
+        val requestBody = jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+
+        val requestBuilder = Request.Builder()
+            .url("https://openrouter.ai/api/v1/chat/completions")
+            .post(requestBody)
+            .addHeader("Content-Type", "application/json")
+            .addHeader("Accept", "text/event-stream")
+            .addHeader("HTTP-Referer", "https://weathergpt.ai")
+            .addHeader("X-Title", "WeatherGPT Android")
+
+        if (apiKey.isNotBlank()) {
+            requestBuilder.addHeader("Authorization", "Bearer $apiKey")
+        }
+
+        val request = requestBuilder.build()
+
+        try {
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                val errorBody = response.body?.string() ?: "HTTP ${response.code}"
+                emit("Error (${response.code}): $errorBody")
+                return@flow
             }
 
-            val requestBody = jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+            val inputStream = response.body?.byteStream()
+            if (inputStream != null) {
+                val reader = BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8))
+                var line: String?
 
-            val requestBuilder = Request.Builder()
-                .url("https://openrouter.ai/api/v1/chat/completions")
-                .post(requestBody)
-                .addHeader("Content-Type", "application/json")
-                .addHeader("Accept", "text/event-stream")
-                .addHeader("HTTP-Referer", "https://weathergpt.ai")
-                .addHeader("X-Title", "WeatherGPT Android")
-
-            if (apiKey.isNotBlank()) {
-                requestBuilder.addHeader("Authorization", "Bearer $apiKey")
-            }
-
-            val request = requestBuilder.build()
-
-            try {
-                val response = client.newCall(request).execute()
-                if (!response.isSuccessful) {
-                    val code = response.code
-                    val errorBody = response.body?.string() ?: "HTTP $code"
-                    lastError = "HTTP $code: $errorBody"
-                    // If 429 rate limit or 5xx, try next candidate model
-                    if (code == 429 || code >= 500) {
-                        continue
-                    } else {
-                        emit("Error ($code): $errorBody")
-                        return@flow
-                    }
-                }
-
-                val inputStream = response.body?.byteStream()
-                if (inputStream != null) {
-                    val reader = BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8))
-                    var line: String?
-                    var receivedAnyToken = false
-
-                    while (reader.readLine().also { line = it } != null) {
-                        val currentLine = line?.trim() ?: continue
-                        if (currentLine.startsWith("data:")) {
-                            val data = currentLine.removePrefix("data:").trim()
-                            if (data == "[DONE]") break
-                            if (data.isNotBlank()) {
-                                try {
-                                    val json = JSONObject(data)
-                                    val choices = json.optJSONArray("choices")
-                                    if (choices != null && choices.length() > 0) {
-                                        val delta = choices.getJSONObject(0).optJSONObject("delta")
-                                        val token = delta?.optString("content") ?: ""
-                                        if (token.isNotEmpty()) {
-                                            emit(token)
-                                            receivedAnyToken = true
-                                        }
+                while (reader.readLine().also { line = it } != null) {
+                    val currentLine = line?.trim() ?: continue
+                    if (currentLine.startsWith("data:")) {
+                        val data = currentLine.removePrefix("data:").trim()
+                        if (data == "[DONE]") break
+                        if (data.isNotBlank()) {
+                            try {
+                                val json = JSONObject(data)
+                                val choices = json.optJSONArray("choices")
+                                if (choices != null && choices.length() > 0) {
+                                    val delta = choices.getJSONObject(0).optJSONObject("delta")
+                                    val token = delta?.optString("content") ?: ""
+                                    if (token.isNotEmpty()) {
+                                        emit(token)
                                     }
-                                } catch (e: Exception) {
-                                    // Ignore parse errors
                                 }
+                            } catch (e: Exception) {
+                                // Skip malformed chunks
                             }
                         }
                     }
-                    reader.close()
-                    if (receivedAnyToken) {
-                        succeeded = true
-                        break
-                    }
                 }
-            } catch (e: Exception) {
-                lastError = e.message ?: "Connection failed"
+                reader.close()
             }
-        }
-
-        if (!succeeded && lastError.isNotEmpty()) {
-            emit("Error: $lastError")
+        } catch (e: Exception) {
+            emit("Connection failed: ${e.message}")
         }
     }.flowOn(Dispatchers.IO)
 
     /**
-     * Non-streaming fallback with automatic multi-model retry
+     * Non-streaming fallback for Google Gemma 4 31B
      */
     suspend fun generateChatCompletion(
         userMessage: String,
@@ -194,12 +163,12 @@ class OpenRouterService(private val context: Context) {
         history: List<Pair<String, String>> = emptyList()
     ): Result<String> = withContext(Dispatchers.IO) {
         val apiKey = OpenRouterPreferences.getApiKey(context)
-        val candidateModels = OpenRouterPreferences.FALLBACK_MODELS
+        val model = OpenRouterPreferences.MODEL_GEMMA_4_31B
 
         val messagesArray = JSONArray().apply {
             put(JSONObject().apply {
                 put("role", "system")
-                put("content", "You are WeatherGPT. Location: $locationContext. Weather: $weatherContext. Be concise and fast in the user's language.")
+                put("content", "You are WeatherGPT powered by Google Gemma 4. Location: $locationContext. Weather: $weatherContext. Be concise and fast in the user's language.")
             })
             for ((role, text) in history.takeLast(4)) {
                 put(JSONObject().apply {
@@ -213,55 +182,40 @@ class OpenRouterService(private val context: Context) {
             })
         }
 
-        var lastException: Exception? = null
-
-        for (model in candidateModels) {
-            val jsonBody = JSONObject().apply {
-                val modelsArray = JSONArray().apply {
-                    put(model)
-                    for (m in candidateModels) {
-                        if (m != model) put(m)
-                    }
-                }
-                put("models", modelsArray)
-                put("route", "fallback")
-                put("messages", messagesArray)
-                put("temperature", 0.4)
-                put("max_tokens", 350)
-            }
-
-            val request = Request.Builder()
-                .url("https://openrouter.ai/api/v1/chat/completions")
-                .post(jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
-                .addHeader("Content-Type", "application/json")
-                .addHeader("HTTP-Referer", "https://weathergpt.ai")
-                .addHeader("X-Title", "WeatherGPT Android")
-                .apply {
-                    if (apiKey.isNotBlank()) addHeader("Authorization", "Bearer $apiKey")
-                }
-                .build()
-
-            try {
-                val response = client.newCall(request).execute()
-                val body = response.body?.string() ?: ""
-                if (!response.isSuccessful) {
-                    if (response.code == 429 || response.code >= 500) {
-                        lastException = Exception("HTTP ${response.code}: $body")
-                        continue
-                    }
-                    return@withContext Result.failure(Exception("HTTP ${response.code}: $body"))
-                }
-                val json = JSONObject(body)
-                val choices = json.optJSONArray("choices")
-                if (choices != null && choices.length() > 0) {
-                    val content = choices.getJSONObject(0).optJSONObject("message")?.optString("content") ?: ""
-                    return@withContext Result.success(content)
-                }
-            } catch (e: Exception) {
-                lastException = e
-            }
+        val jsonBody = JSONObject().apply {
+            put("model", model)
+            put("messages", messagesArray)
+            put("temperature", 0.4)
+            put("max_tokens", 350)
         }
 
-        Result.failure(lastException ?: Exception("All fallback models failed"))
+        val request = Request.Builder()
+            .url("https://openrouter.ai/api/v1/chat/completions")
+            .post(jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
+            .addHeader("Content-Type", "application/json")
+            .addHeader("HTTP-Referer", "https://weathergpt.ai")
+            .addHeader("X-Title", "WeatherGPT Android")
+            .apply {
+                if (apiKey.isNotBlank()) addHeader("Authorization", "Bearer $apiKey")
+            }
+            .build()
+
+        try {
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: ""
+            if (!response.isSuccessful) {
+                return@withContext Result.failure(Exception("HTTP ${response.code}: $body"))
+            }
+            val json = JSONObject(body)
+            val choices = json.optJSONArray("choices")
+            if (choices != null && choices.length() > 0) {
+                val content = choices.getJSONObject(0).optJSONObject("message")?.optString("content") ?: ""
+                Result.success(content)
+            } else {
+                Result.failure(Exception("Empty choices in response"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }
