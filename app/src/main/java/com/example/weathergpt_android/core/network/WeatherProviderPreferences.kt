@@ -10,11 +10,11 @@ object WeatherProviderPreferences {
 
     fun getSelectedProvider(context: Context): WeatherProviderType {
         val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val name = prefs.getString(KEY_PROVIDER, WeatherProviderType.OPEN_WEATHER.name) ?: WeatherProviderType.OPEN_WEATHER.name
+        val name = prefs.getString(KEY_PROVIDER, WeatherProviderType.OPEN_METEO.name) ?: WeatherProviderType.OPEN_METEO.name
         return try {
             WeatherProviderType.valueOf(name)
         } catch (e: Exception) {
-            WeatherProviderType.OPEN_WEATHER
+            WeatherProviderType.OPEN_METEO
         }
     }
 

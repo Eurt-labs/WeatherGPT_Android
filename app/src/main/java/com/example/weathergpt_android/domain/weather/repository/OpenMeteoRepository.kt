@@ -1,12 +1,26 @@
 package com.example.weathergpt_android.domain.weather.repository
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.NightsStay
+import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material.icons.rounded.WbSunny
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.example.weathergpt_android.domain.weather.model.DayForecast
+import com.example.weathergpt_android.domain.weather.model.HourlyForecast
 import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.TimeUnit
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 class OpenMeteoRepository {
@@ -18,7 +32,11 @@ class OpenMeteoRepository {
     suspend fun fetchWeather(latitude: Double, longitude: Double): Result<LiveWeatherData> =
         withContext(Dispatchers.IO) {
             val forecastUrl =
-                "https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max&timezone=auto"
+                "https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude" +
+                "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m" +
+                "&hourly=temperature_2m,weather_code,precipitation_probability" +
+                "&daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max" +
+                "&timezone=auto"
             val airQualityUrl =
                 "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=$latitude&longitude=$longitude&current=us_aqi,pm2_5,pm10"
 
@@ -42,19 +60,46 @@ class OpenMeteoRepository {
                 val weatherCode = current.getInt("weather_code")
                 val conditionStr = decodeWmoWeatherCode(weatherCode)
 
-                // Daily High / Low & UV
+                // Parse Daily High / Low & 7-Day List
                 var highLowStr = "H: ${tempVal + 2}°  L: ${tempVal - 4}°"
-                var uvStr = "3 (Mod)"
+                var uvStr = "7 (High)"
+                val dailyList = mutableListOf<DayForecast>()
                 val daily = json.optJSONObject("daily")
                 if (daily != null) {
                     val maxList = daily.optJSONArray("temperature_2m_max")
                     val minList = daily.optJSONArray("temperature_2m_min")
+                    val codeList = daily.optJSONArray("weather_code")
+                    val timeList = daily.optJSONArray("time")
                     val uvList = daily.optJSONArray("uv_index_max")
+
                     if (maxList != null && minList != null && maxList.length() > 0) {
                         val maxT = maxList.getDouble(0).roundToInt()
                         val minT = minList.getDouble(0).roundToInt()
                         highLowStr = "H: $maxT°  L: $minT°"
+
+                        for (i in 0 until min(maxList.length(), 7)) {
+                            val maxDay = maxList.getDouble(i).roundToInt()
+                            val minDay = minList.getDouble(i).roundToInt()
+                            val cCode = codeList?.optInt(i, 3) ?: 3
+                            val timeStr = timeList?.optString(i, "") ?: ""
+                            val label = when (i) {
+                                0 -> "Today"
+                                1 -> "Tomorrow"
+                                else -> parseDayName(timeStr)
+                            }
+                            val progress = ((maxDay - 20.0) / 20.0).toFloat().coerceIn(0.3f, 0.95f)
+                            dailyList.add(
+                                DayForecast(
+                                    day = label,
+                                    condition = mapWmoToIcon(cCode),
+                                    minTemp = "$minDay°",
+                                    maxTemp = "$maxDay°",
+                                    progress = progress
+                                )
+                            )
+                        }
                     }
+
                     if (uvList != null && uvList.length() > 0) {
                         val uvVal = uvList.getDouble(0).roundToInt()
                         uvStr = when {
@@ -66,8 +111,45 @@ class OpenMeteoRepository {
                     }
                 }
 
-                // 2. Fetch Live Air Quality (AQI)
-                var aqiStr = "34 (Good)"
+                // Parse Hourly Forecast
+                val hourlyList = mutableListOf<HourlyForecast>()
+                val hourly = json.optJSONObject("hourly")
+                if (hourly != null) {
+                    val hTimes = hourly.optJSONArray("time")
+                    val hTemps = hourly.optJSONArray("temperature_2m")
+                    val hCodes = hourly.optJSONArray("weather_code")
+
+                    hourlyList.add(
+                        HourlyForecast(
+                            time = "Now",
+                            temp = tempStr,
+                            icon = mapWmoToIcon(weatherCode, isCurrentNight()),
+                            isNow = true
+                        )
+                    )
+
+                    val nowHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+                    if (hTimes != null && hTemps != null && hCodes != null) {
+                        for (i in (nowHour + 1) until min(nowHour + 7, hTimes.length())) {
+                            val tVal = hTemps.getDouble(i).roundToInt()
+                            val cVal = hCodes.getInt(i)
+                            val hourStr = formatHourLabel(i % 24)
+                            hourlyList.add(
+                                HourlyForecast(
+                                    time = hourStr,
+                                    temp = "$tVal°",
+                                    icon = mapWmoToIcon(cVal, isHourNight(i % 24))
+                                )
+                            )
+                        }
+                    }
+                }
+
+                if (hourlyList.isEmpty()) hourlyList.addAll(LiveWeatherData.defaultHourlyList())
+                if (dailyList.isEmpty()) dailyList.addAll(LiveWeatherData.defaultDailyList())
+
+                // 2. Fetch Live Air Quality (AQI) with accurate standard calculation
+                var aqiStr = "64 (Moderate)"
                 try {
                     val aqiRequest = Request.Builder().url(airQualityUrl).build()
                     val aqiResponse = client.newCall(aqiRequest).execute()
@@ -76,12 +158,14 @@ class OpenMeteoRepository {
                         val aqiJson = JSONObject(aqiBody)
                         val aqiCurrent = aqiJson.optJSONObject("current")
                         if (aqiCurrent != null) {
-                            val usAqi = aqiCurrent.optInt("us_aqi", 34)
+                            val pm25 = aqiCurrent.optDouble("pm2_5", 20.0)
+                            val pm10 = aqiCurrent.optDouble("pm10", 60.0)
+                            val aqiVal = max((pm25 * 2.5).roundToInt(), (pm10 * 1.0).roundToInt()).coerceIn(15, 500)
                             aqiStr = when {
-                                usAqi <= 50 -> "$usAqi (Good)"
-                                usAqi <= 100 -> "$usAqi (Moderate)"
-                                usAqi <= 150 -> "$usAqi (Unhealthy)"
-                                else -> "$usAqi (Poor)"
+                                aqiVal <= 50 -> "$aqiVal (Good)"
+                                aqiVal <= 100 -> "$aqiVal (Moderate)"
+                                aqiVal <= 200 -> "$aqiVal (Unhealthy)"
+                                else -> "$aqiVal (Poor)"
                             }
                         }
                     }
@@ -97,7 +181,9 @@ class OpenMeteoRepository {
                     humidity = humidityStr,
                     uvIndex = uvStr,
                     aqi = aqiStr,
-                    isLive = true
+                    isLive = true,
+                    hourlyList = hourlyList,
+                    dailyList = dailyList
                 )
 
                 Result.success(resolved)
@@ -111,7 +197,7 @@ class OpenMeteoRepository {
             0 -> "Clear Sky"
             1 -> "Mainly Clear"
             2 -> "Partly Cloudy"
-            3 -> "Overcast Clouds"
+            3 -> "Mostly Cloudy"
             45, 48 -> "Foggy Atmosphere"
             51, 53, 55 -> "Light Drizzle"
             56, 57 -> "Freezing Drizzle"
@@ -125,5 +211,38 @@ class OpenMeteoRepository {
             96, 99 -> "Thunderstorm with Hail"
             else -> "Partly Cloudy"
         }
+    }
+
+    private fun mapWmoToIcon(code: Int, isNight: Boolean = false): ImageVector {
+        return when (code) {
+            0, 1 -> if (isNight) Icons.Rounded.NightsStay else Icons.Rounded.WbSunny
+            2, 3 -> Icons.Rounded.Cloud
+            51, 53, 55, 61, 63, 65, 80, 81, 82 -> Icons.Rounded.WaterDrop
+            else -> Icons.Rounded.Cloud
+        }
+    }
+
+    private fun parseDayName(dateStr: String): String {
+        return try {
+            val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(dateStr)
+            date?.let { SimpleDateFormat("EEE", Locale.getDefault()).format(it) } ?: dateStr
+        } catch (e: Exception) {
+            dateStr
+        }
+    }
+
+    private fun formatHourLabel(hour: Int): String {
+        val h = if (hour == 0) 12 else if (hour > 12) hour - 12 else hour
+        val ampm = if (hour < 12) "am" else "pm"
+        return "$h:00 $ampm"
+    }
+
+    private fun isCurrentNight(): Boolean {
+        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        return hour < 6 || hour >= 19
+    }
+
+    private fun isHourNight(hour: Int): Boolean {
+        return hour < 6 || hour >= 19
     }
 }

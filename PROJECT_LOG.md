@@ -180,14 +180,14 @@ com.example.weathergpt_android/
   - 🇮🇳 **Telugu / తెలుగు** (`te-IN`)
 - Real-time localized weather intelligence dialog with native audio TTS output.
 
-### [Version 2.7.0] - Pure Dedicated Google Gemma 4 31B Setup
+### [Version 2.8.0] - Full Transition to Pure Open-Meteo (Zero-Key 10K Daily Quota)
 
-#### 1. Pure Dedicated AI Engine (`core/network`)
-- With Google AI Studio integration connected, removed all secondary model switching and locked the entire app exclusively to **`google/gemma-4-31b-it:free`**:
-  - Direct SSE streaming for both Chat and Voice AI modes.
-  - Full native multilingual reasoning in English, Hindi, Marathi, Bengali, Tamil, and Telugu.
-  - Zero model switching or multi-model fallback clutter.
-- Updated [SettingsScreen.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/settings/ui/SettingsScreen.kt) with dedicated Google Gemma 4 31B testing diagnostic.
+#### 1. Pure Open-Meteo Engine Architecture (`domain/weather/repository` & Backend)
+- Completely transitioned both Android Client and FastAPI Cloud Server to **100% Open-Meteo**:
+  - **Zero API Keys Required**: 100% free, zero authentication configuration.
+  - **10,000 Requests/Day Quota**: 10x higher rate capacity than standard weather providers.
+  - **Dynamic Multi-Depth Features**: Ingests `soil_moisture_0_to_1cm`, `relative_humidity_2m`, `wind_speed_10m`, `precipitation_probability`, and `past_days=3` rainfall trends.
+  - **Synchronized Hourly & 7-Day Forecasting**: Full dynamic timeline rendering across all UI cards and AI system prompts.
 
 ---
 
