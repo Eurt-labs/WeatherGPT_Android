@@ -180,6 +180,23 @@ com.example.weathergpt_android/
   - 🇮🇳 **Telugu / తెలుగు** (`te-IN`)
 - Real-time localized weather intelligence dialog with native audio TTS output.
 
+### [Version 1.6.0] - OpenRouter API Direct Frontend Integration (`nvidia/nemotron-3.5-lightning`)
+
+#### 1. OpenRouter Networking & Preferences Layer (`core/network`)
+- Added OkHttp dependency (`com.squareup.okhttp3:okhttp:4.12.0`).
+- Implemented `OpenRouterPreferences` storing user's API Key and model preference (`nvidia/nemotron-3.5-lightning` / `nvidia/nemotron-4-340b-instruct:free`).
+- Implemented `OpenRouterService` with asynchronous coroutine HTTP calls to `https://openrouter.ai/api/v1/chat/completions`, incorporating live atmospheric and location context into prompt instructions.
+
+#### 2. WeatherGPT Chat Screen Live Integration (`domain/assistant`)
+- Connected [GptChatScreen.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/assistant/ui/GptChatScreen.kt) directly to Nemotron 3.5 Lightning.
+- Added real-time thinking indicator, quick API Key entry dialog, and clear chat controls.
+
+#### 3. Settings Screen Configuration (`domain/settings`)
+- Added dedicated **"OpenRouter AI Engine"** card in [SettingsScreen.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/settings/ui/SettingsScreen.kt):
+  - Model selection pills.
+  - Obscured API Key text input with show/hide password toggle.
+  - Live "Test Connection" button validating the OpenRouter API key and model response.
+
 ---
 
 ## 🐛 Bug Fixes & Diagnostics Log

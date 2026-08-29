@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,13 +22,22 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.DarkMode
-import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Thermostat
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -36,6 +46,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,9 +54,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.weathergpt_android.core.network.OpenRouterPreferences
+import com.example.weathergpt_android.core.network.OpenRouterService
 import com.example.weathergpt_android.core.theme.AppThemeMode
 import com.example.weathergpt_android.core.theme.DarkBronzeAccent
 import com.example.weathergpt_android.core.theme.DarkCharcoalCard
@@ -54,6 +70,7 @@ import com.example.weathergpt_android.core.theme.DarkSlateBase
 import com.example.weathergpt_android.core.theme.M3LightPrimary
 import com.example.weathergpt_android.core.theme.M3LightPrimaryContainer
 import com.example.weathergpt_android.core.theme.M3LightSecondaryContainer
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
@@ -61,40 +78,47 @@ fun SettingsScreen(
     currentTheme: AppThemeMode = AppThemeMode.LIGHT,
     onThemeSelected: (AppThemeMode) -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val openRouterService = remember { OpenRouterService(context) }
+
     var isCelsius by remember { mutableStateOf(true) }
-    var severeWeatherAlerts by remember { mutableStateOf(true) }
     var dailyWalkSuggestions by remember { mutableStateOf(true) }
+    var severeWeatherAlerts by remember { mutableStateOf(true) }
+
+    // OpenRouter Settings State
+    var apiKey by remember { mutableStateOf(OpenRouterPreferences.getApiKey(context)) }
+    var isApiKeyVisible by remember { mutableStateOf(false) }
+    var selectedModel by remember { mutableStateOf(OpenRouterPreferences.getSelectedModel(context)) }
+    var testStatusText by remember { mutableStateOf("") }
+    var isTestingConnection by remember { mutableStateOf(false) }
 
     LazyColumn(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .statusBarsPadding(),
         contentPadding = PaddingValues(
             start = 16.dp,
             end = 16.dp,
-            top = 104.dp, // Clearance for top island
-            bottom = 110.dp // Clearance for bottom floating island
+            top = 16.dp,
+            bottom = 96.dp // Clearance for attached bottom nav
         ),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            Column {
-                Text(
-                    text = "App Settings",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    letterSpacing = (-0.4).sp
-                )
-                Text(
-                    text = "Customize theme, units, and notifications",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Text(
+                text = "Preferences & AI Settings",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                letterSpacing = (-0.5).sp,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
         }
 
-        // 1. Theme Selection Section (Strictly 2 Themes: Light and Dark)
+        // 1. Theme Configuration Card
         item {
-            SettingsSectionHeader(title = "App Theme & Appearance")
+            SettingsSectionHeader(title = "Theme & Appearance")
         }
 
         item {
@@ -109,85 +133,104 @@ fun SettingsScreen(
                     ),
                 shape = RoundedCornerShape(22.dp),
                 color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 1.dp
+                tonalElevation = 2.dp
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    AppThemeMode.entries.forEach { mode ->
-                        val isSelected = mode == currentTheme
-                        Surface(
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(
+                        modifier = Modifier.padding(bottom = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(16.dp))
-                                .clickable { onThemeSelected(mode) },
-                            shape = RoundedCornerShape(16.dp),
-                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Row(
+                            Icon(
+                                imageVector = Icons.Rounded.Palette,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Color Theme (Handcrafted Palettes)",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AppThemeMode.entries.forEach { mode ->
+                            val isSelected = currentTheme == mode
+                            Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .border(
+                                        width = if (isSelected) 2.dp else 1.dp,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                        shape = RoundedCornerShape(16.dp)
+                                    )
+                                    .clickable { onThemeSelected(mode) },
+                                shape = RoundedCornerShape(16.dp),
+                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
                             ) {
                                 Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.weight(1f)
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .clip(CircleShape)
-                                            .background(mode.primaryColor),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = if (mode.isDark) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(19.dp)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(CircleShape)
+                                                .background(mode.primaryColor)
                                         )
-                                    }
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column {
-                                        Text(
-                                            text = mode.title,
-                                            fontSize = 14.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            text = mode.subtitle,
-                                            fontSize = 11.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column {
+                                            Text(
+                                                text = mode.title,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = mode.subtitle,
+                                                fontSize = 11.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
 
-                                        // Theme Palette Color Dots Preview
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                            if (!mode.isDark) {
-                                                ColorDot(M3LightPrimary)
-                                                ColorDot(M3LightPrimaryContainer)
-                                                ColorDot(M3LightSecondaryContainer)
-                                            } else {
-                                                ColorDot(DarkSlateBase)
-                                                ColorDot(DarkCharcoalCard)
-                                                ColorDot(DarkBronzeAccent)
-                                                ColorDot(DarkCreamStone)
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                if (!mode.isDark) {
+                                                    ColorDot(M3LightPrimary)
+                                                    ColorDot(M3LightPrimaryContainer)
+                                                    ColorDot(M3LightSecondaryContainer)
+                                                } else {
+                                                    ColorDot(DarkSlateBase)
+                                                    ColorDot(DarkCharcoalCard)
+                                                    ColorDot(DarkBronzeAccent)
+                                                    ColorDot(DarkCreamStone)
+                                                }
                                             }
                                         }
                                     }
-                                }
 
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.CheckCircle,
-                                        contentDescription = "Selected Theme",
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(22.dp)
-                                    )
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Check,
+                                            contentDescription = "Selected",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -196,9 +239,204 @@ fun SettingsScreen(
             }
         }
 
-        // 2. Units Section
+        // 2. OpenRouter API & Nemotron 3.5 Lightning Configuration
         item {
-            SettingsSectionHeader(title = "Units & Measurements")
+            SettingsSectionHeader(title = "OpenRouter AI Engine (Nemotron 3.5)")
+        }
+
+        item {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(
+                        elevation = 8.dp,
+                        shape = RoundedCornerShape(22.dp),
+                        spotColor = Color(0x20000000),
+                        ambientColor = Color(0x10000000)
+                    ),
+                shape = RoundedCornerShape(22.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 2.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Memory,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Nemotron 3.5 Lightning API",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "OpenRouter Direct LLM Integration",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // Model Selection Pills
+                    Text(
+                        text = "Active LLM Model:",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val models = listOf(
+                            "nvidia/nemotron-3.5-lightning" to "Nemotron 3.5 (Free)",
+                            "nvidia/nemotron-4-340b-instruct:free" to "Nemotron 4 340B"
+                        )
+                        models.forEach { (modelId, label) ->
+                            val isModelSelected = selectedModel == modelId
+                            Surface(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        selectedModel = modelId
+                                        OpenRouterPreferences.saveSelectedModel(context, modelId)
+                                    },
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isModelSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isModelSelected) Color.White else MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // OpenRouter API Key Input Field
+                    Text(
+                        text = "OpenRouter API Key:",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    OutlinedTextField(
+                        value = apiKey,
+                        onValueChange = {
+                            apiKey = it
+                            OpenRouterPreferences.saveApiKey(context, it)
+                        },
+                        placeholder = {
+                            Text(
+                                text = "Paste sk-or-v1-... key here",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        singleLine = true,
+                        visualTransformation = if (isApiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { isApiKeyVisible = !isApiKeyVisible }) {
+                                Icon(
+                                    imageVector = if (isApiKeyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                    contentDescription = "Toggle API Key Visibility",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    )
+
+                    // Test Connection Button
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = {
+                                if (apiKey.isBlank()) {
+                                    testStatusText = "Please enter an API Key first."
+                                    return@Button
+                                }
+                                isTestingConnection = true
+                                testStatusText = "Testing Nemotron 3.5 connection..."
+                                scope.launch {
+                                    val result = openRouterService.generateChatCompletion(
+                                        userMessage = "Reply with 'Connected successfully to Nemotron 3.5 Lightning!'"
+                                    )
+                                    isTestingConnection = false
+                                    result.onSuccess { reply ->
+                                        testStatusText = "✓ $reply"
+                                    }.onFailure { err ->
+                                        testStatusText = "✗ Error: ${err.message}"
+                                    }
+                                }
+                            },
+                            enabled = !isTestingConnection,
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(text = if (isTestingConnection) "Testing..." else "Test Connection", fontSize = 12.sp)
+                        }
+
+                        if (apiKey.isNotBlank()) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Rounded.CheckCircle,
+                                    contentDescription = null,
+                                    tint = Color(0xFF10B981),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Saved on Device",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF10B981),
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    if (testStatusText.isNotBlank()) {
+                        Text(
+                            text = testStatusText,
+                            fontSize = 11.sp,
+                            color = if (testStatusText.startsWith("✓")) Color(0xFF10B981) else MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        }
+
+        // 3. Units & Formats
+        item {
+            SettingsSectionHeader(title = "Units & Formatting")
         }
 
         item {
@@ -224,7 +462,7 @@ fun SettingsScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
-                                    .size(36.dp)
+                                    .size(32.dp)
                                     .clip(CircleShape)
                                     .background(MaterialTheme.colorScheme.primaryContainer),
                                 contentAlignment = Alignment.Center
@@ -233,7 +471,7 @@ fun SettingsScreen(
                                     imageVector = Icons.Rounded.Thermostat,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.width(12.dp))
@@ -241,7 +479,7 @@ fun SettingsScreen(
                                 Text(
                                     text = "Temperature Unit",
                                     fontSize = 14.sp,
-                                    fontWeight = FontWeight.SemiBold,
+                                    fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
@@ -253,7 +491,7 @@ fun SettingsScreen(
                         }
 
                         Surface(
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(12.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant
                         ) {
                             Row(modifier = Modifier.padding(3.dp)) {
@@ -286,7 +524,7 @@ fun SettingsScreen(
             }
         }
 
-        // 3. Intelligence & AI Section
+        // 4. Intelligence & AI Alerts
         item {
             SettingsSectionHeader(title = "AI & Alerts")
         }
@@ -327,7 +565,7 @@ fun SettingsScreen(
             }
         }
 
-        // 4. About & Version Card
+        // 5. About & Version Card
         item {
             SettingsSectionHeader(title = "About")
         }
@@ -388,24 +626,24 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun ColorDot(color: Color) {
-    Box(
-        modifier = Modifier
-            .size(10.dp)
-            .clip(CircleShape)
-            .background(color)
-            .border(0.5.dp, Color.Black.copy(alpha = 0.2f), CircleShape)
-    )
-}
-
-@Composable
 private fun SettingsSectionHeader(title: String) {
     Text(
         text = title,
         fontSize = 13.sp,
         fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(start = 4.dp, top = 2.dp)
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 4.dp, top = 6.dp)
+    )
+}
+
+@Composable
+private fun ColorDot(color: Color) {
+    Box(
+        modifier = Modifier
+            .size(14.dp)
+            .clip(CircleShape)
+            .background(color)
+            .border(1.dp, Color.White.copy(alpha = 0.5f), CircleShape)
     )
 }
 
@@ -428,7 +666,7 @@ private fun SettingsSwitchRow(
         ) {
             Box(
                 modifier = Modifier
-                    .size(34.dp)
+                    .size(32.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
@@ -436,7 +674,7 @@ private fun SettingsSwitchRow(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(17.dp)
                 )
             }
@@ -444,15 +682,14 @@ private fun SettingsSwitchRow(
             Column {
                 Text(
                     text = title,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = subtitle,
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 15.sp
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -462,9 +699,7 @@ private fun SettingsSwitchRow(
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = MaterialTheme.colorScheme.primary,
-                uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                checkedTrackColor = MaterialTheme.colorScheme.primary
             )
         )
     }

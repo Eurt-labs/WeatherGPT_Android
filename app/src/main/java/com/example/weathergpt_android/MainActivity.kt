@@ -181,7 +181,7 @@ fun WeatherGPTApp(
                     NavTab.WEATHER -> HomeScreen(locationData = locationData)
                     NavTab.NEWS -> NewsScreen()
                     NavTab.VOICE_AI -> VoiceAiScreen(locationData = locationData)
-                    NavTab.GPT -> GptChatScreen()
+                    NavTab.GPT -> GptChatScreen(locationData = locationData)
                     NavTab.SETTINGS -> SettingsScreen(
                         currentTheme = currentTheme,
                         onThemeSelected = onThemeChange

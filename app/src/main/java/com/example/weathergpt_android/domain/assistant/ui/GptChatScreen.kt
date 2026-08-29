@@ -1,5 +1,8 @@
 package com.example.weathergpt_android.domain.assistant.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -13,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -28,13 +30,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Thermostat
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -48,50 +55,109 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.weathergpt_android.core.network.OpenRouterPreferences
+import com.example.weathergpt_android.core.network.OpenRouterService
 import com.example.weathergpt_android.domain.assistant.model.ChatMessage
+import com.example.weathergpt_android.domain.location.model.LocationData
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.UUID
 
 @Composable
 fun GptChatScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    locationData: LocationData = LocationData.DEFAULT
 ) {
+    val context = LocalContext.current
+    val openRouterService = remember { OpenRouterService(context) }
+    val scope = rememberCoroutineScope()
+
+    var apiKey by remember { mutableStateOf(OpenRouterPreferences.getApiKey(context)) }
+    var selectedModel by remember { mutableStateOf(OpenRouterPreferences.getSelectedModel(context)) }
+    var showApiKeyDialog by remember { mutableStateOf(false) }
+    var apiKeyInput by remember { mutableStateOf(apiKey) }
+    var isGenerating by remember { mutableStateOf(false) }
+
     val messages = remember {
         mutableStateListOf(
             ChatMessage(
                 id = "1",
-                text = "Hello Dhruv! I'm your WeatherGPT Assistant. Ask me anything regarding micro-climates, activity timing, or clothing advice.",
+                text = "Hello! I'm WeatherGPT powered by Nemotron 3.5 Lightning via OpenRouter. Ask me anything regarding live weather in ${locationData.cityName}, microclimates, outdoor safety, or clothing advice.",
                 isUser = false,
-                timestamp = "2:30 PM"
-            ),
-            ChatMessage(
-                id = "2",
-                text = "Is today good for a walk outside around sunset?",
-                isUser = true,
-                timestamp = "2:31 PM"
-            ),
-            ChatMessage(
-                id = "3",
-                text = "Today's weather is good! Temperatures will hover around 22°C with light 12 km/h breeze and 0% chance of rain until late night.",
-                isUser = false,
-                timestamp = "2:31 PM",
-                weatherHighlight = "Optimal walk window: 5:30 PM - 7:00 PM (Sunset @ 6:48 PM)"
+                timestamp = "Just now"
             )
         )
     }
 
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
 
     val suggestionChips = listOf(
-        "Suggest outfit for today",
+        "Suggest outfit for today in ${locationData.cityName}",
         "Weekend rain probability?",
-        "Best time for running tomorrow",
-        "Air quality breakdown"
+        "Best hour for running outside",
+        "Air quality breakdown and UV"
     )
+
+    fun sendMessage(userText: String) {
+        if (userText.isBlank() || isGenerating) return
+
+        val timeStr = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
+        val userMsg = ChatMessage(
+            id = UUID.randomUUID().toString(),
+            text = userText,
+            isUser = true,
+            timestamp = timeStr
+        )
+        messages.add(userMsg)
+        inputText = ""
+
+        isGenerating = true
+        scope.launch {
+            listState.animateScrollToItem(messages.size)
+
+            val history = messages.dropLast(1).takeLast(6).map {
+                (if (it.isUser) "user" else "assistant") to it.text
+            }
+
+            val result = openRouterService.generateChatCompletion(
+                userMessage = userText,
+                locationContext = locationData.formattedLocation,
+                weatherContext = "24°C, Clear Sky, Humidity 52%, Wind 14 km/h, AQI 34",
+                history = history
+            )
+
+            isGenerating = false
+
+            result.onSuccess { reply ->
+                messages.add(
+                    ChatMessage(
+                        id = UUID.randomUUID().toString(),
+                        text = reply,
+                        isUser = false,
+                        timestamp = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
+                    )
+                )
+                listState.animateScrollToItem(messages.size)
+            }.onFailure { error ->
+                messages.add(
+                    ChatMessage(
+                        id = UUID.randomUUID().toString(),
+                        text = "Nemotron 3.5: ${error.message ?: "Failed to connect to OpenRouter. Please verify your API key in Settings."}",
+                        isUser = false,
+                        timestamp = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
+                    )
+                )
+                listState.animateScrollToItem(messages.size)
+            }
+        }
+    }
 
     Column(
         modifier = modifier
@@ -99,185 +165,26 @@ fun GptChatScreen(
             .statusBarsPadding()
             .imePadding()
     ) {
-        // Integrated GPT Top Header (since Top Island is hidden in GPT tab)
+        // Dedicated Chat Header with Model Badge & API Key Shortcut
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.background
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 2.dp
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Weather",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            letterSpacing = (-0.4).sp
-                        )
-                        Text(
-                            text = "GPT",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.primary,
-                            letterSpacing = (-0.4).sp
-                        )
-                    }
-                    Text(
-                        text = "Real-time conversational meteorological intelligence",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .clickable { messages.clear() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.DeleteOutline,
-                        contentDescription = "Clear Chat",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        }
-
-        // Chat Messages List
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
-                top = 6.dp,
-                bottom = 12.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(messages, key = { it.id }) { msg ->
-                ChatBubble(message = msg)
-            }
-        }
-
-        // Suggestion Chips Carousel
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            suggestionChips.forEach { suggestion ->
-                Surface(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(14.dp))
-                        .clickable {
-                            messages.add(
-                                ChatMessage(
-                                    id = System.currentTimeMillis().toString(),
-                                    text = suggestion,
-                                    isUser = true,
-                                    timestamp = "Just now"
-                                )
-                            )
-                            messages.add(
-                                ChatMessage(
-                                    id = (System.currentTimeMillis() + 1).toString(),
-                                    text = "Based on our latest hyper-local forecast for San Francisco, conditions feature clear skies (24°C), low humidity (45%), and UV index 3.",
-                                    isUser = false,
-                                    timestamp = "Just now",
-                                    weatherHighlight = "Recommended: Light cotton wear & sunglasses"
-                                )
-                            )
-                            scope.launch {
-                                listState.animateScrollToItem(messages.size - 1)
-                            }
-                        },
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.AutoAwesome,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = suggestion,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-            }
-        }
-
-        // Input pill container properly padded above the floating navigation bar
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, bottom = 84.dp, top = 4.dp)
-        ) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .shadow(
-                        elevation = 10.dp,
-                        shape = RoundedCornerShape(28.dp),
-                        spotColor = Color(0x25000000),
-                        ambientColor = Color(0x15000000)
-                    ),
-                shape = RoundedCornerShape(28.dp),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 2.dp
-            ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    OutlinedTextField(
-                        value = inputText,
-                        onValueChange = { inputText = it },
-                        placeholder = {
-                            Text(
-                                text = "Ask WeatherGPT anything...",
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                            )
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Transparent,
-                            unfocusedBorderColor = Color.Transparent,
-                            disabledBorderColor = Color.Transparent
-                        ),
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
-                    )
-
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(36.dp)
                             .clip(CircleShape)
                             .background(
                                 Brush.linearGradient(
@@ -286,171 +193,383 @@ fun GptChatScreen(
                                         MaterialTheme.colorScheme.secondary
                                     )
                                 )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.AutoAwesome,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "WeatherGPT",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                Text(
+                                    text = "Nemotron 3.5",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                        Text(
+                            text = "OpenRouter AI • ${locationData.cityName}",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // API Key Config Button
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .clickable {
-                                if (inputText.isNotBlank()) {
-                                    val query = inputText.trim()
-                                    inputText = ""
-                                    messages.add(
-                                        ChatMessage(
-                                            id = System.currentTimeMillis().toString(),
-                                            text = query,
-                                            isUser = true,
-                                            timestamp = "Just now"
-                                        )
-                                    )
-                                    messages.add(
-                                        ChatMessage(
-                                            id = (System.currentTimeMillis() + 1).toString(),
-                                            text = "Analyzing query '$query'... Local temperature is 24°C with pleasant clear skies and mild wind speeds (14 km/h).",
-                                            isUser = false,
-                                            timestamp = "Just now",
-                                            weatherHighlight = "Comfort Index: 9.2/10"
-                                        )
-                                    )
-                                    scope.launch {
-                                        listState.animateScrollToItem(messages.size - 1)
-                                    }
-                                }
+                                apiKeyInput = OpenRouterPreferences.getApiKey(context)
+                                showApiKeyDialog = true
                             },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.Send,
-                            contentDescription = "Send",
-                            tint = Color.White,
+                            imageVector = Icons.Rounded.Key,
+                            contentDescription = "OpenRouter API Key",
+                            tint = if (apiKey.isNotBlank()) MaterialTheme.colorScheme.primary else Color(0xFFF59E0B),
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
+
+                    // Clear Chat
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .clickable {
+                                messages.clear()
+                                messages.add(
+                                    ChatMessage(
+                                        id = "init",
+                                        text = "Conversation cleared. Ask WeatherGPT anything about ${locationData.cityName}!",
+                                        isUser = false,
+                                        timestamp = "Just now"
+                                    )
+                                )
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.DeleteOutline,
+                            contentDescription = "Clear Chat",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(17.dp)
                         )
                     }
                 }
             }
         }
+
+        // OpenRouter API Key Missing Warning Banner
+        AnimatedVisibility(visible = apiKey.isBlank()) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .clickable { showApiKeyDialog = true },
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFFFEF3C7)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Key,
+                        contentDescription = null,
+                        tint = Color(0xFFD97706),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Tap here to add your OpenRouter API Key for Nemotron 3.5",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF92400E)
+                    )
+                }
+            }
+        }
+
+        // Messages List
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = 10.dp,
+                bottom = 12.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(messages, key = { it.id }) { msg ->
+                ChatBubble(message = msg)
+            }
+
+            if (isGenerating) {
+                item {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(start = 12.dp, top = 4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Nemotron 3.5 Lightning is reasoning...",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+        }
+
+        // Suggestion Chips Carousel
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            suggestionChips.forEach { chip ->
+                Surface(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { sendMessage(chip) },
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Text(
+                        text = chip,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+                    )
+                }
+            }
+        }
+
+        // Message Input Capsule (Elevated with clearance for bottom attached nav bar)
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 84.dp) // Clearance for attached nav bar
+                .shadow(
+                    elevation = 10.dp,
+                    shape = RoundedCornerShape(28.dp),
+                    spotColor = Color(0x35000000),
+                    ambientColor = Color(0x20000000)
+                ),
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 4.dp
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = inputText,
+                    onValueChange = { inputText = it },
+                    placeholder = {
+                        Text(
+                            text = "Ask Nemotron 3.5 about weather...",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color.Transparent,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent
+                    ),
+                    maxLines = 3
+                )
+
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (inputText.isNotBlank() && !isGenerating) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.surfaceVariant
+                        )
+                        .clickable(enabled = inputText.isNotBlank() && !isGenerating) {
+                            sendMessage(inputText)
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.Send,
+                        contentDescription = "Send",
+                        tint = if (inputText.isNotBlank() && !isGenerating) Color.White else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
+
+    // OpenRouter API Key Input Dialog
+    if (showApiKeyDialog) {
+        AlertDialog(
+            onDismissRequest = { showApiKeyDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.Key,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "OpenRouter API Key")
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Enter your OpenRouter API Key to query Nemotron 3.5 Lightning directly:",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = apiKeyInput,
+                        onValueChange = { apiKeyInput = it },
+                        placeholder = { Text("sk-or-v1-...") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    Text(
+                        text = "Active Model: $selectedModel",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        OpenRouterPreferences.saveApiKey(context, apiKeyInput)
+                        apiKey = apiKeyInput.trim()
+                        showApiKeyDialog = false
+                    }
+                ) {
+                    Text("Save Key")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showApiKeyDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
 @Composable
 private fun ChatBubble(message: ChatMessage) {
-    if (message.isUser) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = if (message.isUser) Alignment.End else Alignment.Start
+    ) {
+        Surface(
+            shape = RoundedCornerShape(
+                topStart = 20.dp,
+                topEnd = 20.dp,
+                bottomStart = if (message.isUser) 20.dp else 4.dp,
+                bottomEnd = if (message.isUser) 4.dp else 20.dp
+            ),
+            color = if (message.isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+            modifier = Modifier.fillMaxWidth(0.85f)
         ) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth(0.82f)
-                    .shadow(
-                        elevation = 4.dp,
-                        shape = RoundedCornerShape(18.dp, 18.dp, 4.dp, 18.dp),
-                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
-                    ),
-                shape = RoundedCornerShape(18.dp, 18.dp, 4.dp, 18.dp),
-                color = MaterialTheme.colorScheme.primary
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        text = message.text,
-                        fontSize = 13.sp,
-                        color = Color.White,
-                        lineHeight = 19.sp
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = message.timestamp,
-                        fontSize = 10.sp,
-                        color = Color.White.copy(alpha = 0.75f),
-                        modifier = Modifier.align(Alignment.End)
-                    )
-                }
-            }
-        }
-    } else {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Start
-        ) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth(0.88f)
-                    .shadow(
-                        elevation = 6.dp,
-                        shape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp),
-                        spotColor = Color(0x20000000),
-                        ambientColor = Color(0x10000000)
-                    ),
-                shape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 1.dp
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(22.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center
+            Column(modifier = Modifier.padding(14.dp)) {
+                Text(
+                    text = message.text,
+                    fontSize = 14.sp,
+                    color = if (message.isUser) Color.White else MaterialTheme.colorScheme.onSurface,
+                    lineHeight = 20.sp
+                )
+
+                if (message.weatherHighlight != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (message.isUser) Color.White.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.AutoAwesome,
+                                imageVector = Icons.Rounded.Thermostat,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(12.dp)
+                                tint = if (message.isUser) Color.White else MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = message.weatherHighlight,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (message.isUser) Color.White else MaterialTheme.colorScheme.primary
                             )
                         }
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "WeatherGPT",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
                     }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Text(
-                        text = message.text,
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        lineHeight = 19.sp
-                    )
-
-                    if (message.weatherHighlight != null) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Thermostat,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = message.weatherHighlight,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = message.timestamp,
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        modifier = Modifier.align(Alignment.End)
-                    )
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(3.dp))
+
+        Text(
+            text = message.timestamp,
+            fontSize = 10.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            modifier = Modifier.padding(horizontal = 4.dp)
+        )
     }
 }

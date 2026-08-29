@@ -48,6 +48,7 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.onnxruntime.android)
+    implementation(libs.okhttp)
     
     // Compose
     implementation(platform(libs.androidx.compose.bom))
