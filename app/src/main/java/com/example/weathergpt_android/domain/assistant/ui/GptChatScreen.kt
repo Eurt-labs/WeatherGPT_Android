@@ -408,7 +408,7 @@ fun GptChatScreen(
                     onValueChange = { inputText = it },
                     placeholder = {
                         Text(
-                            text = "Ask Nemotron 3.5 about weather...",
+                            text = "Ask Gemma 4 about weather...",
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
@@ -466,7 +466,7 @@ fun GptChatScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Enter your OpenRouter API Key to query Nemotron 3.5 Lightning directly with SSE Streaming:",
+                        text = "Enter your OpenRouter API Key to query Google: Gemma 4 31B directly with SSE Streaming:",
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -479,7 +479,7 @@ fun GptChatScreen(
                         shape = RoundedCornerShape(12.dp)
                     )
                     Text(
-                        text = "Active Model: $selectedModel",
+                        text = "Active Model: Google: Gemma 4 31B (Free)",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary

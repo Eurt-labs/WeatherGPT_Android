@@ -180,13 +180,14 @@ com.example.weathergpt_android/
   - 🇮🇳 **Telugu / తెలుగు** (`te-IN`)
 - Real-time localized weather intelligence dialog with native audio TTS output.
 
-### [Version 2.4.0] - Universal Google Gemma 4 31B Integration (`google/gemma-4-31b-it:free`)
+### [Version 2.5.0] - Exclusive Google Gemma 4 31B (Free) Consolidation
 
-#### 1. Unified Multilingual Architecture (`core/network`)
-- Replaced fragmented model routing with **Google: Gemma 4 31B (Free)** (`google/gemma-4-31b-it:free`) as the single primary AI engine:
-  - **Native All-in-One Multilingual Fluency**: Speaks and reasons naturally in **English, Hindi (हिन्दी), Marathi (मराठी), Bengali (বাংলা), Tamil (தமிழ்), Telugu (తెలుగు)**.
-  - **Ultra-Fast Streaming**: Delivers sub-350ms Time-to-First-Token for instant chat and sentence-chunked voice audio playback.
-  - **100% Free on OpenRouter**: Zero cost with high rate limits.
+#### 1. Single Universal Model Architecture (`core/network`)
+- Standardized the entire AI stack onto **`google/gemma-4-31b-it:free`**:
+  - Removed all legacy and fragmented model options.
+  - Powers all conversational chat streams, suggestions, and full-duplex Sherpa-ONNX Voice AI.
+  - Native fluency in **English, Hindi (हिन्दी), Marathi (मराठी), Bengali (বাংলা), Tamil (தமிழ்), Telugu (తెలుగు)**.
+- Cleaned up [SettingsScreen.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/settings/ui/SettingsScreen.kt) and [GptChatScreen.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/assistant/ui/GptChatScreen.kt) to feature Google Gemma 4 31B (Free) exclusively.
 
 ---
 

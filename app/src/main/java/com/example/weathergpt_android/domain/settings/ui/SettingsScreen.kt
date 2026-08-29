@@ -459,9 +459,9 @@ fun SettingsScreen(
             }
         }
 
-        // 3. OpenRouter API & Nemotron 3.5 Lightning Configuration
+        // 3. OpenRouter API & Google Gemma 4 31B Configuration
         item {
-            SettingsSectionHeader(title = "OpenRouter AI Engine (Nemotron 3.5)")
+            SettingsSectionHeader(title = "OpenRouter AI Engine (Google Gemma 4 31B)")
         }
 
         item {
@@ -500,78 +500,55 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "Nemotron 3.5 Lightning API",
+                                text = "Google: Gemma 4 31B (Free)",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "OpenRouter Direct LLM Integration",
+                                text = "Exclusive Universal Multilingual & Voice Model",
                                 fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
 
-                    // Model Selection Pills with Multilingual Indic Support
-                    Text(
-                        text = "Active LLM Model:",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Column(
+                    // Active Model Info Card
+                    Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                        )
                     ) {
-                        OpenRouterPreferences.AVAILABLE_MODELS.forEach { modelOption ->
-                            val isModelSelected = selectedModel == modelOption.id
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .border(
-                                        width = if (isModelSelected) 2.dp else 1.dp,
-                                        color = if (isModelSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                                        shape = RoundedCornerShape(12.dp)
-                                    )
-                                    .clickable {
-                                        selectedModel = modelOption.id
-                                        OpenRouterPreferences.saveSelectedModel(context, modelOption.id)
-                                    },
-                                shape = RoundedCornerShape(12.dp),
-                                color = if (isModelSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Column {
-                                        Text(
-                                            text = modelOption.name,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            text = modelOption.tag,
-                                            fontSize = 10.sp,
-                                            color = if (modelOption.isMultilingual) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    if (isModelSelected) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Check,
-                                            contentDescription = "Selected",
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "google/gemma-4-31b-it:free",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Universal Fluency: English, Hindi, Marathi, Bengali, Tamil, Telugu",
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
+                            Icon(
+                                imageVector = Icons.Rounded.CheckCircle,
+                                contentDescription = "Active Model",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
 
@@ -628,10 +605,10 @@ fun SettingsScreen(
                                     return@Button
                                 }
                                 isTestingConnection = true
-                                testStatusText = "Testing Nemotron 3.5 connection..."
+                                testStatusText = "Testing Google Gemma 4 31B connection..."
                                 scope.launch {
                                     val result = openRouterService.generateChatCompletion(
-                                        userMessage = "Reply with 'Connected successfully to Nemotron 3.5 Lightning!'"
+                                        userMessage = "Reply with 'Connected successfully to Google Gemma 4 31B!'"
                                     )
                                     isTestingConnection = false
                                     result.onSuccess { reply ->
@@ -644,7 +621,7 @@ fun SettingsScreen(
                             enabled = !isTestingConnection,
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text(text = if (isTestingConnection) "Testing..." else "Test Connection", fontSize = 12.sp)
+                            Text(text = if (isTestingConnection) "Testing..." else "Test Gemma 4 Connection", fontSize = 12.sp)
                         }
 
                         if (apiKey.isNotBlank()) {
