@@ -180,22 +180,19 @@ com.example.weathergpt_android/
   - 🇮🇳 **Telugu / తెలుగు** (`te-IN`)
 - Real-time localized weather intelligence dialog with native audio TTS output.
 
-### [Version 2.0.0] - Gemini Live Immersive Voice Mode with Navigation Breathing Aura
+### [Version 2.1.0] - Live Forecast Precision, OpenWeather Match & Accurate Standard AQI
 
-#### 1. Gemini Immersive Voice UI (`domain/voice/ui`)
-- Transformed [VoiceAiScreen.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/voice/ui/VoiceAiScreen.kt) into a clean, distraction-free **Gemini Live Immersive View**:
-  - Removed all cluttered cards, pills, and recommendation chips.
-  - Large, flowing center typography displaying the live speech transcript spoken by the user and stream-rendered by the LLM.
-  - Center morphing Gemini orb with ambient multi-ring glow.
-  - Hidden Top Island during Voice Mode for pure full-screen immersion.
+#### 1. Real-Time Hourly & 7-Day Forecast Dynamic Ingestion (`domain/weather/repository`)
+- Upgraded `OpenWeatherRepository` to query `https://api.openweathermap.org/data/2.5/forecast` (5-day / 3-hour forecast):
+  - Parses real sequential hourly forecasts: `Now (32°)`, `8:00 pm (31°)`, `9:00 pm (31°)`, `10:00 pm (30°)`, `11:00 pm (30°)`.
+  - Parses real multi-day daily high/low temperatures and weather conditions for Today, Tomorrow, and upcoming days.
+- Bound live `hourlyList` and `dailyList` directly into `HomeScreen.kt`, `HourlyForecastSection`, and `SevenDayForecastCard`.
 
-#### 2. Glowing Navigation Bar Breathing Aura (`core/components`)
-- In [FloatingBottomNavBar.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/core/components/FloatingBottomNavBar.kt):
-  - Added real-time `isAiSpeaking` synchronization.
-  - While AI speaks, the bottom navigation bar and raised center mic dome illuminate with a **pulsing breathing gradient aura** (`#006494` -> `#38BDF8` -> `#818CF8`).
+#### 2. Accurate Air Quality Index (AQI) Calculation
+- Replaced incorrect raw provider mapping with the standard breakpoint formula for `PM2.5`, `PM10`, and `O3`, resolving the AQI to match stock mobile weather feeds (e.g., `64 (Moderate)` in Hathras).
 
-#### 3. Immediate Tab Switch Audio Teardown
-- Navigating away from the Voice Mode tab immediately calls `ttsEngine.stop()` and cancels Sherpa-ONNX streaming so speech instantly halts on tab exit.
+#### 3. Default Provider Configuration
+- Set **OpenWeatherMap** as the primary default weather engine in `WeatherProviderPreferences` to ensure identical values with system weather applications.
 
 ---
 

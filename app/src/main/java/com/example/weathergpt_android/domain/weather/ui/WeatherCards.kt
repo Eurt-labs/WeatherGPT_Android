@@ -43,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
@@ -551,16 +552,9 @@ private fun MetricCard(
 }
 
 @Composable
-fun SevenDayForecastCard() {
-    val days = listOf(
-        DayForecast("Today", Icons.Rounded.WbSunny, "17°", "26°", 0.7f),
-        DayForecast("Mon", Icons.Rounded.Cloud, "16°", "24°", 0.6f),
-        DayForecast("Tue", Icons.Rounded.WbSunny, "18°", "27°", 0.8f),
-        DayForecast("Wed", Icons.Rounded.WaterDrop, "15°", "21°", 0.4f),
-        DayForecast("Thu", Icons.Rounded.Cloud, "16°", "23°", 0.5f),
-        DayForecast("Fri", Icons.Rounded.WbSunny, "19°", "28°", 0.85f),
-        DayForecast("Sat", Icons.Rounded.WbSunny, "20°", "29°", 0.9f)
-    )
+fun SevenDayForecastCard(
+    days: List<DayForecast> = LiveWeatherData.defaultDailyList()
+) {
 
     Surface(
         modifier = Modifier

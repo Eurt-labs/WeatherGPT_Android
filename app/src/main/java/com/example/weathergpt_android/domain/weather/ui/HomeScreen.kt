@@ -129,7 +129,7 @@ fun HomeScreen(
 
         // Hourly Horizontal Carousel
         item {
-            HourlyForecastSection()
+            HourlyForecastSection(hourlyList = liveWeatherData.hourlyList)
         }
 
         // Detailed 2x2 Metric Cards (Wind, Humidity, UV, AQI)
@@ -152,7 +152,7 @@ fun HomeScreen(
 
         // 7-Day Extended Forecast Card
         item {
-            SevenDayForecastCard()
+            SevenDayForecastCard(days = liveWeatherData.dailyList)
         }
 
         item {
