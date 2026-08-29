@@ -52,11 +52,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.weathergpt_android.core.theme.AlertRed
 
+import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
+
 @Composable
 fun TopIslandHeader(
     modifier: Modifier = Modifier,
     notificationCount: Int = 2,
     userName: String = "Dhruv",
+    liveWeatherData: LiveWeatherData = LiveWeatherData.DEFAULT,
     onNotificationClick: () -> Unit = {},
     onProfileClick: () -> Unit = {}
 ) {
@@ -263,13 +266,13 @@ fun TopIslandHeader(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Column {
                                     Text(
-                                        text = "24° • Clear Sky",
+                                        text = "${liveWeatherData.temperature} • ${liveWeatherData.condition}",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "AQI 34 (Good) • 0% Rain",
+                                        text = "AQI ${liveWeatherData.aqi} • Wind ${liveWeatherData.windSpeed}",
                                         fontSize = 10.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )

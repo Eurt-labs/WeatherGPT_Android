@@ -42,6 +42,7 @@ import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.rounded.Thermostat
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -67,10 +68,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.example.weathergpt_android.core.network.OpenRouterPreferences
 import com.example.weathergpt_android.domain.location.model.LocationData
 import com.example.weathergpt_android.domain.voice.sherpa.model.SherpaLanguage
 import com.example.weathergpt_android.domain.voice.sherpa.pipeline.SherpaVoicePipeline
-import kotlinx.coroutines.launch
+import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
 import java.util.Locale
 
 enum class VoiceModeState {
@@ -83,7 +85,8 @@ enum class VoiceModeState {
 @Composable
 fun VoiceAiScreen(
     modifier: Modifier = Modifier,
-    locationData: LocationData = LocationData.DEFAULT
+    locationData: LocationData = LocationData.DEFAULT,
+    liveWeatherData: LiveWeatherData = LiveWeatherData.DEFAULT
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -96,7 +99,7 @@ fun VoiceAiScreen(
     var voiceState by remember { mutableStateOf(VoiceModeState.IDLE) }
     var userSpeechText by remember { mutableStateOf("") }
     var assistantSpeechText by remember {
-        mutableStateOf("Sherpa-ONNX STT ➔ OpenRouter Nemotron ➔ Sherpa TTS Pipeline active. Tap sphere or topic to talk.")
+        mutableStateOf("Currently in ${locationData.cityName}, it's ${liveWeatherData.temperature} with ${liveWeatherData.condition}. Tap the sphere to start asking!")
     }
     var isTtsMuted by remember { mutableStateOf(false) }
 
@@ -140,18 +143,38 @@ fun VoiceAiScreen(
         voicePipeline.sherpaEngine.stopAudioPlayback()
     }
 
-    // Executes Complete Pipeline: Sherpa STT -> OpenRouter -> Sherpa TTS
+    // Executes Complete Pipeline: Sherpa STT -> OpenRouter with Live Weather -> Sherpa TTS
     fun executePipeline(prompt: String) {
         stopSpeaking()
         userSpeechText = prompt
         voiceState = VoiceModeState.THINKING
         assistantSpeechText = ""
 
+        val apiKey = OpenRouterPreferences.getApiKey(context)
+        if (apiKey.isBlank()) {
+            // Intelligent fallback with true live OpenWeather context
+            val fallback = when {
+                prompt.contains("walk", ignoreCase = true) || prompt.contains("outside", ignoreCase = true) ->
+                    "In ${locationData.cityName}, it's currently ${liveWeatherData.temperature} with ${liveWeatherData.condition} and wind at ${liveWeatherData.windSpeed}. Outdoor conditions are favorable."
+                prompt.contains("rain", ignoreCase = true) ->
+                    "Live weather reports ${liveWeatherData.condition} in ${locationData.cityName} with ${liveWeatherData.humidity} humidity."
+                prompt.contains("wear", ignoreCase = true) ->
+                    "With ${liveWeatherData.temperature} and ${liveWeatherData.condition}, breathable comfortable clothing is recommended."
+                else ->
+                    "Currently in ${locationData.cityName}, it is ${liveWeatherData.temperature} with ${liveWeatherData.condition}, wind at ${liveWeatherData.windSpeed}, and air quality at ${liveWeatherData.aqi}."
+            }
+            assistantSpeechText = fallback
+            voiceState = VoiceModeState.SPEAKING
+            speakChunk(fallback, TextToSpeech.QUEUE_FLUSH)
+            return
+        }
+
         var isFirstSentence = true
 
         voicePipeline.processVoiceTurn(
             userPrompt = prompt,
             locationData = locationData,
+            liveWeatherData = liveWeatherData,
             onTranscriptionUpdate = { transcription ->
                 userSpeechText = transcription
             },
@@ -240,9 +263,9 @@ fun VoiceAiScreen(
     )
 
     val quickConversations = listOf(
-        "Is today good for an evening walk?",
-        "Will it rain anytime today?",
-        "What should I wear for outside right now?",
+        "What is the live weather forecast right now?",
+        "Is today good for an evening walk outside?",
+        "What should I wear with current temperature?",
         "Check air quality and UV safety"
     )
 
@@ -259,40 +282,66 @@ fun VoiceAiScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Pipeline Indicator Badge
+        // Live Context Badge & Title
         item {
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Memory,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Text(
-                            text = "Sherpa STT ➔ OpenRouter ➔ Sherpa TTS",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Thermostat,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Live: ${liveWeatherData.temperature} • ${liveWeatherData.condition}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFD1FAE5)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Bolt,
+                                contentDescription = null,
+                                tint = Color(0xFF059669),
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = "<400ms TTS",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF065F46)
+                            )
+                        }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "Full-Duplex Voice AI for ${locationData.cityName}",
+                    text = "Live Weather AI for ${locationData.cityName}",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -465,7 +514,7 @@ fun VoiceAiScreen(
                                             onPartialResult = { partial -> userSpeechText = partial },
                                             onFinalResult = { final -> executePipeline(final) }
                                         )
-                                        executePipeline("What is the current weather forecast and outdoor comfort level?")
+                                        executePipeline("What is the live weather forecast and outdoor comfort level in ${locationData.cityName}?")
                                     }
                                     VoiceModeState.THINKING -> {}
                                 }
@@ -561,7 +610,7 @@ fun VoiceAiScreen(
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Pipeline Stream",
+                                text = "Live Weather Voice",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
@@ -620,7 +669,7 @@ fun VoiceAiScreen(
                             color = MaterialTheme.colorScheme.surfaceVariant
                         ) {
                             Text(
-                                text = "STT: \"$userSpeechText\"",
+                                text = "You: \"$userSpeechText\"",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -632,7 +681,7 @@ fun VoiceAiScreen(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
-                        text = if (assistantSpeechText.isEmpty() && voiceState == VoiceModeState.THINKING) "Streaming from Nemotron 3.5 to Sherpa TTS..." else assistantSpeechText,
+                        text = if (assistantSpeechText.isEmpty() && voiceState == VoiceModeState.THINKING) "Streaming response with live OpenWeather context..." else assistantSpeechText,
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurface,
                         lineHeight = 20.sp
@@ -648,7 +697,7 @@ fun VoiceAiScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Execute Full Pipeline (${selectedLanguage.displayName})",
+                    text = "Ask Live Weather Questions (${selectedLanguage.displayName})",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant

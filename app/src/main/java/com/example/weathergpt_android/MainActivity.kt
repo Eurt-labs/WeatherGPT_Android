@@ -199,8 +199,14 @@ fun WeatherGPTApp(
                         liveWeatherData = liveWeatherData
                     )
                     NavTab.NEWS -> NewsScreen()
-                    NavTab.VOICE_AI -> VoiceAiScreen(locationData = locationData)
-                    NavTab.GPT -> GptChatScreen(locationData = locationData)
+                    NavTab.VOICE_AI -> VoiceAiScreen(
+                        locationData = locationData,
+                        liveWeatherData = liveWeatherData
+                    )
+                    NavTab.GPT -> GptChatScreen(
+                        locationData = locationData,
+                        liveWeatherData = liveWeatherData
+                    )
                     NavTab.SETTINGS -> SettingsScreen(
                         currentTheme = currentTheme,
                         onThemeSelected = onThemeChange
@@ -221,6 +227,7 @@ fun WeatherGPTApp(
             TopIslandHeader(
                 notificationCount = notificationCount,
                 userName = userName,
+                liveWeatherData = liveWeatherData,
                 onNotificationClick = {
                     showNotificationSheet = true
                     notificationCount = 0

@@ -5,13 +5,14 @@ import com.example.weathergpt_android.core.network.OpenRouterService
 import com.example.weathergpt_android.domain.location.model.LocationData
 import com.example.weathergpt_android.domain.voice.sherpa.engine.SherpaOnnxEngine
 import com.example.weathergpt_android.domain.voice.sherpa.model.SherpaLanguage
+import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
 /**
  * Full-Duplex Weather Voice Intelligence Pipeline:
- * sherpa-onnx (STT) -> OpenRouter API (Nemotron 3.5 Streaming) -> sherpa-onnx (TTS / Speech Synthesis)
+ * sherpa-onnx (STT) -> OpenRouter API (Nemotron 3.5 Streaming with Live Weather Context) -> sherpa-onnx (TTS / Speech Synthesis)
  */
 class SherpaVoicePipeline(
     private val context: Context,
@@ -20,20 +21,24 @@ class SherpaVoicePipeline(
     val openRouterService: OpenRouterService = OpenRouterService(context)
 ) {
     /**
-     * Executes end-to-end voice query turn:
+     * Executes end-to-end voice query turn with live fetched weather context:
      * 1. Takes input speech / text from Sherpa-ONNX STT
-     * 2. Streams reasoning from OpenRouter API (Nemotron 3.5)
-     * 3. Streams audio playback via Sherpa-ONNX / TTS in sub-second sentence chunks
+     * 2. Injects live OpenWeather atmospheric data
+     * 3. Streams reasoning from OpenRouter API (Nemotron 3.5)
+     * 4. Streams audio playback via Sherpa-ONNX / TTS in sub-second sentence chunks
      */
     fun processVoiceTurn(
         userPrompt: String,
         locationData: LocationData,
+        liveWeatherData: LiveWeatherData,
         onTranscriptionUpdate: (String) -> Unit,
         onAiTextChunk: (String) -> Unit,
         onTtsSentenceChunk: (String) -> Unit,
         onError: (String) -> Unit
     ) {
         onTranscriptionUpdate(userPrompt)
+
+        val weatherContextSummary = "${liveWeatherData.temperature}, ${liveWeatherData.condition}, ${liveWeatherData.highLow}, Wind: ${liveWeatherData.windSpeed}, Humidity: ${liveWeatherData.humidity}, AQI: ${liveWeatherData.aqi}"
 
         scope.launch {
             var fullText = ""
@@ -42,7 +47,7 @@ class SherpaVoicePipeline(
             openRouterService.streamChatCompletion(
                 userMessage = userPrompt,
                 locationContext = locationData.formattedLocation,
-                weatherContext = "24°C, Clear Sky, Humidity 52%, Wind 14 km/h, AQI 34",
+                weatherContext = weatherContextSummary,
                 isVoiceMode = true
             ).catch { e ->
                 onError(e.message ?: "OpenRouter streaming failed")

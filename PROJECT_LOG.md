@@ -180,18 +180,13 @@ com.example.weathergpt_android/
   - 🇮🇳 **Telugu / తెలుగు** (`te-IN`)
 - Real-time localized weather intelligence dialog with native audio TTS output.
 
-### [Version 1.8.0] - Live OpenWeather API Integration with Secure Git-Ignored Config
+### [Version 1.8.1] - Live OpenWeather Context Injection for Voice AI, Chat & Dynamic Island
 
-#### 1. Secure OpenWeather API Layer (`core/network` & `domain/weather/repository`)
-- Securely reads API key from local environment / `local.properties` (or runtime user entry in `SharedPreferences`) without committing secret keys to GitHub.
-- Created `OpenWeatherRepository` fetching:
-  - Current Weather: Temperature, condition description, high/low, wind speed in km/h, and humidity.
-  - Air Pollution: Real-time AQI breakdown.
-- Built disk caching (`SharedPreferences`) for instant offline launch.
-
-#### 2. Live Weather Binding in UI (`domain/weather/ui`)
-- [HomeScreen.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/weather/ui/HomeScreen.kt) dynamically binds live OpenWeather metrics (`● Live OpenWeather` pill + scenario switcher).
-- Location resolver in `MainActivity.kt` triggers background OpenWeather updates whenever GPS coordinates update.
+#### 1. Live Weather Parameter Injection in AI Pipelines
+- **Voice AI Pipeline (`domain/voice`)**: Injected real-time OpenWeather atmospheric summary (`temperature`, `condition`, `high/low`, `wind speed`, `humidity`, `AQI`) into `SherpaVoicePipeline` and Nemotron 3.5 Lightning system prompt.
+- **Smart Fallback Answers**: In the absence of an OpenRouter key, voice responses dynamically speak the exact live fetched OpenWeather conditions (`"${liveWeatherData.temperature} with ${liveWeatherData.condition} and wind at ${liveWeatherData.windSpeed}"`).
+- **WeatherGPT Chatbot (`domain/assistant`)**: System prompts and initial greeting messages dynamically incorporate live weather metrics.
+- **Top Dynamic Island (`core/components`)**: Expanded island view dynamically displays live temperature, condition, wind, and AQI.
 
 ---
 

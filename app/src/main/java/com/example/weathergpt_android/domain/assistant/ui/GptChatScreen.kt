@@ -61,6 +61,7 @@ import com.example.weathergpt_android.core.network.OpenRouterPreferences
 import com.example.weathergpt_android.core.network.OpenRouterService
 import com.example.weathergpt_android.domain.assistant.model.ChatMessage
 import com.example.weathergpt_android.domain.location.model.LocationData
+import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -71,7 +72,8 @@ import java.util.UUID
 @Composable
 fun GptChatScreen(
     modifier: Modifier = Modifier,
-    locationData: LocationData = LocationData.DEFAULT
+    locationData: LocationData = LocationData.DEFAULT,
+    liveWeatherData: LiveWeatherData = LiveWeatherData.DEFAULT
 ) {
     val context = LocalContext.current
     val openRouterService = remember { OpenRouterService(context) }
@@ -87,7 +89,7 @@ fun GptChatScreen(
         mutableStateListOf(
             ChatMessage(
                 id = "1",
-                text = "Hello! I'm WeatherGPT with Ultra-Low Latency streaming powered by Nemotron 3.5 Lightning. Ask anything about weather in ${locationData.cityName}!",
+                text = "Hello! I'm WeatherGPT. Currently in ${locationData.cityName}, it's ${liveWeatherData.temperature} with ${liveWeatherData.condition}, wind at ${liveWeatherData.windSpeed}, and air quality at ${liveWeatherData.aqi}. Ask me anything about microclimates, forecasts, or clothing advice!",
                 isUser = false,
                 timestamp = "Just now"
             )
@@ -136,11 +138,12 @@ fun GptChatScreen(
             }
 
             var accumulatedText = ""
+            val liveWeatherContext = "${liveWeatherData.temperature}, ${liveWeatherData.condition}, ${liveWeatherData.highLow}, Wind: ${liveWeatherData.windSpeed}, Humidity: ${liveWeatherData.humidity}, AQI: ${liveWeatherData.aqi}"
 
             openRouterService.streamChatCompletion(
                 userMessage = userText,
                 locationContext = locationData.formattedLocation,
-                weatherContext = "24°C, Clear Sky, Humidity 52%, Wind 14 km/h, AQI 34",
+                weatherContext = liveWeatherContext,
                 history = history,
                 isVoiceMode = false
             ).catch { err ->
@@ -170,7 +173,7 @@ fun GptChatScreen(
             .statusBarsPadding()
             .imePadding()
     ) {
-        // Dedicated Chat Header with Latency Badge & API Key Shortcut
+        // Dedicated Chat Header with Live Weather Context & API Key Shortcut
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = MaterialTheme.colorScheme.surface,
@@ -220,7 +223,7 @@ fun GptChatScreen(
                             Spacer(modifier = Modifier.width(6.dp))
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = Color(0xFFD1FAE5) // Low-latency Green badge
+                                color = Color(0xFFD1FAE5)
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
@@ -243,7 +246,7 @@ fun GptChatScreen(
                             }
                         }
                         Text(
-                            text = "Nemotron 3.5 Lightning • ${locationData.cityName}",
+                            text = "${locationData.cityName} • ${liveWeatherData.temperature} ${liveWeatherData.condition}",
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -282,7 +285,7 @@ fun GptChatScreen(
                                 messages.add(
                                     ChatMessage(
                                         id = "init",
-                                        text = "Conversation cleared. Ask WeatherGPT anything about ${locationData.cityName}!",
+                                        text = "Conversation cleared. Currently in ${locationData.cityName}, it's ${liveWeatherData.temperature} with ${liveWeatherData.condition}. Ask anything!",
                                         isUser = false,
                                         timestamp = "Just now"
                                     )
@@ -405,7 +408,7 @@ fun GptChatScreen(
                     onValueChange = { inputText = it },
                     placeholder = {
                         Text(
-                            text = "Ask Nemotron 3.5 (Fast Stream)...",
+                            text = "Ask Nemotron 3.5 about weather...",
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
