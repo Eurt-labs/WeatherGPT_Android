@@ -1,5 +1,9 @@
 package com.example.weathergpt_android.domain.voice.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -31,6 +35,7 @@ import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,25 +50,14 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.example.weathergpt_android.core.theme.AiIndigo
 import com.example.weathergpt_android.core.theme.AiPurple
 import com.example.weathergpt_android.core.theme.AiPurpleLight
-import com.example.weathergpt_android.core.theme.CardBackground
-import com.example.weathergpt_android.core.theme.SkyBlue
-import com.example.weathergpt_android.core.theme.SkyBlueLight
-import com.example.weathergpt_android.core.theme.SubtleSurface
-import com.example.weathergpt_android.core.theme.TextPrimary
-import com.example.weathergpt_android.core.theme.TextSecondary
-
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
 
 @Composable
 fun VoiceAiScreen(
@@ -117,13 +111,13 @@ fun VoiceAiScreen(
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(
-            start = 20.dp,
-            end = 20.dp,
-            top = 84.dp,
-            bottom = 100.dp
+            start = 16.dp,
+            end = 16.dp,
+            top = 104.dp, // Generous clearance for top island
+            bottom = 110.dp // Generous clearance for bottom floating island
         ),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         item {
             Column(
@@ -134,13 +128,13 @@ fun VoiceAiScreen(
                     text = "Voice AI Assistant",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
+                    color = MaterialTheme.colorScheme.onSurface,
                     letterSpacing = (-0.4).sp
                 )
                 Text(
                     text = if (isListening) "Listening to your voice..." else "Hands-free natural weather intelligence",
-                    fontSize = 14.sp,
-                    color = if (isListening) SkyBlue else TextSecondary
+                    fontSize = 13.sp,
+                    color = if (isListening) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -150,39 +144,39 @@ fun VoiceAiScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(240.dp),
+                    .height(200.dp),
                 contentAlignment = Alignment.Center
             ) {
                 if (isListening) {
                     Box(
                         modifier = Modifier
-                            .size(170.dp)
+                            .size(160.dp)
                             .scale(pulse2)
                             .clip(CircleShape)
-                            .background(SkyBlueLight.copy(alpha = 0.4f))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
                     )
                     Box(
                         modifier = Modifier
-                            .size(130.dp)
+                            .size(120.dp)
                             .scale(pulse1)
                             .clip(CircleShape)
-                            .background(AiPurpleLight.copy(alpha = 0.6f))
+                            .background(AiPurpleLight.copy(alpha = 0.5f))
                     )
                 }
 
                 Box(
                     modifier = Modifier
-                        .size(90.dp)
+                        .size(86.dp)
                         .shadow(
-                            elevation = 12.dp,
+                            elevation = 14.dp,
                             shape = CircleShape,
-                            spotColor = if (isListening) SkyBlue else Color(0x20000000)
+                            spotColor = if (isListening) MaterialTheme.colorScheme.primary else Color(0x30000000)
                         )
                         .clip(CircleShape)
                         .background(
                             Brush.linearGradient(
-                                if (isListening) listOf(SkyBlue, AiIndigo)
-                                else listOf(SkyBlue, AiPurple)
+                                if (isListening) listOf(MaterialTheme.colorScheme.primary, AiIndigo)
+                                else listOf(MaterialTheme.colorScheme.primary, AiPurple)
                             )
                         )
                         .clickable {
@@ -207,7 +201,7 @@ fun VoiceAiScreen(
                         imageVector = if (isListening) Icons.Rounded.Stop else Icons.Rounded.Mic,
                         contentDescription = "Microphone",
                         tint = Color.White,
-                        modifier = Modifier.size(42.dp)
+                        modifier = Modifier.size(38.dp)
                     )
                 }
             }
@@ -218,7 +212,7 @@ fun VoiceAiScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 40.dp),
+                    .padding(horizontal = 30.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -226,14 +220,14 @@ fun VoiceAiScreen(
                     val barHeight = if (isListening) {
                         (16 + (index * 7) % 28).dp
                     } else {
-                        8.dp
+                        10.dp
                     }
                     Box(
                         modifier = Modifier
                             .width(4.dp)
                             .height(barHeight)
                             .clip(RoundedCornerShape(2.dp))
-                            .background(if (isListening) SkyBlue else SubtleSurface)
+                            .background(if (isListening) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
                     )
                 }
             }
@@ -245,18 +239,19 @@ fun VoiceAiScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .shadow(
-                        elevation = 6.dp,
-                        shape = RoundedCornerShape(24.dp),
-                        spotColor = Color(0x10000000),
-                        ambientColor = Color(0x06000000)
+                        elevation = 8.dp,
+                        shape = RoundedCornerShape(22.dp),
+                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                        ambientColor = Color(0x10000000)
                     ),
-                shape = RoundedCornerShape(24.dp),
-                color = CardBackground
+                shape = RoundedCornerShape(22.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 1.dp
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp)
+                        .padding(18.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -266,7 +261,7 @@ fun VoiceAiScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
-                                    .size(32.dp)
+                                    .size(30.dp)
                                     .clip(CircleShape)
                                     .background(AiPurpleLight),
                                 contentAlignment = Alignment.Center
@@ -275,13 +270,13 @@ fun VoiceAiScreen(
                                     imageVector = Icons.Rounded.AutoAwesome,
                                     contentDescription = null,
                                     tint = AiIndigo,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "Voice Interaction",
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = AiIndigo
                             )
@@ -290,7 +285,7 @@ fun VoiceAiScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.VolumeUp,
                             contentDescription = "Play Audio",
-                            tint = SkyBlue,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier
                                 .size(20.dp)
                                 .clip(CircleShape)
@@ -298,22 +293,22 @@ fun VoiceAiScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
                         text = currentPrompt,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
                         text = currentResponse,
-                        fontSize = 14.sp,
-                        color = TextSecondary,
-                        lineHeight = 20.sp
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 18.sp
                     )
                 }
             }
@@ -323,46 +318,46 @@ fun VoiceAiScreen(
         item {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     text = "Try asking",
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 quickPrompts.forEach { prompt ->
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(14.dp))
                             .clickable {
                                 isListening = true
                                 currentPrompt = prompt
                                 currentResponse = "Analyzing live meteorological data... Conditions are optimal with 24°C, 48% humidity, and calm winds."
                             },
-                        shape = RoundedCornerShape(16.dp),
-                        color = SubtleSurface
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.GraphicEq,
                                 contentDescription = null,
-                                tint = SkyBlue,
-                                modifier = Modifier.size(18.dp)
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
                             )
-                            Spacer(modifier = Modifier.width(10.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "\"$prompt\"",
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = TextPrimary
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }

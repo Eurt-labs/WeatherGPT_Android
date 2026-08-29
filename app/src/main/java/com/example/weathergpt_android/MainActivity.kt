@@ -18,6 +18,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,7 +33,7 @@ import androidx.core.content.ContextCompat
 import com.example.weathergpt_android.core.components.FloatingBottomNavBar
 import com.example.weathergpt_android.core.components.TopIslandHeader
 import com.example.weathergpt_android.core.navigation.NavTab
-import com.example.weathergpt_android.core.theme.FlushedBackground
+import com.example.weathergpt_android.core.theme.AppThemeMode
 import com.example.weathergpt_android.core.theme.WeatherGPTTheme
 import com.example.weathergpt_android.domain.assistant.ui.GptChatScreen
 import com.example.weathergpt_android.domain.news.ui.NewsScreen
@@ -47,15 +48,22 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            WeatherGPTTheme {
-                WeatherGPTApp()
+            var themeMode by remember { mutableStateOf(AppThemeMode.FROST_LIGHT) }
+            WeatherGPTTheme(themeMode = themeMode) {
+                WeatherGPTApp(
+                    currentTheme = themeMode,
+                    onThemeChange = { themeMode = it }
+                )
             }
         }
     }
 }
 
 @Composable
-fun WeatherGPTApp() {
+fun WeatherGPTApp(
+    currentTheme: AppThemeMode = AppThemeMode.FROST_LIGHT,
+    onThemeChange: (AppThemeMode) -> Unit = {}
+) {
     val context = LocalContext.current
     var currentTab by remember { mutableStateOf(NavTab.WEATHER) }
     var showNotificationSheet by remember { mutableStateOf(false) }
@@ -66,12 +74,7 @@ fun WeatherGPTApp() {
     // Runtime Permission Requester for Location, Microphone, and Notifications
     val permissionsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val locationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        val audioGranted = permissions[Manifest.permission.RECORD_AUDIO] == true
-        // Permissions handled seamlessly
-    }
+    ) { _ -> }
 
     LaunchedEffect(Unit) {
         val permissionsToRequest = mutableListOf(
@@ -95,7 +98,7 @@ fun WeatherGPTApp() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(FlushedBackground)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // Main Domain Screen Content with smooth transitions
         AnimatedContent(
@@ -113,7 +116,10 @@ fun WeatherGPTApp() {
                 NavTab.NEWS -> NewsScreen()
                 NavTab.VOICE_AI -> VoiceAiScreen()
                 NavTab.GPT -> GptChatScreen()
-                NavTab.SETTINGS -> SettingsScreen()
+                NavTab.SETTINGS -> SettingsScreen(
+                    currentTheme = currentTheme,
+                    onThemeSelected = onThemeChange
+                )
             }
         }
 

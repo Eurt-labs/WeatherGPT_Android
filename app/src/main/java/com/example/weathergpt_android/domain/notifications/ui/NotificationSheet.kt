@@ -23,6 +23,7 @@ import androidx.compose.material.icons.rounded.Thunderstorm
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -39,13 +40,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.weathergpt_android.core.theme.AiIndigo
 import com.example.weathergpt_android.core.theme.AlertRedLight
-import com.example.weathergpt_android.core.theme.CardBackground
 import com.example.weathergpt_android.core.theme.SkyBlue
 import com.example.weathergpt_android.core.theme.SkyBlueLight
-import com.example.weathergpt_android.core.theme.SubtleSurface
-import com.example.weathergpt_android.core.theme.TextPrimary
-import com.example.weathergpt_android.core.theme.TextSecondary
-import com.example.weathergpt_android.core.theme.TextTertiary
 import com.example.weathergpt_android.core.theme.WeatherAmber
 import com.example.weathergpt_android.core.theme.WeatherAmberLight
 import com.example.weathergpt_android.domain.notifications.model.WeatherNotification
@@ -91,13 +87,13 @@ fun NotificationSheet(
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
-        containerColor = CardBackground,
+        containerColor = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 12.dp)
+                .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -107,23 +103,23 @@ fun NotificationSheet(
                 Column {
                     Text(
                         text = "Notifications",
-                        fontSize = 22.sp,
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = "${notifications.size} unread alerts",
-                        fontSize = 13.sp,
-                        color = TextSecondary
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
                 if (notifications.isNotEmpty()) {
                     Text(
                         text = "Clear all",
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = SkyBlue,
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
                             .clickable { notifications.clear() }
@@ -132,25 +128,25 @@ fun NotificationSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             if (notifications.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(180.dp),
+                        .height(160.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "No new weather notifications",
-                        fontSize = 15.sp,
-                        color = TextTertiary
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(notifications, key = { it.id }) { notif ->
                         NotificationItemCard(
@@ -159,7 +155,7 @@ fun NotificationSheet(
                         )
                     }
                     item {
-                        Spacer(modifier = Modifier.height(32.dp))
+                        Spacer(modifier = Modifier.height(28.dp))
                     }
                 }
             }
@@ -174,18 +170,18 @@ private fun NotificationItemCard(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = SubtleSurface
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
+                .padding(12.dp),
             verticalAlignment = Alignment.Top
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(38.dp)
                     .clip(CircleShape)
                     .background(notification.bgTint),
                 contentAlignment = Alignment.Center
@@ -194,11 +190,11 @@ private fun NotificationItemCard(
                     imageVector = notification.icon,
                     contentDescription = null,
                     tint = notification.tint,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(
@@ -208,35 +204,35 @@ private fun NotificationItemCard(
                 ) {
                     Text(
                         text = notification.title,
-                        fontSize = 15.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = notification.time,
-                        fontSize = 12.sp,
-                        color = TextTertiary
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(3.dp))
 
                 Text(
                     text = notification.message,
-                    fontSize = 13.sp,
-                    color = TextSecondary,
-                    lineHeight = 18.sp
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 17.sp
                 )
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(6.dp))
 
             Icon(
                 imageVector = Icons.Rounded.Close,
                 contentDescription = "Dismiss",
-                tint = TextTertiary,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 modifier = Modifier
-                    .size(18.dp)
+                    .size(17.dp)
                     .clip(CircleShape)
                     .clickable(onClick = onDismiss)
             )

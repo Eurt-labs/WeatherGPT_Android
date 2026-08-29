@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,9 +33,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.weathergpt_android.core.theme.SkyBlue
-import com.example.weathergpt_android.core.theme.SubtleSurface
-import com.example.weathergpt_android.core.theme.TextPrimary
 import com.example.weathergpt_android.domain.weather.model.WeatherScenario
 
 @Composable
@@ -48,12 +46,12 @@ fun HomeScreen(
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(
-            start = 20.dp,
-            end = 20.dp,
-            top = 84.dp,
-            bottom = 100.dp
+            start = 16.dp,
+            end = 16.dp,
+            top = 104.dp, // Generous clearance for top island
+            bottom = 110.dp // Generous clearance for bottom floating island
         ),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         // Interactive Weather Scenario Switcher Pills
         item {
@@ -70,13 +68,13 @@ fun HomeScreen(
                             .clip(RoundedCornerShape(16.dp))
                             .clickable { selectedScenario = scenario },
                         shape = RoundedCornerShape(16.dp),
-                        color = if (isSelected) SkyBlue else SubtleSurface
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Text(
                             text = scenario.label,
                             fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) Color.White else TextPrimary,
+                            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
                         )
                     }

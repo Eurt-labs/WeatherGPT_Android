@@ -32,6 +32,7 @@ import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -52,12 +53,6 @@ import androidx.compose.ui.unit.sp
 import com.example.weathergpt_android.core.theme.AiIndigo
 import com.example.weathergpt_android.core.theme.AiPurple
 import com.example.weathergpt_android.core.theme.AlertRed
-import com.example.weathergpt_android.core.theme.IslandBackground
-import com.example.weathergpt_android.core.theme.SkyBlue
-import com.example.weathergpt_android.core.theme.SkyBlueLight
-import com.example.weathergpt_android.core.theme.SubtleSurface
-import com.example.weathergpt_android.core.theme.TextPrimary
-import com.example.weathergpt_android.core.theme.TextSecondary
 
 @Composable
 fun TopIslandHeader(
@@ -70,7 +65,7 @@ fun TopIslandHeader(
     var isExpanded by remember { mutableStateOf(false) }
 
     val islandHeight by animateDpAsState(
-        targetValue = if (isExpanded) 118.dp else 60.dp,
+        targetValue = if (isExpanded) 116.dp else 56.dp,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioLowBouncy,
             stiffness = Spring.StiffnessMediumLow
@@ -81,7 +76,7 @@ fun TopIslandHeader(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
         Surface(
@@ -89,20 +84,20 @@ fun TopIslandHeader(
                 .fillMaxWidth()
                 .height(islandHeight)
                 .shadow(
-                    elevation = if (isExpanded) 16.dp else 10.dp,
-                    shape = RoundedCornerShape(30.dp),
-                    spotColor = Color(0x18000000),
-                    ambientColor = Color(0x10000000)
+                    elevation = if (isExpanded) 14.dp else 8.dp,
+                    shape = RoundedCornerShape(28.dp),
+                    spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                    ambientColor = Color(0x18000000)
                 ),
-            shape = RoundedCornerShape(30.dp),
-            color = IslandBackground,
-            tonalElevation = 0.dp,
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 2.dp,
             shadowElevation = 0.dp
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
@@ -123,10 +118,10 @@ fun TopIslandHeader(
 
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
+                            .size(40.dp)
                             .scale(notifScale)
                             .clip(CircleShape)
-                            .background(SubtleSurface)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .clickable(
                                 interactionSource = notifSource,
                                 indication = null,
@@ -148,8 +143,8 @@ fun TopIslandHeader(
                             Icon(
                                 imageVector = Icons.Rounded.Notifications,
                                 contentDescription = "Notifications",
-                                tint = TextPrimary,
-                                modifier = Modifier.size(20.dp)
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(19.dp)
                             )
                         }
                     }
@@ -159,32 +154,32 @@ fun TopIslandHeader(
                         modifier = Modifier
                             .clip(RoundedCornerShape(16.dp))
                             .clickable { isExpanded = !isExpanded }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
                         Text(
                             text = "Weather",
-                            fontSize = 19.sp,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = TextPrimary,
+                            color = MaterialTheme.colorScheme.onSurface,
                             letterSpacing = (-0.3).sp
                         )
                         Text(
                             text = "GPT",
-                            fontSize = 19.sp,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Black,
-                            color = SkyBlue,
+                            color = MaterialTheme.colorScheme.primary,
                             letterSpacing = (-0.3).sp
                         )
                         Box(
                             modifier = Modifier
-                                .padding(start = 4.dp, bottom = 8.dp)
-                                .size(6.dp)
+                                .padding(start = 4.dp, bottom = 6.dp)
+                                .size(5.dp)
                                 .clip(CircleShape)
                                 .background(
                                     Brush.linearGradient(
-                                        listOf(SkyBlue, AiPurple)
+                                        listOf(MaterialTheme.colorScheme.primary, AiPurple)
                                     )
                                 )
                         )
@@ -201,12 +196,12 @@ fun TopIslandHeader(
 
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
+                            .size(40.dp)
                             .scale(profileScale)
                             .clip(CircleShape)
                             .background(
                                 Brush.linearGradient(
-                                    colors = listOf(SkyBlue, AiIndigo)
+                                    colors = listOf(MaterialTheme.colorScheme.primary, AiIndigo)
                                 )
                             )
                             .clickable(
@@ -220,7 +215,7 @@ fun TopIslandHeader(
                             text = userName.take(1).uppercase(),
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
+                            fontSize = 15.sp
                         )
                     }
                 }
@@ -234,61 +229,61 @@ fun TopIslandHeader(
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 4.dp),
-                        shape = RoundedCornerShape(18.dp),
-                        color = SubtleSurface
+                            .padding(top = 2.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
                                     modifier = Modifier
-                                        .size(28.dp)
+                                        .size(26.dp)
                                         .clip(CircleShape)
-                                        .background(SkyBlueLight),
+                                        .background(MaterialTheme.colorScheme.primaryContainer),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Rounded.Cloud,
                                         contentDescription = null,
-                                        tint = SkyBlue,
-                                        modifier = Modifier.size(16.dp)
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(15.dp)
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Column {
                                     Text(
                                         text = "24° • Clear Sky",
-                                        fontSize = 13.sp,
+                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = TextPrimary
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
                                         text = "AQI 34 (Good) • 0% Rain",
-                                        fontSize = 11.sp,
-                                        color = TextSecondary
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
 
                             Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = Color.White,
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surface,
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(10.dp))
+                                    .clip(RoundedCornerShape(8.dp))
                                     .clickable { isExpanded = false }
                             ) {
                                 Text(
                                     text = "Close",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = SkyBlue,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                 )
                             }
                         }

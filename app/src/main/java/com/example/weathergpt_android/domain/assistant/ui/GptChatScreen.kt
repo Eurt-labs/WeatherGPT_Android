@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Thermostat
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -49,12 +50,6 @@ import androidx.compose.ui.unit.sp
 import com.example.weathergpt_android.core.theme.AiIndigo
 import com.example.weathergpt_android.core.theme.AiPurple
 import com.example.weathergpt_android.core.theme.AiPurpleLight
-import com.example.weathergpt_android.core.theme.CardBackground
-import com.example.weathergpt_android.core.theme.SkyBlue
-import com.example.weathergpt_android.core.theme.SubtleSurface
-import com.example.weathergpt_android.core.theme.TextPrimary
-import com.example.weathergpt_android.core.theme.TextSecondary
-import com.example.weathergpt_android.core.theme.TextTertiary
 import com.example.weathergpt_android.domain.assistant.model.ChatMessage
 import kotlinx.coroutines.launch
 
@@ -106,12 +101,12 @@ fun GptChatScreen(
                 .weight(1f)
                 .fillMaxWidth(),
             contentPadding = PaddingValues(
-                start = 20.dp,
-                end = 20.dp,
-                top = 84.dp,
+                start = 16.dp,
+                end = 16.dp,
+                top = 104.dp, // Clearance for top island
                 bottom = 12.dp
             ),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -119,13 +114,13 @@ fun GptChatScreen(
                         text = "WeatherGPT Intelligence",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextPrimary,
+                        color = MaterialTheme.colorScheme.onSurface,
                         letterSpacing = (-0.4).sp
                     )
                     Text(
                         text = "Powered by real-time spatial weather modeling",
-                        fontSize = 14.sp,
-                        color = TextSecondary
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -140,7 +135,7 @@ fun GptChatScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 6.dp),
+                .padding(horizontal = 16.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             suggestionChips.forEach { suggestion ->
@@ -170,7 +165,7 @@ fun GptChatScreen(
                             }
                         },
                     shape = RoundedCornerShape(14.dp),
-                    color = SubtleSurface
+                    color = MaterialTheme.colorScheme.surfaceVariant
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -179,15 +174,15 @@ fun GptChatScreen(
                         Icon(
                             imageVector = Icons.Rounded.AutoAwesome,
                             contentDescription = null,
-                            tint = SkyBlue,
-                            modifier = Modifier.size(14.dp)
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(13.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = suggestion,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
-                            color = TextPrimary
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -198,7 +193,7 @@ fun GptChatScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 20.dp, end = 20.dp, bottom = 92.dp, top = 6.dp)
+                .padding(start = 16.dp, end = 16.dp, bottom = 86.dp, top = 4.dp)
         ) {
             Surface(
                 modifier = Modifier
@@ -206,15 +201,17 @@ fun GptChatScreen(
                     .shadow(
                         elevation = 8.dp,
                         shape = RoundedCornerShape(28.dp),
-                        spotColor = Color(0x14000000)
+                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                        ambientColor = Color(0x10000000)
                     ),
                 shape = RoundedCornerShape(28.dp),
-                color = CardBackground
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 1.dp
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedTextField(
@@ -223,8 +220,8 @@ fun GptChatScreen(
                         placeholder = {
                             Text(
                                 text = "Ask WeatherGPT anything...",
-                                fontSize = 14.sp,
-                                color = TextTertiary
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                             )
                         },
                         colors = OutlinedTextFieldDefaults.colors(
@@ -238,11 +235,11 @@ fun GptChatScreen(
 
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
+                            .size(38.dp)
                             .clip(CircleShape)
                             .background(
                                 Brush.linearGradient(
-                                    listOf(SkyBlue, AiIndigo)
+                                    listOf(MaterialTheme.colorScheme.primary, AiIndigo)
                                 )
                             )
                             .clickable {
@@ -277,7 +274,7 @@ fun GptChatScreen(
                             imageVector = Icons.AutoMirrored.Rounded.Send,
                             contentDescription = "Send",
                             tint = Color.White,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(17.dp)
                         )
                     }
                 }
@@ -296,22 +293,26 @@ private fun ChatBubble(message: ChatMessage) {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth(0.82f)
-                    .shadow(elevation = 4.dp, shape = RoundedCornerShape(20.dp, 20.dp, 4.dp, 20.dp)),
-                shape = RoundedCornerShape(20.dp, 20.dp, 4.dp, 20.dp),
-                color = SkyBlue
+                    .shadow(
+                        elevation = 4.dp,
+                        shape = RoundedCornerShape(18.dp, 18.dp, 4.dp, 18.dp),
+                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                    ),
+                shape = RoundedCornerShape(18.dp, 18.dp, 4.dp, 18.dp),
+                color = MaterialTheme.colorScheme.primary
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
+                Column(modifier = Modifier.padding(12.dp)) {
                     Text(
                         text = message.text,
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
                         color = Color.White,
-                        lineHeight = 20.sp
+                        lineHeight = 19.sp
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = message.timestamp,
                         fontSize = 10.sp,
-                        color = Color.White.copy(alpha = 0.7f),
+                        color = Color.White.copy(alpha = 0.75f),
                         modifier = Modifier.align(Alignment.End)
                     )
                 }
@@ -327,17 +328,19 @@ private fun ChatBubble(message: ChatMessage) {
                     .fillMaxWidth(0.88f)
                     .shadow(
                         elevation = 6.dp,
-                        shape = RoundedCornerShape(20.dp, 20.dp, 20.dp, 4.dp),
-                        spotColor = Color(0x10000000)
+                        shape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp),
+                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        ambientColor = Color(0x10000000)
                     ),
-                shape = RoundedCornerShape(20.dp, 20.dp, 20.dp, 4.dp),
-                color = CardBackground
+                shape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 1.dp
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(24.dp)
+                                .size(22.dp)
                                 .clip(CircleShape)
                                 .background(AiPurpleLight),
                             contentAlignment = Alignment.Center
@@ -346,7 +349,7 @@ private fun ChatBubble(message: ChatMessage) {
                                 imageVector = Icons.Rounded.AutoAwesome,
                                 contentDescription = null,
                                 tint = AiIndigo,
-                                modifier = Modifier.size(13.dp)
+                                modifier = Modifier.size(12.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(6.dp))
@@ -358,37 +361,37 @@ private fun ChatBubble(message: ChatMessage) {
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
                         text = message.text,
-                        fontSize = 14.sp,
-                        color = TextPrimary,
-                        lineHeight = 20.sp
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        lineHeight = 19.sp
                     )
 
                     if (message.weatherHighlight != null) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = SubtleSurface
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.Thermostat,
                                     contentDescription = null,
-                                    tint = SkyBlue,
-                                    modifier = Modifier.size(14.dp)
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(13.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = message.weatherHighlight,
-                                    fontSize = 12.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = TextPrimary
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
@@ -398,7 +401,7 @@ private fun ChatBubble(message: ChatMessage) {
                     Text(
                         text = message.timestamp,
                         fontSize = 10.sp,
-                        color = TextTertiary,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         modifier = Modifier.align(Alignment.End)
                     )
                 }

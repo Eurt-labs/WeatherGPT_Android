@@ -29,6 +29,7 @@ import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Thunderstorm
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,13 +47,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.weathergpt_android.core.theme.AlertRed
 import com.example.weathergpt_android.core.theme.AlertRedLight
-import com.example.weathergpt_android.core.theme.CardBackground
 import com.example.weathergpt_android.core.theme.SkyBlue
 import com.example.weathergpt_android.core.theme.SkyBlueLight
-import com.example.weathergpt_android.core.theme.SubtleSurface
-import com.example.weathergpt_android.core.theme.TextPrimary
-import com.example.weathergpt_android.core.theme.TextSecondary
-import com.example.weathergpt_android.core.theme.TextTertiary
 import com.example.weathergpt_android.core.theme.WeatherAmber
 import com.example.weathergpt_android.core.theme.WeatherAmberLight
 import com.example.weathergpt_android.domain.news.model.NewsArticle
@@ -116,12 +112,12 @@ fun NewsScreen(
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(
-            start = 20.dp,
-            end = 20.dp,
-            top = 84.dp,
-            bottom = 100.dp
+            start = 16.dp,
+            end = 16.dp,
+            top = 104.dp, // Clearance for top island
+            bottom = 110.dp // Clearance for bottom floating island
         ),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
             Column {
@@ -129,13 +125,13 @@ fun NewsScreen(
                     text = "Weather News & Radar",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
+                    color = MaterialTheme.colorScheme.onSurface,
                     letterSpacing = (-0.4).sp
                 )
                 Text(
                     text = "Live updates and meteorology reports",
-                    fontSize = 14.sp,
-                    color = TextSecondary
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -155,13 +151,13 @@ fun NewsScreen(
                             .clip(RoundedCornerShape(16.dp))
                             .clickable { selectedCategory = cat },
                         shape = RoundedCornerShape(16.dp),
-                        color = if (isSelected) SkyBlue else SubtleSurface
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Text(
                             text = cat,
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) Color.White else TextPrimary,
+                            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                         )
                     }
@@ -187,18 +183,19 @@ private fun NewsArticleCard(article: NewsArticle) {
         modifier = Modifier
             .fillMaxWidth()
             .shadow(
-                elevation = 6.dp,
+                elevation = 8.dp,
                 shape = RoundedCornerShape(22.dp),
-                spotColor = Color(0x10000000),
-                ambientColor = Color(0x06000000)
+                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                ambientColor = Color(0x10000000)
             ),
         shape = RoundedCornerShape(22.dp),
-        color = CardBackground
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp)
+                .padding(16.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -208,7 +205,7 @@ private fun NewsArticleCard(article: NewsArticle) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(34.dp)
                             .clip(CircleShape)
                             .background(article.iconBg),
                         contentAlignment = Alignment.Center
@@ -217,19 +214,19 @@ private fun NewsArticleCard(article: NewsArticle) {
                             imageVector = article.icon,
                             contentDescription = null,
                             tint = article.iconTint,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = SubtleSurface
+                        color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Text(
                             text = article.category,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = TextSecondary,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         )
                     }
@@ -239,13 +236,13 @@ private fun NewsArticleCard(article: NewsArticle) {
                     Text(
                         text = article.timeAgo,
                         fontSize = 12.sp,
-                        color = TextTertiary
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(
                         imageVector = if (isBookmarked) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
                         contentDescription = "Bookmark",
-                        tint = if (isBookmarked) SkyBlue else TextTertiary,
+                        tint = if (isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         modifier = Modifier
                             .size(20.dp)
                             .clip(CircleShape)
@@ -254,26 +251,26 @@ private fun NewsArticleCard(article: NewsArticle) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Text(
                 text = article.title,
-                fontSize = 16.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary,
-                lineHeight = 22.sp
+                color = MaterialTheme.colorScheme.onSurface,
+                lineHeight = 20.sp
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             Text(
                 text = article.summary,
                 fontSize = 13.sp,
-                color = TextSecondary,
-                lineHeight = 18.sp
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 17.sp
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -283,14 +280,14 @@ private fun NewsArticleCard(article: NewsArticle) {
                 Text(
                     text = article.readTime,
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = SkyBlue
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
                 )
 
                 Icon(
                     imageVector = Icons.Rounded.Share,
                     contentDescription = "Share",
-                    tint = TextTertiary,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     modifier = Modifier
                         .size(18.dp)
                         .clip(CircleShape)

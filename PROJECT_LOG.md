@@ -89,6 +89,27 @@ com.example.weathergpt_android/
 
 ---
 
+### [Version 1.1.0] - Responsive Mobile Sizing, Non-wrapping Badges & Multi-theme Support
+
+#### 1. Responsive Screen Sizing & Dynamic Inset Fixes
+- Added generous `top = 104dp` and `bottom = 110dp` list insets across all domain screens ([HomeScreen](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/weather/ui/HomeScreen.kt), [NewsScreen](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/news/ui/NewsScreen.kt), [VoiceAiScreen](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/voice/ui/VoiceAiScreen.kt), [GptChatScreen](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/assistant/ui/GptChatScreen.kt), [SettingsScreen](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/settings/ui/SettingsScreen.kt)) to eliminate header/footer overlaps on physical mobile devices.
+- Refined Top Dynamic Island from fixed height to a slim `56dp` collapsed height with smooth spring expansion (`116dp`) on tap.
+- Fixed `Comfortable` status badge in [WeatherCards.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/weather/ui/WeatherCards.kt) with `wrapContentSize()` and `maxLines = 1` preventing vertical text splitting.
+- Fixed `Latest` badge in [SettingsScreen.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/settings/ui/SettingsScreen.kt) preventing vertical text splitting.
+
+#### 2. Dynamic Multi-Theme Engine in Settings
+- Added 4 interactive themes selectable in real-time under [SettingsScreen.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/settings/ui/SettingsScreen.kt):
+  1. **Frost Light (Default)**: Clean Apple-inspired porcelain white with sky blue accents.
+  2. **Midnight OLED**: Deep obsidian dark mode (`#0B1120`) with neon cyan accents.
+  3. **Sunset Glow**: Warm twilight peach/amber vibes (`#FFF7ED`).
+  4. **Oceanic Breeze**: Coastal teal and refreshing ocean blue (`#F0FDFA`).
+- Implemented real-time reactive theme state binding across all screens in [MainActivity.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/MainActivity.kt).
+
+#### 3. Layered Ambient Card Shadows
+- Added soft colored drop shadows with `elevation = 8dp` and `spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)` to give all cards tactile depth and elevate them above the background.
+
+---
+
 ## 🐛 Bug Fixes & Diagnostics Log
 
 | Issue Encountered | Root Cause | Fix Applied | Status |
@@ -99,3 +120,6 @@ com.example.weathergpt_android/
 | Missing comma in `FloatingBottomNavBar.kt` modifier chain | Parameter list syntax error after `.clickable(...)` | Added missing comma before `horizontalAlignment` | ✅ Fixed |
 | Icon deprecation warnings (`Logout`, `DirectionsWalk`, `Feed`, `Send`, `VolumeUp`) | Icons were moved to `androidx.compose.material.icons.automirrored.rounded.*` in recent Compose releases | Migrated all deprecated icons to `AutoMirrored.Rounded.*` | ✅ Fixed |
 | Deprecated `statusBarColor` / `navigationBarColor` in `Theme.kt` | Window status bar properties deprecated in newer Android SDKs | Delegated edge-to-edge transparent system bars to `enableEdgeToEdge()` in `MainActivity.kt` and `WindowCompat` | ✅ Fixed |
+| Top Island & Bottom Nav overlapping screen content on device | Content insets (`top = 84dp`, `bottom = 100dp`) were insufficient for device camera cutouts and navigation bars | Increased insets to `top = 104dp` and `bottom = 110dp` | ✅ Fixed |
+| Text wrapping on `Comfortable` and `Latest` badges | Fixed column container bounds forced horizontal wrapping | Replaced with `wrapContentSize()` and `maxLines = 1` | ✅ Fixed |
+| Faint / flat card appearance on device | Insufficient shadow elevation and contrast | Added multi-layer ambient colored shadows (`elevation = 8dp`, `spotColor = primary.copy(alpha = 0.15f)`) | ✅ Fixed |

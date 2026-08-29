@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,6 +36,7 @@ import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material.icons.rounded.WbTwilight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,13 +55,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.weathergpt_android.core.theme.AiIndigo
 import com.example.weathergpt_android.core.theme.AiPurple
-import com.example.weathergpt_android.core.theme.CardBackground
-import com.example.weathergpt_android.core.theme.SkyBlue
-import com.example.weathergpt_android.core.theme.SkyBlueLight
-import com.example.weathergpt_android.core.theme.SubtleSurface
-import com.example.weathergpt_android.core.theme.TextPrimary
-import com.example.weathergpt_android.core.theme.TextSecondary
-import com.example.weathergpt_android.core.theme.TextTertiary
 import com.example.weathergpt_android.core.theme.WeatherAmber
 import com.example.weathergpt_android.core.theme.WeatherAmberLight
 import com.example.weathergpt_android.core.theme.WeatherEmerald
@@ -91,17 +86,18 @@ fun GreetingHeroCard(
             .fillMaxWidth()
             .shadow(
                 elevation = 8.dp,
-                shape = RoundedCornerShape(26.dp),
-                spotColor = Color(0x12000000),
-                ambientColor = Color(0x08000000)
+                shape = RoundedCornerShape(24.dp),
+                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                ambientColor = Color(0x12000000)
             ),
-        shape = RoundedCornerShape(26.dp),
-        color = CardBackground
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(22.dp)
+                .padding(18.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -111,9 +107,9 @@ fun GreetingHeroCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Hi $userName 👋",
-                        fontSize = 24.sp,
+                        fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextPrimary,
+                        color = MaterialTheme.colorScheme.onSurface,
                         letterSpacing = (-0.4).sp
                     )
                     Spacer(modifier = Modifier.height(4.dp))
@@ -127,7 +123,7 @@ fun GreetingHeroCard(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = weatherStatus.replaceFirstChar { it.uppercase() },
-                            fontSize = 15.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = WeatherEmerald
                         )
@@ -137,7 +133,7 @@ fun GreetingHeroCard(
                 Box(
                     modifier = Modifier
                         .offset { IntOffset(0, floatOffset.roundToInt()) }
-                        .size(54.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
                         .background(WeatherAmberLight),
                     contentAlignment = Alignment.Center
@@ -146,30 +142,30 @@ fun GreetingHeroCard(
                         imageVector = Icons.Rounded.WbSunny,
                         contentDescription = "Sunny Weather",
                         tint = WeatherAmber,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(28.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
+                    .clip(RoundedCornerShape(16.dp))
                     .clickable(onClick = onAiSuggestionClick),
-                shape = RoundedCornerShape(18.dp),
-                color = SubtleSurface
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(14.dp),
+                        .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(34.dp)
                             .clip(CircleShape)
                             .background(
                                 Brush.linearGradient(
@@ -182,17 +178,17 @@ fun GreetingHeroCard(
                             imageVector = Icons.Rounded.AutoAwesome,
                             contentDescription = "AI Suggestion",
                             tint = Color.White,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(16.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = "WeatherGPT Suggestion",
-                                fontSize = 12.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = AiIndigo
                             )
@@ -201,16 +197,16 @@ fun GreetingHeroCard(
                                 imageVector = Icons.AutoMirrored.Rounded.DirectionsWalk,
                                 contentDescription = null,
                                 tint = AiIndigo,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(13.dp)
                             )
                         }
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = aiSuggestion,
-                            fontSize = 14.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
-                            color = TextPrimary,
-                            lineHeight = 19.sp
+                            color = MaterialTheme.colorScheme.onSurface,
+                            lineHeight = 18.sp
                         )
                     }
                 }
@@ -222,7 +218,7 @@ fun GreetingHeroCard(
 @Composable
 fun PrimaryWeatherCard(
     temperature: String = "24°",
-    condition: String = "Mostly Clear & Mild",
+    condition: String = "Clear Sky & Gentle Breeze",
     highLow: String = "H: 26°  L: 17°",
     location: String = "San Francisco, CA"
 ) {
@@ -231,79 +227,84 @@ fun PrimaryWeatherCard(
             .fillMaxWidth()
             .shadow(
                 elevation = 8.dp,
-                shape = RoundedCornerShape(26.dp),
-                spotColor = Color(0x12000000),
-                ambientColor = Color(0x08000000)
+                shape = RoundedCornerShape(24.dp),
+                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                ambientColor = Color(0x12000000)
             ),
-        shape = RoundedCornerShape(26.dp),
-        color = CardBackground
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(22.dp),
+                .padding(18.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = location,
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = TextSecondary
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = temperature,
-                    fontSize = 56.sp,
+                    fontSize = 48.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
+                    color = MaterialTheme.colorScheme.onSurface,
                     letterSpacing = (-1.5).sp
                 )
                 Text(
                     text = condition,
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
-                    color = TextPrimary
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = highLow,
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Normal,
-                    color = TextTertiary
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                 )
             }
 
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(start = 8.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(72.dp)
+                        .size(64.dp)
                         .clip(CircleShape)
-                        .background(SkyBlueLight),
+                        .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Cloud,
                         contentDescription = "Cloudy Weather",
-                        tint = SkyBlue,
-                        modifier = Modifier.size(42.dp)
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(36.dp)
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
+                // Non-wrapping auto-fit badge
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = WeatherEmeraldLight
+                    shape = RoundedCornerShape(10.dp),
+                    color = WeatherEmeraldLight,
+                    modifier = Modifier.wrapContentSize()
                 ) {
                     Text(
                         text = "Comfortable",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = WeatherEmerald,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        maxLines = 1,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                     )
                 }
             }
@@ -326,17 +327,17 @@ fun HourlyForecastSection(
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = "Hourly Forecast",
-            fontSize = 17.sp,
+            fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
-            color = TextPrimary,
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
         )
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             hourlyList.forEach { forecast ->
                 HourlyPill(forecast = forecast)
@@ -349,45 +350,45 @@ fun HourlyForecastSection(
 private fun HourlyPill(forecast: HourlyForecast) {
     Surface(
         modifier = Modifier
-            .width(66.dp)
+            .width(62.dp)
             .shadow(
                 elevation = if (forecast.isNow) 6.dp else 2.dp,
-                shape = RoundedCornerShape(22.dp),
-                spotColor = Color(0x10000000)
+                shape = RoundedCornerShape(20.dp),
+                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
             ),
-        shape = RoundedCornerShape(22.dp),
-        color = if (forecast.isNow) SkyBlueLight else CardBackground
+        shape = RoundedCornerShape(20.dp),
+        color = if (forecast.isNow) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 14.dp),
+                .padding(vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Text(
                 text = forecast.time,
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 fontWeight = if (forecast.isNow) FontWeight.Bold else FontWeight.Medium,
-                color = if (forecast.isNow) SkyBlue else TextSecondary
+                color = if (forecast.isNow) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Icon(
                 imageVector = forecast.icon,
                 contentDescription = null,
-                tint = if (forecast.isNow) SkyBlue else WeatherAmber,
-                modifier = Modifier.size(24.dp)
+                tint = if (forecast.isNow) MaterialTheme.colorScheme.primary else WeatherAmber,
+                modifier = Modifier.size(22.dp)
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = forecast.temp,
-                fontSize = 14.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }
@@ -402,11 +403,11 @@ fun WeatherMetricsGrid(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             MetricCard(
                 modifier = Modifier.weight(1f),
@@ -414,7 +415,7 @@ fun WeatherMetricsGrid(
                 title = "Wind",
                 value = windSpeed,
                 subtitle = "North-West breeze",
-                accentColor = SkyBlue
+                accentColor = MaterialTheme.colorScheme.primary
             )
             MetricCard(
                 modifier = Modifier.weight(1f),
@@ -422,13 +423,13 @@ fun WeatherMetricsGrid(
                 title = "Humidity",
                 value = humidity,
                 subtitle = "Dew point 12°C",
-                accentColor = SkyBlue
+                accentColor = MaterialTheme.colorScheme.primary
             )
         }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             MetricCard(
                 modifier = Modifier.weight(1f),
@@ -463,17 +464,18 @@ private fun MetricCard(
         modifier = modifier
             .shadow(
                 elevation = 6.dp,
-                shape = RoundedCornerShape(22.dp),
-                spotColor = Color(0x10000000),
-                ambientColor = Color(0x06000000)
+                shape = RoundedCornerShape(20.dp),
+                spotColor = accentColor.copy(alpha = 0.12f),
+                ambientColor = Color(0x08000000)
             ),
-        shape = RoundedCornerShape(22.dp),
-        color = CardBackground
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(14.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -481,42 +483,42 @@ private fun MetricCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(30.dp)
+                        .size(28.dp)
                         .clip(CircleShape)
-                        .background(accentColor.copy(alpha = 0.12f)),
+                        .background(accentColor.copy(alpha = 0.14f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
                         tint = accentColor,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(15.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = title,
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    color = TextSecondary
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = value,
-                fontSize = 18.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Spacer(modifier = Modifier.height(2.dp))
 
             Text(
                 text = subtitle,
-                fontSize = 12.sp,
-                color = TextTertiary
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
             )
         }
     }
@@ -539,30 +541,31 @@ fun SevenDayForecastCard() {
             .fillMaxWidth()
             .shadow(
                 elevation = 8.dp,
-                shape = RoundedCornerShape(26.dp),
-                spotColor = Color(0x12000000),
-                ambientColor = Color(0x08000000)
+                shape = RoundedCornerShape(24.dp),
+                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                ambientColor = Color(0x12000000)
             ),
-        shape = RoundedCornerShape(26.dp),
-        color = CardBackground
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp)
+                .padding(18.dp)
         ) {
             Text(
                 text = "7-Day Forecast",
-                fontSize = 17.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary
+                color = MaterialTheme.colorScheme.onSurface
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 days.forEach { item ->
                     Row(
@@ -572,44 +575,44 @@ fun SevenDayForecastCard() {
                     ) {
                         Text(
                             text = item.day,
-                            fontSize = 14.sp,
+                            fontSize = 13.sp,
                             fontWeight = if (item.day == "Today") FontWeight.Bold else FontWeight.Medium,
-                            color = TextPrimary,
-                            modifier = Modifier.width(52.dp)
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.width(48.dp)
                         )
 
                         Icon(
                             imageVector = item.condition,
                             contentDescription = null,
-                            tint = if (item.condition == Icons.Rounded.WbSunny) WeatherAmber else SkyBlue,
-                            modifier = Modifier.size(20.dp)
+                            tint = if (item.condition == Icons.Rounded.WbSunny) WeatherAmber else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
                         )
 
                         Text(
                             text = item.minTemp,
-                            fontSize = 13.sp,
-                            color = TextTertiary,
-                            modifier = Modifier.width(32.dp)
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.width(30.dp)
                         )
 
                         LinearProgressIndicator(
                             progress = { item.progress },
                             modifier = Modifier
                                 .weight(1f)
-                                .height(6.dp)
+                                .height(5.dp)
                                 .padding(horizontal = 8.dp)
                                 .clip(RoundedCornerShape(3.dp)),
-                            color = SkyBlue,
-                            trackColor = SubtleSurface,
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
                             strokeCap = StrokeCap.Round
                         )
 
                         Text(
                             text = item.maxTemp,
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = TextPrimary,
-                            modifier = Modifier.width(32.dp)
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.width(30.dp)
                         )
                     }
                 }

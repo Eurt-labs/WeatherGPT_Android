@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,10 +34,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.weathergpt_android.core.navigation.NavTab
-import com.example.weathergpt_android.core.theme.IslandBackground
-import com.example.weathergpt_android.core.theme.SkyBlue
-import com.example.weathergpt_android.core.theme.SkyBlueLight
-import com.example.weathergpt_android.core.theme.TextTertiary
 
 @Composable
 fun FloatingBottomNavBar(
@@ -48,28 +45,28 @@ fun FloatingBottomNavBar(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(68.dp)
+                .height(64.dp)
                 .shadow(
                     elevation = 14.dp,
-                    shape = RoundedCornerShape(34.dp),
-                    spotColor = Color(0x22000000),
-                    ambientColor = Color(0x12000000)
+                    shape = RoundedCornerShape(32.dp),
+                    spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
+                    ambientColor = Color(0x18000000)
                 ),
-            shape = RoundedCornerShape(34.dp),
-            color = IslandBackground,
-            tonalElevation = 0.dp,
+            shape = RoundedCornerShape(32.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 2.dp,
             shadowElevation = 0.dp
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
+                    .padding(horizontal = 6.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -109,19 +106,19 @@ private fun NavItem(
     )
 
     val iconColor by animateColorAsState(
-        targetValue = if (isSelected) SkyBlue else TextTertiary,
+        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "icon_color"
     )
 
     val pillBackground by animateColorAsState(
-        targetValue = if (isSelected) SkyBlueLight else Color.Transparent,
+        targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
         animationSpec = spring(stiffness = Spring.StiffnessMedium),
         label = "pill_bg"
     )
 
     val pillWidth by animateDpAsState(
-        targetValue = if (isSelected) 52.dp else 44.dp,
+        targetValue = if (isSelected) 48.dp else 40.dp,
         animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy),
         label = "pill_width"
     )
@@ -129,7 +126,7 @@ private fun NavItem(
     Column(
         modifier = Modifier
             .scale(scale)
-            .clip(RoundedCornerShape(22.dp))
+            .clip(RoundedCornerShape(20.dp))
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -140,8 +137,8 @@ private fun NavItem(
     ) {
         Box(
             modifier = Modifier
-                .size(width = pillWidth, height = 40.dp)
-                .clip(RoundedCornerShape(20.dp))
+                .size(width = pillWidth, height = 36.dp)
+                .clip(RoundedCornerShape(18.dp))
                 .background(pillBackground),
             contentAlignment = Alignment.Center
         ) {
@@ -149,7 +146,7 @@ private fun NavItem(
                 imageVector = tab.icon,
                 contentDescription = tab.title,
                 tint = iconColor,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(22.dp)
             )
         }
 
@@ -159,7 +156,7 @@ private fun NavItem(
                 .padding(top = 2.dp)
                 .size(4.dp)
                 .clip(CircleShape)
-                .background(if (isSelected) SkyBlue else Color.Transparent)
+                .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
         )
     }
 }

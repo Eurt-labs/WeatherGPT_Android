@@ -22,6 +22,7 @@ import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.WorkspacePremium
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -38,12 +39,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.weathergpt_android.core.theme.AiIndigo
 import com.example.weathergpt_android.core.theme.AlertRed
-import com.example.weathergpt_android.core.theme.CardBackground
-import com.example.weathergpt_android.core.theme.SkyBlue
-import com.example.weathergpt_android.core.theme.SubtleSurface
-import com.example.weathergpt_android.core.theme.TextPrimary
-import com.example.weathergpt_android.core.theme.TextSecondary
-import com.example.weathergpt_android.core.theme.TextTertiary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,88 +53,88 @@ fun ProfileSheet(
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
-        containerColor = CardBackground,
+        containerColor = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 12.dp),
+                .padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Profile Avatar with Gradient Glow
             Box(
                 modifier = Modifier
-                    .size(80.dp)
+                    .size(76.dp)
                     .clip(CircleShape)
                     .background(
                         Brush.linearGradient(
-                            listOf(SkyBlue, AiIndigo)
+                            listOf(MaterialTheme.colorScheme.primary, AiIndigo)
                         )
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = userName.split(" ").mapNotNull { it.firstOrNull()?.toString() }.take(2).joinToString(""),
-                    fontSize = 28.sp,
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Text(
                 text = userName,
-                fontSize = 20.sp,
+                fontSize = 19.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Text(
                 text = userEmail,
-                fontSize = 14.sp,
-                color = TextSecondary
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = SubtleSurface
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.LocationOn,
                         contentDescription = null,
-                        tint = SkyBlue,
-                        modifier = Modifier.size(16.dp)
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(15.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = location,
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
-                        color = TextPrimary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Action rows
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 ProfileOptionItem(
                     icon = Icons.Rounded.WorkspacePremium,
                     title = "WeatherGPT Plus",
                     subtitle = "Unlimited Voice AI & Radar Forecasts",
-                    tint = SkyBlue
+                    tint = MaterialTheme.colorScheme.primary
                 )
                 ProfileOptionItem(
                     icon = Icons.Rounded.AutoAwesome,
@@ -151,7 +146,7 @@ fun ProfileSheet(
                     icon = Icons.Rounded.Edit,
                     title = "Edit Profile",
                     subtitle = "Change name, units, and home city",
-                    tint = TextPrimary
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
                 ProfileOptionItem(
                     icon = Icons.AutoMirrored.Rounded.Logout,
@@ -161,7 +156,7 @@ fun ProfileSheet(
                 )
             }
 
-            Spacer(modifier = Modifier.height(36.dp))
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
@@ -176,45 +171,45 @@ private fun ProfileOptionItem(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(16.dp))
             .clickable { },
-        shape = RoundedCornerShape(18.dp),
-        color = SubtleSurface
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(36.dp)
                     .clip(CircleShape)
-                    .background(Color.White),
+                    .background(MaterialTheme.colorScheme.surface),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
                     tint = tint,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.width(14.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (tint == AlertRed) AlertRed else TextPrimary
+                    color = if (tint == AlertRed) AlertRed else MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = subtitle,
-                    fontSize = 12.sp,
-                    color = TextTertiary
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                 )
             }
         }
