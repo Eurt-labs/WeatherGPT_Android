@@ -16,7 +16,16 @@ data class LiveWeatherData(
     val isLive: Boolean = false,
     val lastUpdatedTime: String = "Live",
     val hourlyList: List<HourlyForecast> = defaultHourlyList(),
-    val dailyList: List<DayForecast> = defaultDailyList()
+    val dailyList: List<DayForecast> = defaultDailyList(),
+    // Multi-Sector Meteorological Intelligence (SIH 2026)
+    val soilMoisture: String = "0.33 m³/m³",
+    val soilTemperature: String = "28°C",
+    val irrigationAdvice: String = "Adequate soil moisture. Irrigation not required today.",
+    val floodRiskLevel: String = "Normal (Low Risk)",
+    val riverDischarge: String = "12.5 m³/s",
+    val visibilityKm: String = "10.0 km",
+    val pastRainfallTrend: String = "21.7 mm in past 3 days",
+    val heatwaveAlert: String = "None"
 ) {
     companion object {
         val DEFAULT = LiveWeatherData()

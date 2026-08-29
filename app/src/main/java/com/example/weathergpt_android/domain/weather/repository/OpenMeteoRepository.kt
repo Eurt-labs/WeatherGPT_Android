@@ -25,7 +25,7 @@ import kotlin.math.roundToInt
 
 class OpenMeteoRepository {
     private val client = OkHttpClient.Builder()
-        .connectTimeout(12, TimeUnit.SECONDS)
+        .connectTimeout(14, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
 
@@ -33,10 +33,10 @@ class OpenMeteoRepository {
         withContext(Dispatchers.IO) {
             val forecastUrl =
                 "https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude" +
-                "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m" +
-                "&hourly=temperature_2m,weather_code,precipitation_probability" +
-                "&daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max" +
-                "&timezone=auto"
+                "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,visibility" +
+                "&hourly=temperature_2m,weather_code,precipitation_probability,soil_moisture_0_to_1cm,soil_temperature_0cm" +
+                "&daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max,precipitation_sum" +
+                "&past_days=3&timezone=auto"
             val airQualityUrl =
                 "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=$latitude&longitude=$longitude&current=us_aqi,pm2_5,pm10"
 
@@ -60,29 +60,38 @@ class OpenMeteoRepository {
                 val weatherCode = current.getInt("weather_code")
                 val conditionStr = decodeWmoWeatherCode(weatherCode)
 
+                // Visibility
+                val visMeters = current.optDouble("visibility", 10000.0)
+                val visKmStr = "${"%.1f".format(visMeters / 1000.0)} km"
+
                 // Parse Daily High / Low & 7-Day List
                 var highLowStr = "H: ${tempVal + 2}°  L: ${tempVal - 4}°"
                 var uvStr = "7 (High)"
                 val dailyList = mutableListOf<DayForecast>()
                 val daily = json.optJSONObject("daily")
+                var pastRainSum = 0.0
+
                 if (daily != null) {
                     val maxList = daily.optJSONArray("temperature_2m_max")
                     val minList = daily.optJSONArray("temperature_2m_min")
                     val codeList = daily.optJSONArray("weather_code")
                     val timeList = daily.optJSONArray("time")
                     val uvList = daily.optJSONArray("uv_index_max")
+                    val rainList = daily.optJSONArray("precipitation_sum")
 
-                    if (maxList != null && minList != null && maxList.length() > 0) {
-                        val maxT = maxList.getDouble(0).roundToInt()
-                        val minT = minList.getDouble(0).roundToInt()
+                    val todayIdx = if ((maxList?.length() ?: 0) > 3) 3 else 0
+
+                    if (maxList != null && minList != null && maxList.length() > todayIdx) {
+                        val maxT = maxList.getDouble(todayIdx).roundToInt()
+                        val minT = minList.getDouble(todayIdx).roundToInt()
                         highLowStr = "H: $maxT°  L: $minT°"
 
-                        for (i in 0 until min(maxList.length(), 7)) {
+                        for (i in todayIdx until min(maxList.length(), todayIdx + 7)) {
                             val maxDay = maxList.getDouble(i).roundToInt()
                             val minDay = minList.getDouble(i).roundToInt()
                             val cCode = codeList?.optInt(i, 3) ?: 3
                             val timeStr = timeList?.optString(i, "") ?: ""
-                            val label = when (i) {
+                            val label = when (i - todayIdx) {
                                 0 -> "Today"
                                 1 -> "Tomorrow"
                                 else -> parseDayName(timeStr)
@@ -100,8 +109,14 @@ class OpenMeteoRepository {
                         }
                     }
 
-                    if (uvList != null && uvList.length() > 0) {
-                        val uvVal = uvList.getDouble(0).roundToInt()
+                    if (rainList != null) {
+                        for (i in 0 until min(todayIdx, rainList.length())) {
+                            pastRainSum += rainList.optDouble(i, 0.0)
+                        }
+                    }
+
+                    if (uvList != null && uvList.length() > todayIdx) {
+                        val uvVal = uvList.getDouble(todayIdx).roundToInt()
                         uvStr = when {
                             uvVal <= 2 -> "$uvVal (Low)"
                             uvVal <= 5 -> "$uvVal (Mod)"
@@ -111,13 +126,18 @@ class OpenMeteoRepository {
                     }
                 }
 
-                // Parse Hourly Forecast
+                // Parse Hourly Forecast & Soil Moisture
                 val hourlyList = mutableListOf<HourlyForecast>()
                 val hourly = json.optJSONObject("hourly")
+                var currentSoilMoisture = 0.33
+                var currentSoilTemp = 28
+
                 if (hourly != null) {
                     val hTimes = hourly.optJSONArray("time")
                     val hTemps = hourly.optJSONArray("temperature_2m")
                     val hCodes = hourly.optJSONArray("weather_code")
+                    val hMoist = hourly.optJSONArray("soil_moisture_0_to_1cm")
+                    val hSoilT = hourly.optJSONArray("soil_temperature_0cm")
 
                     hourlyList.add(
                         HourlyForecast(
@@ -129,8 +149,16 @@ class OpenMeteoRepository {
                     )
 
                     val nowHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+                    val baseIdx = 3 * 24 + nowHour // Account for past_days=3 offset
+                    if (hMoist != null && hMoist.length() > baseIdx) {
+                        currentSoilMoisture = hMoist.optDouble(baseIdx, 0.33)
+                    }
+                    if (hSoilT != null && hSoilT.length() > baseIdx) {
+                        currentSoilTemp = hSoilT.optDouble(baseIdx, 28.0).roundToInt()
+                    }
+
                     if (hTimes != null && hTemps != null && hCodes != null) {
-                        for (i in (nowHour + 1) until min(nowHour + 7, hTimes.length())) {
+                        for (i in (baseIdx + 1) until min(baseIdx + 8, hTimes.length())) {
                             val tVal = hTemps.getDouble(i).roundToInt()
                             val cVal = hCodes.getInt(i)
                             val hourStr = formatHourLabel(i % 24)
@@ -148,7 +176,7 @@ class OpenMeteoRepository {
                 if (hourlyList.isEmpty()) hourlyList.addAll(LiveWeatherData.defaultHourlyList())
                 if (dailyList.isEmpty()) dailyList.addAll(LiveWeatherData.defaultDailyList())
 
-                // 2. Fetch Live Air Quality (AQI) with accurate standard calculation
+                // 2. Fetch Live Air Quality (AQI)
                 var aqiStr = "64 (Moderate)"
                 try {
                     val aqiRequest = Request.Builder().url(airQualityUrl).build()
@@ -170,7 +198,13 @@ class OpenMeteoRepository {
                         }
                     }
                 } catch (e: Exception) {
-                    // Fallback default AQI
+                    // Fallback
+                }
+
+                val irrigStr = if (currentSoilMoisture > 0.28) {
+                    "Adequate soil moisture. No irrigation needed today."
+                } else {
+                    "Low soil moisture detected. Controlled irrigation advised."
                 }
 
                 val resolved = LiveWeatherData(
@@ -183,7 +217,12 @@ class OpenMeteoRepository {
                     aqi = aqiStr,
                     isLive = true,
                     hourlyList = hourlyList,
-                    dailyList = dailyList
+                    dailyList = dailyList,
+                    soilMoisture = "${"%.3f".format(currentSoilMoisture)} m³/m³",
+                    soilTemperature = "$currentSoilTemp°C",
+                    irrigationAdvice = irrigStr,
+                    visibilityKm = visKmStr,
+                    pastRainfallTrend = "${"%.1f".format(pastRainSum)} mm in past 3 days"
                 )
 
                 Result.success(resolved)
