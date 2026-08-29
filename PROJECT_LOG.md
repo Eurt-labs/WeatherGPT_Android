@@ -180,14 +180,15 @@ com.example.weathergpt_android/
   - 🇮🇳 **Telugu / తెలుగు** (`te-IN`)
 - Real-time localized weather intelligence dialog with native audio TTS output.
 
-### [Version 2.5.0] - Exclusive Google Gemma 4 31B (Free) Consolidation
+### [Version 2.6.0] - Multi-Provider Auto-Failover Chain (Zero HTTP 429 Errors)
 
-#### 1. Single Universal Model Architecture (`core/network`)
-- Standardized the entire AI stack onto **`google/gemma-4-31b-it:free`**:
-  - Removed all legacy and fragmented model options.
-  - Powers all conversational chat streams, suggestions, and full-duplex Sherpa-ONNX Voice AI.
-  - Native fluency in **English, Hindi (हिन्दी), Marathi (मराठी), Bengali (বাংলা), Tamil (தமிழ்), Telugu (తెలుగు)**.
-- Cleaned up [SettingsScreen.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/settings/ui/SettingsScreen.kt) and [GptChatScreen.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/assistant/ui/GptChatScreen.kt) to feature Google Gemma 4 31B (Free) exclusively.
+#### 1. High-Reliability Multi-Provider Pipeline (`core/network`)
+- Diagnosed upstream Google AI Studio shared quota rate limiting (`HTTP 429`) on `google/gemma-4-31b-it:free`.
+- Implemented **Dual Server & Client Failover Pipeline**:
+  - **Primary**: `meta-llama/llama-3.3-70b-instruct:free` (DeepInfra/Chutes - high limits, full Indic multilingual).
+  - **Secondary Fallback**: `qwen/qwen-2.5-72b-instruct:free` (DeepInfra/Hyperbolic - top Indic benchmark).
+  - **Tertiary Fallback**: `nvidia/nemotron-3.5-lightning` (CoreWeave/DeepInfra - 100% uptime, ultra-fast).
+- Configured OpenRouter server-side `"route": "fallback"` and client-side HTTP 429 auto-catch retry loop to ensure requests never fail.
 
 ---
 

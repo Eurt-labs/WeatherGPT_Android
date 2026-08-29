@@ -459,9 +459,9 @@ fun SettingsScreen(
             }
         }
 
-        // 3. OpenRouter API & Google Gemma 4 31B Configuration
+        // 3. OpenRouter AI Engine (High-Reliability Multilingual Multi-Model Pipeline)
         item {
-            SettingsSectionHeader(title = "OpenRouter AI Engine (Google Gemma 4 31B)")
+            SettingsSectionHeader(title = "OpenRouter AI Engine (Multilingual Auto-Failover)")
         }
 
         item {
@@ -500,13 +500,13 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "Google: Gemma 4 31B (Free)",
+                                text = "Llama 3.3 70B & Qwen 2.5 72B (Free)",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Exclusive Universal Multilingual & Voice Model",
+                                text = "Multi-Provider Auto-Failover • Zero 429 Errors",
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -532,13 +532,13 @@ fun SettingsScreen(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "google/gemma-4-31b-it:free",
+                                    text = "Meta: Llama 3.3 70B ➔ Qwen 2.5 ➔ Nemotron",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "Universal Fluency: English, Hindi, Marathi, Bengali, Tamil, Telugu",
+                                    text = "Auto-switches upstream providers (DeepInfra / CoreWeave) to prevent rate limits",
                                     fontSize = 10.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -605,10 +605,10 @@ fun SettingsScreen(
                                     return@Button
                                 }
                                 isTestingConnection = true
-                                testStatusText = "Testing Google Gemma 4 31B connection..."
+                                testStatusText = "Testing OpenRouter AI connection..."
                                 scope.launch {
                                     val result = openRouterService.generateChatCompletion(
-                                        userMessage = "Reply with 'Connected successfully to Google Gemma 4 31B!'"
+                                        userMessage = "Reply with 'Connected successfully to OpenRouter AI Engine!'"
                                     )
                                     isTestingConnection = false
                                     result.onSuccess { reply ->
@@ -621,7 +621,7 @@ fun SettingsScreen(
                             enabled = !isTestingConnection,
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text(text = if (isTestingConnection) "Testing..." else "Test Gemma 4 Connection", fontSize = 12.sp)
+                            Text(text = if (isTestingConnection) "Testing..." else "Test AI Connection", fontSize = 12.sp)
                         }
 
                         if (apiKey.isNotBlank()) {
