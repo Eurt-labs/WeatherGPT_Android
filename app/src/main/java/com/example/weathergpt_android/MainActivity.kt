@@ -93,6 +93,7 @@ fun WeatherGPTApp(
     var locationData by remember { mutableStateOf(locationProvider.getInitialCachedLocation()) }
     var liveWeatherData by remember { mutableStateOf(weatherRepository.getCachedWeather()) }
 
+    var isAiSpeaking by remember { mutableStateOf(false) }
     var currentTab by remember { mutableStateOf(NavTab.WEATHER) }
     var isInitialLaunchGreeting by remember { mutableStateOf(true) } // Clean launch welcome window
     var isTopIslandVisible by remember { mutableStateOf(true) } // Scroll-aware top island visibility
@@ -201,7 +202,8 @@ fun WeatherGPTApp(
                     NavTab.NEWS -> NewsScreen()
                     NavTab.VOICE_AI -> VoiceAiScreen(
                         locationData = locationData,
-                        liveWeatherData = liveWeatherData
+                        liveWeatherData = liveWeatherData,
+                        onSpeakingStateChanged = { isAiSpeaking = it }
                     )
                     NavTab.GPT -> GptChatScreen(
                         locationData = locationData,
@@ -215,9 +217,9 @@ fun WeatherGPTApp(
             }
         }
 
-        // Top Floating Dynamic Island (Hidden in GPT tab & Fades out when scrolling down)
+        // Top Floating Dynamic Island (Hidden in GPT & Voice AI tabs for full immersion)
         AnimatedVisibility(
-            visible = (currentTab != NavTab.GPT || isInitialLaunchGreeting) && isTopIslandVisible,
+            visible = (currentTab != NavTab.GPT && currentTab != NavTab.VOICE_AI || isInitialLaunchGreeting) && isTopIslandVisible,
             enter = fadeIn(animationSpec = tween(220)) + slideInVertically(initialOffsetY = { -it }),
             exit = fadeOut(animationSpec = tween(200)) + slideOutVertically(targetOffsetY = { -it }),
             modifier = Modifier
@@ -238,11 +240,15 @@ fun WeatherGPTApp(
             )
         }
 
-        // Bottom Attached Navigation Bar with Center Raised Mic FAB
+        // Bottom Attached Navigation Bar with Breathing Aura on Voice Mode
         FloatingBottomNavBar(
             modifier = Modifier.align(Alignment.BottomCenter),
             currentTab = currentTab,
+            isAiSpeaking = isAiSpeaking,
             onTabSelected = { selected ->
+                if (selected != NavTab.VOICE_AI) {
+                    isAiSpeaking = false // Immediately stop speaking aura when switching away
+                }
                 isInitialLaunchGreeting = false // Transition to selected tab on nav click
                 isTopIslandVisible = true // Reset top island visibility on tab switch
                 currentTab = selected

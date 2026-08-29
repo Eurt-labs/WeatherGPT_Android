@@ -180,19 +180,22 @@ com.example.weathergpt_android/
   - 🇮🇳 **Telugu / తెలుగు** (`te-IN`)
 - Real-time localized weather intelligence dialog with native audio TTS output.
 
-### [Version 1.9.0] - Open-Meteo Keyless Global Weather Engine & Unified App-Wide Meteorological State
+### [Version 2.0.0] - Gemini Live Immersive Voice Mode with Navigation Breathing Aura
 
-#### 1. Open-Meteo Engine Integration (`domain/weather/repository`)
-- Created `OpenMeteoRepository` querying `https://api.open-meteo.com/v1/forecast` & `https://air-quality-api.open-meteo.com/v1/air-quality` (100% free, zero-key, high-precision ECMWF/GFS weather model with WMO code translation).
-- Created `UnifiedWeatherRepository` coordinating Open-Meteo and OpenWeatherMap with automatic fallback and disk caching.
+#### 1. Gemini Immersive Voice UI (`domain/voice/ui`)
+- Transformed [VoiceAiScreen.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/voice/ui/VoiceAiScreen.kt) into a clean, distraction-free **Gemini Live Immersive View**:
+  - Removed all cluttered cards, pills, and recommendation chips.
+  - Large, flowing center typography displaying the live speech transcript spoken by the user and stream-rendered by the LLM.
+  - Center morphing Gemini orb with ambient multi-ring glow.
+  - Hidden Top Island during Voice Mode for pure full-screen immersion.
 
-#### 2. App-Wide Weather State Broadcasting
-- Unified reactive `liveWeatherData` broadcast across all modules:
-  - **HomeScreen**: Overview card, 2x2 grid, hourly carousel, 7-day forecast.
-  - **TopIslandHeader**: Dynamic island summary and live expanded weather bar.
-  - **GptChatScreen**: Real-time atmospheric context injected into Nemotron 3.5 Lightning.
-  - **VoiceAiScreen**: Full-duplex Sherpa-ONNX voice dialogue with live meteorological awareness.
-  - **SettingsScreen**: Provider switcher (Open-Meteo vs OpenWeatherMap) with live test connection button.
+#### 2. Glowing Navigation Bar Breathing Aura (`core/components`)
+- In [FloatingBottomNavBar.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/core/components/FloatingBottomNavBar.kt):
+  - Added real-time `isAiSpeaking` synchronization.
+  - While AI speaks, the bottom navigation bar and raised center mic dome illuminate with a **pulsing breathing gradient aura** (`#006494` -> `#38BDF8` -> `#818CF8`).
+
+#### 3. Immediate Tab Switch Audio Teardown
+- Navigating away from the Voice Mode tab immediately calls `ttsEngine.stop()` and cancels Sherpa-ONNX streaming so speech instantly halts on tab exit.
 
 ---
 

@@ -1,11 +1,19 @@
 package com.example.weathergpt_android.core.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -23,6 +31,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -44,22 +53,63 @@ import com.example.weathergpt_android.core.navigation.NavTab
 fun FloatingBottomNavBar(
     modifier: Modifier = Modifier,
     currentTab: NavTab,
+    isAiSpeaking: Boolean = false,
     onTabSelected: (NavTab) -> Unit
 ) {
+    // Breathing Aura Animation for Gemini Live AI Voice Mode
+    val infiniteTransition = rememberInfiniteTransition(label = "nav_breathing_glow")
+
+    val breathingAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 0.85f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "breathing_alpha"
+    )
+
+    val breathingBorderWidth by infiniteTransition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = 2.4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "breathing_border_width"
+    )
+
     Box(
-        modifier = modifier
-            .fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.BottomCenter
     ) {
-        // Attached Bottom Bar Surface with rounded top corners and shadow
+        // Attached Bottom Bar Surface with rounded top corners, shadow, and dynamic breathing border
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .shadow(
-                    elevation = 16.dp,
+                    elevation = if (isAiSpeaking) 24.dp else 16.dp,
                     shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                    spotColor = Color(0x40000000),
+                    spotColor = if (isAiSpeaking) MaterialTheme.colorScheme.primary.copy(alpha = breathingAlpha) else Color(0x40000000),
                     ambientColor = Color(0x25000000)
+                )
+                .then(
+                    if (isAiSpeaking) {
+                        Modifier.border(
+                            width = breathingBorderWidth.dp,
+                            brush = Brush.horizontalGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = breathingAlpha),
+                                    Color(0xFF38BDF8).copy(alpha = breathingAlpha),
+                                    MaterialTheme.colorScheme.secondary.copy(alpha = breathingAlpha),
+                                    MaterialTheme.colorScheme.primary.copy(alpha = breathingAlpha)
+                                )
+                            ),
+                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+                        )
+                    } else {
+                        Modifier
+                    }
                 ),
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
             color = MaterialTheme.colorScheme.surface,
@@ -107,9 +157,10 @@ fun FloatingBottomNavBar(
             }
         }
 
-        // Center Elevated Voice AI Mic FAB Cradle (As shown in wireframe sketch)
+        // Center Elevated Voice AI Mic FAB Cradle with Breathing Aura Rings
         CenterRaisedMicFab(
             isSelected = currentTab == NavTab.VOICE_AI,
+            isAiSpeaking = isAiSpeaking,
             onClick = { onTabSelected(NavTab.VOICE_AI) },
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -121,11 +172,23 @@ fun FloatingBottomNavBar(
 @Composable
 private fun CenterRaisedMicFab(
     isSelected: Boolean,
+    isAiSpeaking: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+
+    val infiniteTransition = rememberInfiniteTransition(label = "mic_pulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = 1.35f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse_scale"
+    )
 
     val scale by animateFloatAsState(
         targetValue = when {
@@ -141,37 +204,68 @@ private fun CenterRaisedMicFab(
     )
 
     Box(
-        modifier = modifier
-            .scale(scale)
-            .size(58.dp)
-            .shadow(
-                elevation = 14.dp,
-                shape = CircleShape,
-                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
-                ambientColor = Color(0x30000000)
-            )
-            .clip(CircleShape)
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.primary,
-                        MaterialTheme.colorScheme.secondary
-                    )
-                )
-            )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            ),
+        modifier = modifier.scale(scale),
         contentAlignment = Alignment.Center
     ) {
-        Icon(
-            imageVector = Icons.Rounded.Mic,
-            contentDescription = "Voice AI Assistant",
-            tint = Color.White,
-            modifier = Modifier.size(28.dp)
-        )
+        // Glowing Breathing Aura Rings when AI is speaking in Immersive Mode
+        if (isAiSpeaking || isSelected) {
+            Box(
+                modifier = Modifier
+                    .size(58.dp)
+                    .scale(if (isAiSpeaking) pulseScale else 1.15f)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = if (isAiSpeaking) 0.5f else 0.25f),
+                                Color(0xFF38BDF8).copy(alpha = if (isAiSpeaking) 0.35f else 0.1f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+        }
+
+        // Main Mic FAB Body
+        Box(
+            modifier = Modifier
+                .size(58.dp)
+                .shadow(
+                    elevation = if (isAiSpeaking) 20.dp else 14.dp,
+                    shape = CircleShape,
+                    spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                    ambientColor = Color(0x30000000)
+                )
+                .clip(CircleShape)
+                .background(
+                    Brush.linearGradient(
+                        colors = if (isAiSpeaking) {
+                            listOf(
+                                MaterialTheme.colorScheme.primary,
+                                Color(0xFF38BDF8)
+                            )
+                        } else {
+                            listOf(
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                    )
+                )
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (isAiSpeaking) Icons.Rounded.GraphicEq else Icons.Rounded.Mic,
+                contentDescription = "Voice AI Assistant",
+                tint = Color.White,
+                modifier = Modifier.size(28.dp)
+            )
+        }
     }
 }
 
