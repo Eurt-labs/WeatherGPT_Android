@@ -52,8 +52,11 @@ import com.example.weathergpt_android.domain.notifications.ui.NotificationSheet
 import com.example.weathergpt_android.domain.profile.ui.ProfileSheet
 import com.example.weathergpt_android.domain.settings.ui.SettingsScreen
 import com.example.weathergpt_android.domain.voice.ui.VoiceAiScreen
+import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
+import com.example.weathergpt_android.domain.weather.repository.OpenWeatherRepository
 import com.example.weathergpt_android.domain.weather.ui.GreetingWelcomeView
 import com.example.weathergpt_android.domain.weather.ui.HomeScreen
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -85,7 +88,10 @@ fun WeatherGPTApp(
     val scope = rememberCoroutineScope()
 
     val locationProvider = remember { LocationProvider(context) }
+    val weatherRepository = remember { OpenWeatherRepository(context) }
+
     var locationData by remember { mutableStateOf(locationProvider.getInitialCachedLocation()) }
+    var liveWeatherData by remember { mutableStateOf(weatherRepository.getCachedWeather()) }
 
     var currentTab by remember { mutableStateOf(NavTab.WEATHER) }
     var isInitialLaunchGreeting by remember { mutableStateOf(true) } // Clean launch welcome window
@@ -94,6 +100,14 @@ fun WeatherGPTApp(
     var showProfileSheet by remember { mutableStateOf(false) }
     var notificationCount by remember { mutableIntStateOf(3) }
     val userName = "Dhruv"
+
+    fun refreshLiveWeather(loc: LocationData) {
+        scope.launch {
+            weatherRepository.fetchLiveWeather(loc.latitude, loc.longitude).onSuccess { data ->
+                liveWeatherData = data
+            }
+        }
+    }
 
     // NestedScrollConnection to detect scrolling and fade out the top island when scrolling down
     val nestedScrollConnection = remember {
@@ -119,6 +133,7 @@ fun WeatherGPTApp(
         if (locationGranted) {
             locationProvider.fetchRealtimeLocation(scope) { resolved ->
                 locationData = resolved
+                refreshLiveWeather(resolved)
             }
         }
     }
@@ -140,9 +155,10 @@ fun WeatherGPTApp(
         if (missingPermissions.isNotEmpty()) {
             permissionsLauncher.launch(missingPermissions.toTypedArray())
         } else {
-            // Already granted, trigger live location fetch
+            // Already granted, trigger live location and live weather fetch
             locationProvider.fetchRealtimeLocation(scope) { resolved ->
                 locationData = resolved
+                refreshLiveWeather(resolved)
             }
         }
     }
@@ -178,7 +194,10 @@ fun WeatherGPTApp(
                 label = "tab_content_transition"
             ) { tab ->
                 when (tab) {
-                    NavTab.WEATHER -> HomeScreen(locationData = locationData)
+                    NavTab.WEATHER -> HomeScreen(
+                        locationData = locationData,
+                        liveWeatherData = liveWeatherData
+                    )
                     NavTab.NEWS -> NewsScreen()
                     NavTab.VOICE_AI -> VoiceAiScreen(locationData = locationData)
                     NavTab.GPT -> GptChatScreen(locationData = locationData)

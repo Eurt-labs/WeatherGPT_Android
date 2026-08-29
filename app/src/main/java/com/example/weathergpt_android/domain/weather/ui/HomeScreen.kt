@@ -33,14 +33,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.weathergpt_android.domain.location.model.LocationData
+import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
 import com.example.weathergpt_android.domain.weather.model.WeatherScenario
 
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
-    locationData: LocationData = LocationData.DEFAULT
+    locationData: LocationData = LocationData.DEFAULT,
+    liveWeatherData: LiveWeatherData = LiveWeatherData.DEFAULT
 ) {
-    var selectedScenario by remember { mutableStateOf(WeatherScenario.SUNNY) }
+    var selectedScenario by remember { mutableStateOf<WeatherScenario?>(null) }
+
+    val displayTemp = selectedScenario?.temp ?: liveWeatherData.temperature
+    val displayCondition = selectedScenario?.condition ?: liveWeatherData.condition
+    val displayHighLow = selectedScenario?.highLow ?: liveWeatherData.highLow
+    val displayWind = selectedScenario?.wind ?: liveWeatherData.windSpeed
+    val displayHumidity = selectedScenario?.humidity ?: liveWeatherData.humidity
+    val displayUv = selectedScenario?.uv ?: liveWeatherData.uvIndex
+    val displayAqi = selectedScenario?.aqi ?: liveWeatherData.aqi
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -60,6 +70,24 @@ fun HomeScreen(
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Live Weather Pill
+                val isLiveSelected = selectedScenario == null
+                Surface(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { selectedScenario = null },
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (isLiveSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Text(
+                        text = "● Live OpenWeather",
+                        fontSize = 12.sp,
+                        fontWeight = if (isLiveSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isLiveSelected) Color.White else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+                    )
+                }
+
                 WeatherScenario.entries.forEach { scenario ->
                     val isSelected = selectedScenario == scenario
                     Surface(
@@ -81,19 +109,19 @@ fun HomeScreen(
             }
         }
 
-        // Real-time Primary Weather Overview Card (Connected to Real Location)
+        // Real-time Primary Weather Overview Card (Live OpenWeather Data)
         item {
             AnimatedContent(
-                targetState = selectedScenario,
+                targetState = displayTemp to displayCondition,
                 transitionSpec = {
                     fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
                 },
                 label = "primary_weather_anim"
-            ) { current ->
+            ) { (temp, condition) ->
                 PrimaryWeatherCard(
-                    temperature = current.temp,
-                    condition = current.condition,
-                    highLow = current.highLow,
+                    temperature = temp,
+                    condition = condition,
+                    highLow = displayHighLow,
                     location = locationData.formattedLocation
                 )
             }
@@ -107,17 +135,17 @@ fun HomeScreen(
         // Detailed 2x2 Metric Cards (Wind, Humidity, UV, AQI)
         item {
             AnimatedContent(
-                targetState = selectedScenario,
+                targetState = displayWind to displayHumidity,
                 transitionSpec = {
                     fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
                 },
                 label = "metrics_anim"
-            ) { current ->
+            ) {
                 WeatherMetricsGrid(
-                    windSpeed = current.wind,
-                    humidity = current.humidity,
-                    uvIndex = current.uv,
-                    airQuality = current.aqi
+                    windSpeed = displayWind,
+                    humidity = displayHumidity,
+                    uvIndex = displayUv,
+                    airQuality = displayAqi
                 )
             }
         }

@@ -180,13 +180,18 @@ com.example.weathergpt_android/
   - 🇮🇳 **Telugu / తెలుగు** (`te-IN`)
 - Real-time localized weather intelligence dialog with native audio TTS output.
 
-### [Version 1.7.0] - Full-Duplex Voice Architecture: Sherpa STT ➔ OpenRouter API ➔ Sherpa TTS
+### [Version 1.8.0] - Live OpenWeather API Integration with Secure Git-Ignored Config
 
-#### 1. End-to-End Voice AI Flow (`domain/voice/sherpa/pipeline`)
-- Created `SherpaVoicePipeline` coordinating the 3-stage full-duplex conversational voice loop:
-  1. **Stage 1 (STT)**: `SherpaOnnxEngine` captures live microphone audio, calculates RMS audio energy via VAD, and streams speech recognition tokens.
-  2. **Stage 2 (LLM)**: `OpenRouterService` sends real-time SSE streaming requests to `nvidia/nemotron-3.5-lightning` with live atmospheric and location context.
-  3. **Stage 3 (TTS)**: Token streams are chunked by sentence boundaries (`.`, `!`, `?`, `\n`) and immediately routed into `SherpaOnnxEngine` / Text-To-Speech with PCM `AudioTrack` playback, delivering sub-second voice turnaround times (~350–450ms).
+#### 1. Secure OpenWeather API Layer (`core/network` & `domain/weather/repository`)
+- Securely reads API key from local environment / `local.properties` (or runtime user entry in `SharedPreferences`) without committing secret keys to GitHub.
+- Created `OpenWeatherRepository` fetching:
+  - Current Weather: Temperature, condition description, high/low, wind speed in km/h, and humidity.
+  - Air Pollution: Real-time AQI breakdown.
+- Built disk caching (`SharedPreferences`) for instant offline launch.
+
+#### 2. Live Weather Binding in UI (`domain/weather/ui`)
+- [HomeScreen.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/weather/ui/HomeScreen.kt) dynamically binds live OpenWeather metrics (`● Live OpenWeather` pill + scenario switcher).
+- Location resolver in `MainActivity.kt` triggers background OpenWeather updates whenever GPS coordinates update.
 
 ---
 
