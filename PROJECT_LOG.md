@@ -180,17 +180,13 @@ com.example.weathergpt_android/
   - 🇮🇳 **Telugu / తెలుగు** (`te-IN`)
 - Real-time localized weather intelligence dialog with native audio TTS output.
 
-### [Version 2.2.0] - Indic Multilingual Model Integration (Llama 3.3 70B & Qwen 2.5 72B)
+### [Version 2.3.0] - Smart Language-Aware Automatic Model Router (`auto`)
 
-#### 1. Multilingual LLM Routing (`core/network`)
-- Added free multilingual Indic-optimized LLM models to `OpenRouterPreferences`:
-  - **Llama 3.3 70B (Free)** (`meta-llama/llama-3.3-70b-instruct:free`): Fluent multilingual capabilities across Hindi, Marathi, Bengali, Tamil, Telugu.
-  - **Qwen 2.5 72B (Free)** (`qwen/qwen-2.5-72b-instruct:free`): Top-tier Indic multilingual reasoning.
-  - **Gemma 2 9B (Free)** (`google/gemma-2-9b-it:free`): Fast Google multilingual model.
-  - **Nemotron 3.5 Lightning** (`nvidia/nemotron-3.5-lightning`): Fast English specialist.
-
-#### 2. Settings Model Switcher (`domain/settings/ui`)
-- Added 1-tap model switcher in [SettingsScreen.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/settings/ui/SettingsScreen.kt) letting users pick between ultra-fast English inference (Nemotron 3.5) and full Indic native language dialogue (Llama 3.3 / Qwen 2.5).
+#### 1. Automatic Model Switching Engine (`core/network`)
+- Implemented Unicode script detection in [OpenRouterService.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/core/network/OpenRouterService.kt):
+  - **English Prompts** ➔ Automatically routed to **Nemotron 3.5 Lightning** for ultra-low latency sub-300ms inference.
+  - **Indian / Regional Languages (Hindi, Marathi, Bengali, Tamil, Telugu, etc.)** ➔ Automatically routed to **Llama 3.3 70B (Free)** for native fluency.
+- Added **`⚡ Smart Auto-Switch (Recommended)`** as the default model in `OpenRouterPreferences`.
 
 ---
 
