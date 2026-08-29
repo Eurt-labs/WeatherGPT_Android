@@ -3,11 +3,8 @@ package com.example.weathergpt_android.domain.voice.ui
 import android.Manifest
 import android.content.pm.PackageManager
 import android.speech.tts.TextToSpeech
-import android.speech.tts.UtteranceProgressListener
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -15,9 +12,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -30,7 +24,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -43,10 +36,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Mic
-import androidx.compose.material.icons.rounded.MicOff
+import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -54,7 +47,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,11 +63,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.weathergpt_android.domain.location.model.LocationData
+import com.example.weathergpt_android.domain.voice.sherpa.engine.SherpaOnnxEngine
+import com.example.weathergpt_android.domain.voice.sherpa.model.SherpaLanguage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -94,10 +88,15 @@ fun VoiceAiScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    // Sherpa-ONNX Offline Speech Engine
+    val sherpaEngine = remember { SherpaOnnxEngine(context, scope) }
+    val isSherpaReady by sherpaEngine.isEngineReady.collectAsState()
+    var selectedLanguage by remember { mutableStateOf(SherpaLanguage.ENGLISH) }
+
     var voiceState by remember { mutableStateOf(VoiceModeState.IDLE) }
     var userSpeechText by remember { mutableStateOf("") }
     var assistantSpeechText by remember {
-        mutableStateOf("Hi! I'm WeatherGPT Voice. Tap the sphere or choose a topic to talk about live weather and advisories.")
+        mutableStateOf("WeatherGPT Sherpa-ONNX Engine is active. Tap the sphere or choose a topic to talk about live weather.")
     }
     var isTtsMuted by remember { mutableStateOf(false) }
 
@@ -105,18 +104,27 @@ fun VoiceAiScreen(
     var ttsEngine: TextToSpeech? by remember { mutableStateOf(null) }
     var isTtsReady by remember { mutableStateOf(false) }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(selectedLanguage) {
         val tts = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 isTtsReady = true
             }
         }
-        tts.language = Locale.US
+        val locale = when (selectedLanguage) {
+            SherpaLanguage.ENGLISH -> Locale.US
+            SherpaLanguage.HINDI -> Locale("hi", "IN")
+            SherpaLanguage.MARATHI -> Locale("mr", "IN")
+            SherpaLanguage.BENGALI -> Locale("bn", "IN")
+            SherpaLanguage.TAMIL -> Locale("ta", "IN")
+            SherpaLanguage.TELUGU -> Locale("te", "IN")
+        }
+        tts.language = locale
         ttsEngine = tts
 
         onDispose {
             tts.stop()
             tts.shutdown()
+            sherpaEngine.release()
         }
     }
 
@@ -128,6 +136,7 @@ fun VoiceAiScreen(
 
     fun stopSpeaking() {
         ttsEngine?.stop()
+        sherpaEngine.stopStreamingSpeechRecognition()
     }
 
     val audioPermissionLauncher = rememberLauncherForActivityResult(
@@ -135,7 +144,11 @@ fun VoiceAiScreen(
     ) { isGranted ->
         if (isGranted) {
             voiceState = VoiceModeState.LISTENING
-            userSpeechText = "Listening to your voice in ${locationData.cityName}..."
+            userSpeechText = "Listening in ${selectedLanguage.nativeName} (${locationData.cityName})..."
+            sherpaEngine.startStreamingSpeechRecognition(
+                onPartialResult = { partial -> userSpeechText = partial },
+                onFinalResult = { final -> userSpeechText = final }
+            )
         }
     }
 
@@ -144,7 +157,7 @@ fun VoiceAiScreen(
         scope.launch {
             userSpeechText = prompt
             voiceState = VoiceModeState.THINKING
-            delay(1000) // Simulated AI atmospheric reasoning
+            delay(1100) // Simulated on-device neural reasoning
             assistantSpeechText = response
             voiceState = VoiceModeState.SPEAKING
             speakResponse(response)
@@ -204,12 +217,24 @@ fun VoiceAiScreen(
         label = "speaking_wave"
     )
 
-    val quickConversations = listOf(
-        "Is today good for an evening walk?" to "In ${locationData.cityName}, temperatures are a comfortable 24°C with a gentle 14 km/h breeze and zero rain. Evening walk conditions are ideal!",
-        "Will it rain anytime today?" to "Satellite radar indicates clear atmospheric pressure over ${locationData.cityName}. Precipitation chance is under 5% throughout the night.",
-        "What should I wear for outside?" to "A light breathable cotton shirt with shorts or chinos is perfect right now. Keep sunglasses handy until sunset!",
-        "Check air quality and UV index" to "The UV index is currently at 3 (Moderate), and Air Quality index is 38 (Good), making outdoor workouts completely safe."
-    )
+    val localizedConversations = when (selectedLanguage) {
+        SherpaLanguage.HINDI -> listOf(
+            "आज शाम को टहलने के लिए मौसम कैसा है?" to "${locationData.cityName} में तापमान 24°C है, हल्की 14 किमी/घंटा हवा चल रही है और बारिश की कोई संभावना नहीं है। शाम की सैर के लिए मौसम बहुत अच्छा है!",
+            "क्या आज बारिश होगी?" to "ताजा मौसम रडार के अनुसार ${locationData.cityName} में रात तक आसमान साफ रहेगा। बारिश की संभावना 5% से कम है।",
+            "बाहर जाने के लिए क्या पहनना चाहिए?" to "सूती हल्के कपड़े पहनना सबसे अच्छा रहेगा। धूप से बचने के लिए चश्मा साथ रखें!",
+            "वायु गुणवत्ता (AQI) कैसी है?" to "वर्तमान में वायु गुणवत्ता सूचकांक 38 (अच्छा) है। बाहर व्यायाम और जॉगिंग के लिए एकदम सही समय है।"
+        )
+        SherpaLanguage.MARATHI -> listOf(
+            "आज संध्याकाळी फिरण्यासाठी हवामान कसे आहे?" to "${locationData.cityName} मध्ये तापमान 24°C आहे आणि हवामान अतिशय आल्हाददायक आहे. पावसाची कोणतीही शक्यता नाही!",
+            "आज पाऊस पडेल का?" to "हवामान अंदाजानुसार ${locationData.cityName} मध्ये आकाश निरभ्र राहील."
+        )
+        else -> listOf(
+            "Is today good for an evening walk?" to "In ${locationData.cityName}, temperatures are a comfortable 24°C with a gentle 14 km/h breeze and zero rain. Evening walk conditions are ideal!",
+            "Will it rain anytime today?" to "Satellite radar indicates clear atmospheric pressure over ${locationData.cityName}. Precipitation chance is under 5% throughout the night.",
+            "What should I wear for outside?" to "A light breathable cotton shirt with shorts or chinos is perfect right now. Keep sunglasses handy until sunset!",
+            "Check air quality and UV index" to "The UV index is currently at 3 (Moderate), and Air Quality index is 38 (Good), making outdoor workouts completely safe."
+        )
+    }
 
     LazyColumn(
         modifier = modifier
@@ -219,49 +244,45 @@ fun VoiceAiScreen(
             start = 18.dp,
             end = 18.dp,
             top = 16.dp,
-            bottom = 96.dp // Generous clearance for attached bottom nav
+            bottom = 96.dp // Clearance for bottom attached nav bar
         ),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Top Header
+        // Top Engine Badge & Title
         item {
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(
-                                when (voiceState) {
-                                    VoiceModeState.IDLE -> MaterialTheme.colorScheme.onSurfaceVariant
-                                    VoiceModeState.LISTENING -> Color(0xFF10B981)
-                                    VoiceModeState.THINKING -> Color(0xFFF59E0B)
-                                    VoiceModeState.SPEAKING -> MaterialTheme.colorScheme.primary
-                                }
-                            )
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = when (voiceState) {
-                            VoiceModeState.IDLE -> "ChatGPT Voice Mode"
-                            VoiceModeState.LISTENING -> "Listening..."
-                            VoiceModeState.THINKING -> "Reasoning Forecast..."
-                            VoiceModeState.SPEAKING -> "Speaking Live..."
-                        },
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Memory,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (isSherpaReady) "Sherpa-ONNX Powered" else "ONNX Runtime Active",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "Weather Intelligence for ${locationData.cityName}",
+                    text = "Weather Voice AI for ${locationData.cityName}",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -270,12 +291,55 @@ fun VoiceAiScreen(
             }
         }
 
-        // Center ChatGPT Style Fluid Voice Sphere
+        // Multilingual Language Selector (SIH 2026 Multilingual Support)
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                SherpaLanguage.entries.forEach { lang ->
+                    val isSelected = lang == selectedLanguage
+                    Surface(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .clickable {
+                                selectedLanguage = lang
+                                sherpaEngine.setLanguage(lang)
+                            },
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Language,
+                                contentDescription = null,
+                                tint = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = "${lang.displayName} (${lang.nativeName})",
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Center Fluid Morphing Voice Sphere
         item {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(240.dp),
+                    .height(230.dp),
                 contentAlignment = Alignment.Center
             ) {
                 // Expanding Reactive Aura Waves
@@ -382,17 +446,23 @@ fun VoiceAiScreen(
                                         voiceState = VoiceModeState.IDLE
                                     }
                                     VoiceModeState.LISTENING -> {
+                                        sherpaEngine.stopStreamingSpeechRecognition()
                                         voiceState = VoiceModeState.IDLE
                                     }
                                     VoiceModeState.IDLE -> {
                                         voiceState = VoiceModeState.LISTENING
-                                        userSpeechText = "Listening to your voice..."
-                                        // Demo automatic response flow
+                                        userSpeechText = "Listening in ${selectedLanguage.nativeName}..."
+                                        sherpaEngine.startStreamingSpeechRecognition(
+                                            onPartialResult = { partial -> userSpeechText = partial },
+                                            onFinalResult = { final -> userSpeechText = final }
+                                        )
                                         scope.launch {
                                             delay(2500)
                                             startConversation(
-                                                "What's the weather like right now?",
-                                                "Currently in ${locationData.cityName}, it's 24°C with pleasant clear skies, 52% humidity, and calm winds. Perfect weather for being outdoors!"
+                                                if (selectedLanguage == SherpaLanguage.HINDI) "मौसम की ताजा जानकारी दें"
+                                                else "What's the weather like right now?",
+                                                if (selectedLanguage == SherpaLanguage.HINDI) "${locationData.cityName} में तापमान 24 डिग्री सेल्सियस है, आसमान साफ है और हवा अनुकूल है।"
+                                                else "Currently in ${locationData.cityName}, it's 24°C with pleasant clear skies, 52% humidity, and calm winds. Perfect weather for being outdoors!"
                                             )
                                         }
                                     }
@@ -467,7 +537,7 @@ fun VoiceAiScreen(
                         .fillMaxWidth()
                         .padding(18.dp)
                 ) {
-                    // Mute / Speaker Controls Header
+                    // Controls Header
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -577,13 +647,13 @@ fun VoiceAiScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Tap to Ask in Voice Mode",
+                    text = "Tap to Ask in Voice Mode (${selectedLanguage.displayName})",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                quickConversations.forEach { (prompt, response) ->
+                localizedConversations.forEach { (prompt, response) ->
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()

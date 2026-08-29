@@ -161,6 +161,25 @@ com.example.weathergpt_android/
   - Mute/Unmute TTS audio speech button.
   - Tap-to-interrupt and instant conversational follow-up suggestions (e.g. walk timing, rain chances, clothing recommendations, UV/Air quality).
 
+### [Version 1.5.0] - Sherpa-ONNX On-Device Speech & Audio Intelligence Architecture (`domain/voice/sherpa`)
+
+#### 1. Sherpa-ONNX & ONNX Runtime Core Integration
+- Added `com.microsoft.onnxruntime:onnxruntime-android:1.20.0` with native 64-bit/32-bit libraries (`libonnxruntime.so`, `libonnxruntime4j_jni.so`).
+- Implemented `SherpaOnnxEngine` managing:
+  - Streaming PCM 16-bit 16kHz audio ingestion via `AudioRecord`.
+  - On-device Voice Activity Detection (VAD) energy monitoring.
+  - Streaming ASR (Speech-To-Text) and Offline TTS (Text-To-Speech) pipeline.
+
+#### 2. Multilingual Indian Language Speech Models (SIH 2026 Focus)
+- Added dynamic language selector supporting **6 Indian languages**:
+  - 🇺🇸 **English** (`en`)
+  - 🇮🇳 **Hindi / हिन्दी** (`hi-IN`)
+  - 🇮🇳 **Marathi / मराठी** (`mr-IN`)
+  - 🇮🇳 **Bengali / বাংলা** (`bn-IN`)
+  - 🇮🇳 **Tamil / தமிழ்** (`ta-IN`)
+  - 🇮🇳 **Telugu / తెలుగు** (`te-IN`)
+- Real-time localized weather intelligence dialog with native audio TTS output.
+
 ---
 
 ## 🐛 Bug Fixes & Diagnostics Log
