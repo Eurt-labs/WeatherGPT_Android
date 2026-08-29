@@ -1,9 +1,14 @@
 package com.example.weathergpt_android
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -14,6 +19,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -21,6 +27,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import com.example.weathergpt_android.core.components.FloatingBottomNavBar
 import com.example.weathergpt_android.core.components.TopIslandHeader
 import com.example.weathergpt_android.core.navigation.NavTab
@@ -48,11 +56,41 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun WeatherGPTApp() {
+    val context = LocalContext.current
     var currentTab by remember { mutableStateOf(NavTab.WEATHER) }
     var showNotificationSheet by remember { mutableStateOf(false) }
     var showProfileSheet by remember { mutableStateOf(false) }
     var notificationCount by remember { mutableIntStateOf(3) }
     val userName = "Dhruv"
+
+    // Runtime Permission Requester for Location, Microphone, and Notifications
+    val permissionsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val locationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        val audioGranted = permissions[Manifest.permission.RECORD_AUDIO] == true
+        // Permissions handled seamlessly
+    }
+
+    LaunchedEffect(Unit) {
+        val permissionsToRequest = mutableListOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.RECORD_AUDIO
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
+        val missingPermissions = permissionsToRequest.filter { permission ->
+            ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (missingPermissions.isNotEmpty()) {
+            permissionsLauncher.launch(missingPermissions.toTypedArray())
+        }
+    }
 
     Box(
         modifier = Modifier

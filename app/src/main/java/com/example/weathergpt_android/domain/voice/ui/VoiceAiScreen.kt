@@ -58,14 +58,32 @@ import com.example.weathergpt_android.core.theme.SubtleSurface
 import com.example.weathergpt_android.core.theme.TextPrimary
 import com.example.weathergpt_android.core.theme.TextSecondary
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+
 @Composable
 fun VoiceAiScreen(
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var isListening by remember { mutableStateOf(false) }
     var currentPrompt by remember { mutableStateOf("Tap the microphone or say 'Hey WeatherGPT'") }
     var currentResponse by remember {
         mutableStateOf("WeatherGPT Voice Assistant is ready. Ask anything about forecasts, outfit recommendations, or travel weather.")
+    }
+
+    val audioPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            isListening = true
+            currentPrompt = "Listening: 'What should I wear for an evening walk?'"
+            currentResponse = "At 24°C with mild 14 km/h breeze, a breathable t-shirt with light shorts or chinos is ideal. No rain jacket needed!"
+        }
     }
 
     val quickPrompts = listOf(
@@ -168,10 +186,19 @@ fun VoiceAiScreen(
                             )
                         )
                         .clickable {
-                            isListening = !isListening
-                            if (isListening) {
-                                currentPrompt = "Listening: 'What should I wear for an evening walk?'"
-                                currentResponse = "At 24°C with mild 14 km/h breeze, a breathable t-shirt with light shorts or chinos is ideal. No rain jacket needed!"
+                            val hasAudioPermission = ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.RECORD_AUDIO
+                            ) == PackageManager.PERMISSION_GRANTED
+
+                            if (!hasAudioPermission) {
+                                audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            } else {
+                                isListening = !isListening
+                                if (isListening) {
+                                    currentPrompt = "Listening: 'What should I wear for an evening walk?'"
+                                    currentResponse = "At 24°C with mild 14 km/h breeze, a breathable t-shirt with light shorts or chinos is ideal. No rain jacket needed!"
+                                }
                             }
                         },
                     contentAlignment = Alignment.Center
