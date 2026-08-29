@@ -8,8 +8,46 @@ object OpenRouterPreferences {
     private const val KEY_API_KEY = "openrouter_api_key"
     private const val KEY_MODEL = "openrouter_model"
 
-    const val DEFAULT_MODEL = "nvidia/nemotron-3.5-lightning"
-    const val FREE_FALLBACK_MODEL = "nvidia/nemotron-4-340b-instruct:free"
+    const val MODEL_NEMOTRON_3_5 = "nvidia/nemotron-3.5-lightning"
+    const val MODEL_LLAMA_3_3_FREE = "meta-llama/llama-3.3-70b-instruct:free"
+    const val MODEL_QWEN_2_5_FREE = "qwen/qwen-2.5-72b-instruct:free"
+    const val MODEL_GEMMA_2_FREE = "google/gemma-2-9b-it:free"
+
+    const val DEFAULT_MODEL = MODEL_NEMOTRON_3_5
+
+    val AVAILABLE_MODELS = listOf(
+        ModelOption(
+            id = MODEL_NEMOTRON_3_5,
+            name = "Nemotron 3.5",
+            tag = "Ultra-Fast (EN)",
+            isMultilingual = false
+        ),
+        ModelOption(
+            id = MODEL_LLAMA_3_3_FREE,
+            name = "Llama 3.3 70B",
+            tag = "Free • Multilingual (HI/MR/TA/TE)",
+            isMultilingual = true
+        ),
+        ModelOption(
+            id = MODEL_QWEN_2_5_FREE,
+            name = "Qwen 2.5 72B",
+            tag = "Free • Top Indic Multilingual",
+            isMultilingual = true
+        ),
+        ModelOption(
+            id = MODEL_GEMMA_2_FREE,
+            name = "Gemma 2 9B",
+            tag = "Free • Google Multilingual",
+            isMultilingual = true
+        )
+    )
+
+    data class ModelOption(
+        val id: String,
+        val name: String,
+        val tag: String,
+        val isMultilingual: Boolean
+    )
 
     fun getApiKey(context: Context): String {
         val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

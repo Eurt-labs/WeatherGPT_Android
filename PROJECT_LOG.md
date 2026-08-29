@@ -180,19 +180,17 @@ com.example.weathergpt_android/
   - 🇮🇳 **Telugu / తెలుగు** (`te-IN`)
 - Real-time localized weather intelligence dialog with native audio TTS output.
 
-### [Version 2.1.0] - Live Forecast Precision, OpenWeather Match & Accurate Standard AQI
+### [Version 2.2.0] - Indic Multilingual Model Integration (Llama 3.3 70B & Qwen 2.5 72B)
 
-#### 1. Real-Time Hourly & 7-Day Forecast Dynamic Ingestion (`domain/weather/repository`)
-- Upgraded `OpenWeatherRepository` to query `https://api.openweathermap.org/data/2.5/forecast` (5-day / 3-hour forecast):
-  - Parses real sequential hourly forecasts: `Now (32°)`, `8:00 pm (31°)`, `9:00 pm (31°)`, `10:00 pm (30°)`, `11:00 pm (30°)`.
-  - Parses real multi-day daily high/low temperatures and weather conditions for Today, Tomorrow, and upcoming days.
-- Bound live `hourlyList` and `dailyList` directly into `HomeScreen.kt`, `HourlyForecastSection`, and `SevenDayForecastCard`.
+#### 1. Multilingual LLM Routing (`core/network`)
+- Added free multilingual Indic-optimized LLM models to `OpenRouterPreferences`:
+  - **Llama 3.3 70B (Free)** (`meta-llama/llama-3.3-70b-instruct:free`): Fluent multilingual capabilities across Hindi, Marathi, Bengali, Tamil, Telugu.
+  - **Qwen 2.5 72B (Free)** (`qwen/qwen-2.5-72b-instruct:free`): Top-tier Indic multilingual reasoning.
+  - **Gemma 2 9B (Free)** (`google/gemma-2-9b-it:free`): Fast Google multilingual model.
+  - **Nemotron 3.5 Lightning** (`nvidia/nemotron-3.5-lightning`): Fast English specialist.
 
-#### 2. Accurate Air Quality Index (AQI) Calculation
-- Replaced incorrect raw provider mapping with the standard breakpoint formula for `PM2.5`, `PM10`, and `O3`, resolving the AQI to match stock mobile weather feeds (e.g., `64 (Moderate)` in Hathras).
-
-#### 3. Default Provider Configuration
-- Set **OpenWeatherMap** as the primary default weather engine in `WeatherProviderPreferences` to ensure identical values with system weather applications.
+#### 2. Settings Model Switcher (`domain/settings/ui`)
+- Added 1-tap model switcher in [SettingsScreen.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/settings/ui/SettingsScreen.kt) letting users pick between ultra-fast English inference (Nemotron 3.5) and full Indic native language dialogue (Llama 3.3 / Qwen 2.5).
 
 ---
 

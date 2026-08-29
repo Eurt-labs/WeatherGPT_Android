@@ -513,40 +513,64 @@ fun SettingsScreen(
                         }
                     }
 
-                    // Model Selection Pills
+                    // Model Selection Pills with Multilingual Indic Support
                     Text(
                         text = "Active LLM Model:",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Row(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        val models = listOf(
-                            "nvidia/nemotron-3.5-lightning" to "Nemotron 3.5 (Free)",
-                            "nvidia/nemotron-4-340b-instruct:free" to "Nemotron 4 340B"
-                        )
-                        models.forEach { (modelId, label) ->
-                            val isModelSelected = selectedModel == modelId
+                        OpenRouterPreferences.AVAILABLE_MODELS.forEach { modelOption ->
+                            val isModelSelected = selectedModel == modelOption.id
                             Surface(
                                 modifier = Modifier
+                                    .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))
+                                    .border(
+                                        width = if (isModelSelected) 2.dp else 1.dp,
+                                        color = if (isModelSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
                                     .clickable {
-                                        selectedModel = modelId
-                                        OpenRouterPreferences.saveSelectedModel(context, modelId)
+                                        selectedModel = modelOption.id
+                                        OpenRouterPreferences.saveSelectedModel(context, modelOption.id)
                                     },
                                 shape = RoundedCornerShape(12.dp),
-                                color = if (isModelSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+                                color = if (isModelSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
                             ) {
-                                Text(
-                                    text = label,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isModelSelected) Color.White else MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = modelOption.name,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = modelOption.tag,
+                                            fontSize = 10.sp,
+                                            color = if (modelOption.isMultilingual) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    if (isModelSelected) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Check,
+                                            contentDescription = "Selected",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
