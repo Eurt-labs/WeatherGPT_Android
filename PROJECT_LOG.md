@@ -116,17 +116,30 @@ com.example.weathergpt_android/
   - Tapping the Top Island (Notifications / Profile) opens sheets without dismissing the greeting.
   - Clicking on any bottom navigation tab (Cloud, News, Voice, GPT, Settings) or tapping *"Explore Live Weather"* smoothly transitions into the full dashboard view.
 
-### [Version 1.2.1] - Scroll-to-Fade Dynamic Island & Enhanced Multi-Layer Shadows
+### [Version 1.3.0] - Attached Bottom Nav with Center Mic Dome, Material 3 Light Theme, Theme Persistence & Status Bar Contrast Fixes
 
-#### 1. Scroll-Aware Dynamic Island Animation
-- Attached a global `NestedScrollConnection` in [MainActivity.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/MainActivity.kt) that monitors vertical scrolling across all screens.
-- **Scroll Down**: Top Dynamic Island smoothly fades out and slides upwards (`slideOutVertically`) to maximize visible screen space for weather data, news, voice, and settings.
-- **Scroll Up / Top**: Top Dynamic Island smoothly fades back in (`slideInVertically`).
-- Resets visibility automatically upon tab switching or returning to the initial welcome screen.
+#### 1. Attached Bottom Navigation Bar with Center Raised Mic Dome FAB
+- Rebuilt bottom navigation from floating island to an **attached bottom navigation bar** anchored to the bottom edge of the device screen (`navigationBarsPadding()`).
+- Added an **elevated center cradle dome FAB** (`58dp`, `offset(y = -20dp)`) dedicated to the **Voice AI Assistant (Microphone)** with gradient glow, layered shadow (`elevation = 14dp`), and spring bounce physics.
+- Symmetric tab distribution:
+  - Left: **Weather** (Cloud) & **News** (Feed)
+  - Center: **Raised Voice AI Mic FAB**
+  - Right: **WeatherGPT Assistant** (Chat) & **Settings** (Gear)
 
-#### 2. Enhanced Drop Shadows for Floating Islands
-- **Floating Bottom Nav Bar**: Upgraded to `elevation = 16dp`, `spotColor = Color(0x45000000)`, `ambientColor = Color(0x30000000)`, and `tonalElevation = 4dp` for prominent depth.
-- **Top Dynamic Island**: Upgraded to `elevation = 18dp / 14dp`, `spotColor = Color(0x45000000)`, `ambientColor = Color(0x30000000)`, and `tonalElevation = 4dp`.
+#### 2. Material 3 Clean Light Theme Palette
+- Standardized Light theme to clean **Material 3 Design System**:
+  - Primary Accent: `#006494` (M3 Deep Sky Blue)
+  - Container: `#D0E4FF`
+  - Background: `#F8FAFC` (Crisp Slate White)
+  - Surfaces: `#FFFFFF` (Pure White)
+- Retained custom **Slate Moss Dark** for Dark Theme (`#2C3639`, `#3F4E4F`, `#A27B5C`, `#DCD7C9`).
+
+#### 3. Persistent Theme Preference
+- Implemented `ThemePreferences` backed by `SharedPreferences` to ensure the selected theme (Light vs Dark) persists across app restarts and device reboots.
+
+#### 4. Status Bar Contrast & Notification Badge Fixes
+- **Status Bar Blending Fix**: Configured `WindowCompat.getInsetsController` to ensure dark status bar icons on Light theme and light icons on Dark theme, preventing blending with device clocks and battery indicators.
+- **Unclipped Notification Badge**: Fixed clipping issue by moving the red notification dot outside the inner circular container, rendering a crisp, perfectly positioned notification badge.
 
 ---
 

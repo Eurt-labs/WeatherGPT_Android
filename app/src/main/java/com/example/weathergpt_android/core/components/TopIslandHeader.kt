@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,8 +31,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -74,7 +74,7 @@ fun TopIslandHeader(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         Surface(
@@ -105,7 +105,7 @@ fun TopIslandHeader(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Left: Notification Bell Button
+                    // Left: Notification Button with FIXED unclipped notification badge
                     val notifSource = remember { MutableInteractionSource() }
                     val notifPressed by notifSource.collectIsPressedAsState()
                     val notifScale by animateFloatAsState(
@@ -116,10 +116,8 @@ fun TopIslandHeader(
 
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(42.dp)
                             .scale(notifScale)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .clickable(
                                 interactionSource = notifSource,
                                 indication = null,
@@ -127,22 +125,32 @@ fun TopIslandHeader(
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        BadgedBox(
-                            badge = {
-                                if (notificationCount > 0) {
-                                    Badge(
-                                        containerColor = AlertRed,
-                                        contentColor = Color.White,
-                                        modifier = Modifier.size(8.dp)
-                                    )
-                                }
-                            }
+                        // Circular background for bell icon
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Notifications,
                                 contentDescription = "Notifications",
                                 tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(19.dp)
+                            )
+                        }
+
+                        // Prominent Red Notification Dot (Outside the clipped circle so never cut off)
+                        if (notificationCount > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .offset(x = (-2).dp, y = 2.dp)
+                                    .size(9.dp)
+                                    .clip(CircleShape)
+                                    .background(AlertRed)
+                                    .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape)
                             )
                         }
                     }
@@ -190,7 +198,7 @@ fun TopIslandHeader(
 
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(38.dp)
                             .scale(profileScale)
                             .clip(CircleShape)
                             .background(

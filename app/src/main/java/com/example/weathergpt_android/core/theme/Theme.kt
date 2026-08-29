@@ -17,22 +17,22 @@ fun WeatherGPTTheme(
 ) {
     val colorScheme = when (themeMode) {
         AppThemeMode.LIGHT -> lightColorScheme(
-            primary = LightElectricBlue,
+            primary = M3LightPrimary,
             onPrimary = Color.White,
-            primaryContainer = LightLavender.copy(alpha = 0.35f),
-            onPrimaryContainer = LightElectricBlue,
-            secondary = LightLavender,
+            primaryContainer = M3LightPrimaryContainer,
+            onPrimaryContainer = M3LightOnPrimaryContainer,
+            secondary = M3LightSecondary,
             onSecondary = Color.White,
-            secondaryContainer = LightRosePeach.copy(alpha = 0.55f),
-            onSecondaryContainer = LightTextPrimary,
+            secondaryContainer = M3LightSecondaryContainer,
+            onSecondaryContainer = M3LightTextPrimary,
             tertiary = WeatherEmerald,
             onTertiary = Color.White,
-            background = LightBgPorcelain,
-            onBackground = LightTextPrimary,
-            surface = LightCardWhite,
-            onSurface = LightTextPrimary,
-            surfaceVariant = LightSubtleSurface,
-            onSurfaceVariant = LightTextSecondary
+            background = M3LightBackground,
+            onBackground = M3LightTextPrimary,
+            surface = M3LightSurface,
+            onSurface = M3LightTextPrimary,
+            surfaceVariant = M3LightSurfaceVariant,
+            onSurfaceVariant = M3LightTextSecondary
         )
         AppThemeMode.DARK -> darkColorScheme(
             primary = DarkBronzeAccent,
@@ -60,6 +60,7 @@ fun WeatherGPTTheme(
             val window = (view.context as? Activity)?.window
             if (window != null) {
                 val insetsController = WindowCompat.getInsetsController(window, view)
+                // In Light mode: dark icons (true). In Dark mode: light icons (false).
                 insetsController.isAppearanceLightStatusBars = !themeMode.isDark
                 insetsController.isAppearanceLightNavigationBars = !themeMode.isDark
             }

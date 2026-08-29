@@ -51,9 +51,9 @@ import com.example.weathergpt_android.core.theme.DarkBronzeAccent
 import com.example.weathergpt_android.core.theme.DarkCharcoalCard
 import com.example.weathergpt_android.core.theme.DarkCreamStone
 import com.example.weathergpt_android.core.theme.DarkSlateBase
-import com.example.weathergpt_android.core.theme.LightElectricBlue
-import com.example.weathergpt_android.core.theme.LightLavender
-import com.example.weathergpt_android.core.theme.LightRosePeach
+import com.example.weathergpt_android.core.theme.M3LightPrimary
+import com.example.weathergpt_android.core.theme.M3LightPrimaryContainer
+import com.example.weathergpt_android.core.theme.M3LightSecondaryContainer
 
 @Composable
 fun SettingsScreen(
@@ -168,9 +168,9 @@ fun SettingsScreen(
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                             if (!mode.isDark) {
-                                                ColorDot(LightElectricBlue)
-                                                ColorDot(LightLavender)
-                                                ColorDot(LightRosePeach)
+                                                ColorDot(M3LightPrimary)
+                                                ColorDot(M3LightPrimaryContainer)
+                                                ColorDot(M3LightSecondaryContainer)
                                             } else {
                                                 ColorDot(DarkSlateBase)
                                                 ColorDot(DarkCharcoalCard)

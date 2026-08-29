@@ -41,6 +41,7 @@ import com.example.weathergpt_android.core.components.FloatingBottomNavBar
 import com.example.weathergpt_android.core.components.TopIslandHeader
 import com.example.weathergpt_android.core.navigation.NavTab
 import com.example.weathergpt_android.core.theme.AppThemeMode
+import com.example.weathergpt_android.core.theme.ThemePreferences
 import com.example.weathergpt_android.core.theme.WeatherGPTTheme
 import com.example.weathergpt_android.domain.assistant.ui.GptChatScreen
 import com.example.weathergpt_android.domain.news.ui.NewsScreen
@@ -56,11 +57,16 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            var themeMode by remember { mutableStateOf(AppThemeMode.LIGHT) }
+            val context = LocalContext.current
+            var themeMode by remember { mutableStateOf(ThemePreferences.getSavedTheme(context)) }
+
             WeatherGPTTheme(themeMode = themeMode) {
                 WeatherGPTApp(
                     currentTheme = themeMode,
-                    onThemeChange = { themeMode = it }
+                    onThemeChange = { newTheme ->
+                        themeMode = newTheme
+                        ThemePreferences.saveTheme(context, newTheme)
+                    }
                 )
             }
         }
@@ -187,7 +193,7 @@ fun WeatherGPTApp(
             )
         }
 
-        // Bottom Floating Island Navigation Bar
+        // Bottom Attached Navigation Bar with Center Raised Mic FAB
         FloatingBottomNavBar(
             modifier = Modifier.align(Alignment.BottomCenter),
             currentTab = currentTab,

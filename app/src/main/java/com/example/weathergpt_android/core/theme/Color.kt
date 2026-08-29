@@ -3,32 +3,35 @@ package com.example.weathergpt_android.core.theme
 import androidx.compose.ui.graphics.Color
 
 // ==========================================
-// 1. Light Theme Palette (Custom Provided)
-// #3A86FF, #BDB2FF, #FFD6E0, #FFF4F4
+// 1. Material 3 Clean Light Theme Palette
 // ==========================================
-val LightElectricBlue = Color(0xFF3A86FF)    // Primary Accent
-val LightLavender = Color(0xFFBDB2FF)        // Secondary Accent
-val LightRosePeach = Color(0xFFFFD6E0)       // Tertiary Highlight
-val LightBgPorcelain = Color(0xFFFFF4F4)     // Background Screen
-val LightCardWhite = Color(0xFFFFFFFF)       // Surface / Card
-val LightSubtleSurface = Color(0xFFF8EEF0)   // Surface Variant
-val LightTextPrimary = Color(0xFF1E293B)     // Dark Charcoal text
-val LightTextSecondary = Color(0xFF64748B)   // Slate text
-val LightTextTertiary = Color(0xFF94A3B8)    // Muted text
+val M3LightPrimary = Color(0xFF006494)          // Material 3 Primary Deep Sky Blue
+val M3LightPrimaryContainer = Color(0xFFD0E4FF) // Container
+val M3LightOnPrimaryContainer = Color(0xFF001D36)
+val M3LightSecondary = Color(0xFF535F70)
+val M3LightSecondaryContainer = Color(0xFFD7E3F8)
+val M3LightTertiary = Color(0xFF006874)
+val M3LightTertiaryContainer = Color(0xFF9EEFFD)
+val M3LightBackground = Color(0xFFF8FAFC)        // Crisp Neutral Background
+val M3LightSurface = Color(0xFFFFFFFF)           // Pure White Surface
+val M3LightSurfaceVariant = Color(0xFFEDF2F7)    // Clean Surface Variant
+val M3LightTextPrimary = Color(0xFF0F172A)       // High-contrast Slate Text
+val M3LightTextSecondary = Color(0xFF475569)
+val M3LightTextTertiary = Color(0xFF94A3B8)
 
 // ==========================================
-// 2. Dark Theme Palette (Custom Provided)
+// 2. Slate Moss Dark Theme Palette
 // #2C3639, #3F4E4F, #A27B5C, #DCD7C9
 // ==========================================
-val DarkSlateBase = Color(0xFF2C3639)        // Background Screen
-val DarkCharcoalCard = Color(0xFF3F4E4F)     // Surface / Card
-val DarkBronzeAccent = Color(0xFFA27B5C)     // Primary / Accent
-val DarkCreamStone = Color(0xFFDCD7C9)       // Text Primary
-val DarkMutedStone = Color(0xFFA8A29E)       // Text Secondary
-val DarkSubtleSurface = Color(0xFF354245)    // Surface Variant
-val DarkHighlight = Color(0xFFB38B6D)        // Secondary Accent
+val DarkSlateBase = Color(0xFF2C3639)            // Dark Background
+val DarkCharcoalCard = Color(0xFF3F4E4F)         // Dark Surface / Card
+val DarkBronzeAccent = Color(0xFFA27B5C)         // Primary Accent
+val DarkCreamStone = Color(0xFFDCD7C9)           // Primary Typography
+val DarkMutedStone = Color(0xFFA8A29E)           // Secondary Typography
+val DarkSubtleSurface = Color(0xFF354245)        // Dark Variant
+val DarkHighlight = Color(0xFFB38B6D)
 
-// Semantic Weather Highlights
+// Semantic Accents
 val WeatherAmber = Color(0xFFF59E0B)
 val WeatherAmberLight = Color(0xFFFEF3C7)
 val WeatherEmerald = Color(0xFF10B981)
@@ -36,15 +39,15 @@ val WeatherEmeraldLight = Color(0xFFD1FAE5)
 val AlertRed = Color(0xFFEF4444)
 val AlertRedLight = Color(0xFFFEE2E2)
 
-// Standard Export Aliases
-val SkyBlue = LightElectricBlue
-val SkyBlueLight = Color(0xFFE0F2FE)
-val AiPurple = LightLavender
-val AiPurpleLight = Color(0xFFEDE9FE)
-val AiIndigo = LightElectricBlue
-val TextPrimary = LightTextPrimary
-val TextSecondary = LightTextSecondary
-val TextTertiary = LightTextTertiary
+// Standard Aliases for Components
+val SkyBlue = M3LightPrimary
+val SkyBlueLight = M3LightPrimaryContainer
+val AiPurple = Color(0xFF6750A4)
+val AiPurpleLight = Color(0xFFEADDFF)
+val AiIndigo = M3LightPrimary
+val TextPrimary = M3LightTextPrimary
+val TextSecondary = M3LightTextSecondary
+val TextTertiary = M3LightTextTertiary
 
 enum class AppThemeMode(
     val title: String,
@@ -54,10 +57,10 @@ enum class AppThemeMode(
     val isDark: Boolean
 ) {
     LIGHT(
-        title = "Flushed Light",
-        subtitle = "Electric Blue & Lavender Rose",
-        primaryColor = LightElectricBlue,
-        backgroundColor = LightBgPorcelain,
+        title = "Material 3 Light",
+        subtitle = "Clean Material Design 3 palette",
+        primaryColor = M3LightPrimary,
+        backgroundColor = M3LightBackground,
         isDark = false
     ),
     DARK(
