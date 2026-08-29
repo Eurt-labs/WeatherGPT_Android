@@ -24,11 +24,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Thermostat
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
@@ -62,6 +64,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.weathergpt_android.core.network.OpenRouterPreferences
 import com.example.weathergpt_android.core.network.OpenRouterService
+import com.example.weathergpt_android.core.network.OpenWeatherPreferences
+import com.example.weathergpt_android.core.network.WeatherProviderPreferences
 import com.example.weathergpt_android.core.theme.AppThemeMode
 import com.example.weathergpt_android.core.theme.DarkBronzeAccent
 import com.example.weathergpt_android.core.theme.DarkCharcoalCard
@@ -70,6 +74,8 @@ import com.example.weathergpt_android.core.theme.DarkSlateBase
 import com.example.weathergpt_android.core.theme.M3LightPrimary
 import com.example.weathergpt_android.core.theme.M3LightPrimaryContainer
 import com.example.weathergpt_android.core.theme.M3LightSecondaryContainer
+import com.example.weathergpt_android.domain.weather.model.WeatherProviderType
+import com.example.weathergpt_android.domain.weather.repository.UnifiedWeatherRepository
 import kotlinx.coroutines.launch
 
 @Composable
@@ -81,10 +87,22 @@ fun SettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val openRouterService = remember { OpenRouterService(context) }
+    val unifiedWeatherRepo = remember { UnifiedWeatherRepository(context) }
 
     var isCelsius by remember { mutableStateOf(true) }
     var dailyWalkSuggestions by remember { mutableStateOf(true) }
     var severeWeatherAlerts by remember { mutableStateOf(true) }
+
+    // Weather Provider State
+    var selectedWeatherProvider by remember {
+        mutableStateOf(WeatherProviderPreferences.getSelectedProvider(context))
+    }
+    var openWeatherApiKey by remember {
+        mutableStateOf(OpenWeatherPreferences.getApiKey(context))
+    }
+    var isOpenWeatherKeyVisible by remember { mutableStateOf(false) }
+    var weatherTestStatus by remember { mutableStateOf("") }
+    var isTestingWeatherProvider by remember { mutableStateOf(false) }
 
     // OpenRouter Settings State
     var apiKey by remember { mutableStateOf(OpenRouterPreferences.getApiKey(context)) }
@@ -116,7 +134,209 @@ fun SettingsScreen(
             )
         }
 
-        // 1. Theme Configuration Card
+        // 1. Weather Data Provider Configuration
+        item {
+            SettingsSectionHeader(title = "Weather Data Provider")
+        }
+
+        item {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(
+                        elevation = 8.dp,
+                        shape = RoundedCornerShape(22.dp),
+                        spotColor = Color(0x20000000),
+                        ambientColor = Color(0x10000000)
+                    ),
+                shape = RoundedCornerShape(22.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 2.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Cloud,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Meteorological Engine",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Choose live weather data source",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // Provider Selection Pills
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        WeatherProviderType.entries.forEach { provider ->
+                            val isSelected = selectedWeatherProvider == provider
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .border(
+                                        width = if (isSelected) 2.dp else 1.dp,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                        shape = RoundedCornerShape(14.dp)
+                                    )
+                                    .clickable {
+                                        selectedWeatherProvider = provider
+                                        WeatherProviderPreferences.saveSelectedProvider(context, provider)
+                                    },
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 11.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = provider.title,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = provider.subtitle,
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Check,
+                                            contentDescription = "Selected",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // OpenWeather API Key Input (if selected)
+                    if (selectedWeatherProvider == WeatherProviderType.OPEN_WEATHER) {
+                        Text(
+                            text = "OpenWeather API Key:",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        OutlinedTextField(
+                            value = openWeatherApiKey,
+                            onValueChange = {
+                                openWeatherApiKey = it
+                                OpenWeatherPreferences.saveApiKey(context, it)
+                            },
+                            placeholder = { Text("Paste OpenWeather API key") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true,
+                            visualTransformation = if (isOpenWeatherKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { isOpenWeatherKeyVisible = !isOpenWeatherKeyVisible }) {
+                                    Icon(
+                                        imageVector = if (isOpenWeatherKeyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                        contentDescription = "Toggle Visibility"
+                                    )
+                                }
+                            }
+                        )
+                    }
+
+                    // Test Weather Provider Button
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = {
+                                isTestingWeatherProvider = true
+                                weatherTestStatus = "Fetching live weather from ${selectedWeatherProvider.title}..."
+                                scope.launch {
+                                    val result = unifiedWeatherRepo.fetchLiveWeather(
+                                        latitude = 28.6139,
+                                        longitude = 77.2090,
+                                        forceProvider = selectedWeatherProvider
+                                    )
+                                    isTestingWeatherProvider = false
+                                    result.onSuccess { data ->
+                                        weatherTestStatus = "✓ Success: ${data.temperature}, ${data.condition}, Wind ${data.windSpeed}, AQI ${data.aqi}"
+                                    }.onFailure { err ->
+                                        weatherTestStatus = "✗ Error: ${err.message}"
+                                    }
+                                }
+                            },
+                            enabled = !isTestingWeatherProvider,
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                text = if (isTestingWeatherProvider) "Testing..." else "Test Weather Provider",
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        if (selectedWeatherProvider == WeatherProviderType.OPEN_METEO || openWeatherApiKey.isNotBlank()) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Rounded.CheckCircle,
+                                    contentDescription = null,
+                                    tint = Color(0xFF10B981),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Active",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF10B981),
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    if (weatherTestStatus.isNotBlank()) {
+                        Text(
+                            text = weatherTestStatus,
+                            fontSize = 11.sp,
+                            color = if (weatherTestStatus.startsWith("✓")) Color(0xFF10B981) else MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        }
+
+        // 2. Theme Configuration Card
         item {
             SettingsSectionHeader(title = "Theme & Appearance")
         }
@@ -239,7 +459,7 @@ fun SettingsScreen(
             }
         }
 
-        // 2. OpenRouter API & Nemotron 3.5 Lightning Configuration
+        // 3. OpenRouter API & Nemotron 3.5 Lightning Configuration
         item {
             SettingsSectionHeader(title = "OpenRouter AI Engine (Nemotron 3.5)")
         }
@@ -434,7 +654,7 @@ fun SettingsScreen(
             }
         }
 
-        // 3. Units & Formats
+        // 4. Units & Formats
         item {
             SettingsSectionHeader(title = "Units & Formatting")
         }
@@ -451,82 +671,23 @@ fun SettingsScreen(
                     ),
                 shape = RoundedCornerShape(22.dp),
                 color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 1.dp
+                tonalElevation = 2.dp
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primaryContainer),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Thermostat,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = "Temperature Unit",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = if (isCelsius) "Celsius (°C)" else "Fahrenheit (°F)",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant
-                        ) {
-                            Row(modifier = Modifier.padding(3.dp)) {
-                                Text(
-                                    text = "°C",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isCelsius) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(if (isCelsius) MaterialTheme.colorScheme.primary else Color.Transparent)
-                                        .clickable { isCelsius = true }
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                                )
-                                Text(
-                                    text = "°F",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (!isCelsius) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(if (!isCelsius) MaterialTheme.colorScheme.primary else Color.Transparent)
-                                        .clickable { isCelsius = false }
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                                )
-                            }
-                        }
-                    }
+                Column(modifier = Modifier.padding(14.dp)) {
+                    SettingToggleRow(
+                        icon = Icons.Rounded.Thermostat,
+                        title = "Temperature Unit",
+                        subtitle = if (isCelsius) "Metric (°C, km/h)" else "Imperial (°F, mph)",
+                        checked = isCelsius,
+                        onCheckedChange = { isCelsius = it }
+                    )
                 }
             }
         }
 
-        // 4. Intelligence & AI Alerts
+        // 5. Intelligent Weather Notifications
         item {
-            SettingsSectionHeader(title = "AI & Alerts")
+            SettingsSectionHeader(title = "AI Notifications")
         }
 
         item {
@@ -541,23 +702,24 @@ fun SettingsScreen(
                     ),
                 shape = RoundedCornerShape(22.dp),
                 color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 1.dp
+                tonalElevation = 2.dp
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    SettingsSwitchRow(
+                    SettingToggleRow(
                         icon = Icons.Rounded.AutoAwesome,
-                        title = "Daily Walk & Activity Prompts",
-                        subtitle = "Personalized suggestions on weather suitability",
+                        title = "Daily Walk & Outfit AI",
+                        subtitle = "Smart morning briefings tailored to current forecast",
                         checked = dailyWalkSuggestions,
                         onCheckedChange = { dailyWalkSuggestions = it }
                     )
-                    SettingsSwitchRow(
+
+                    SettingToggleRow(
                         icon = Icons.Rounded.Notifications,
-                        title = "Severe Weather Alerts",
-                        subtitle = "Instant flash flood and storm advisories",
+                        title = "Severe Weather Radar Alerts",
+                        subtitle = "Immediate rain, hail & heatwave hazard warnings",
                         checked = severeWeatherAlerts,
                         onCheckedChange = { severeWeatherAlerts = it }
                     )
@@ -565,7 +727,7 @@ fun SettingsScreen(
             }
         }
 
-        // 5. About & Version Card
+        // 6. About WeatherGPT Card
         item {
             SettingsSectionHeader(title = "About")
         }
@@ -582,47 +744,63 @@ fun SettingsScreen(
                     ),
                 shape = RoundedCornerShape(22.dp),
                 color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 1.dp
+                tonalElevation = 2.dp
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.AutoAwesome,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
                             Text(
-                                text = "WeatherGPT Android",
+                                text = "WeatherGPT Mobile",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = "Conversational Weather Intelligence",
-                                fontSize = 12.sp,
+                                fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.wrapContentSize()
-                        ) {
-                            Text(
-                                text = "Latest",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                                maxLines = 1,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                            )
-                        }
                     }
+
+                    Text(
+                        text = "Built with Jetpack Compose Material 3, Sherpa-ONNX full-duplex edge voice engine, Open-Meteo & OpenWeatherMap, and OpenRouter Nemotron 3.5 Lightning.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 17.sp
+                    )
                 }
             }
         }
     }
+}
+
+@Composable
+private fun ColorDot(color: Color) {
+    Box(
+        modifier = Modifier
+            .size(10.dp)
+            .clip(CircleShape)
+            .background(color)
+    )
 }
 
 @Composable
@@ -632,23 +810,12 @@ private fun SettingsSectionHeader(title: String) {
         fontSize = 13.sp,
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 4.dp, top = 6.dp)
+        modifier = Modifier.padding(start = 4.dp, top = 4.dp)
     )
 }
 
 @Composable
-private fun ColorDot(color: Color) {
-    Box(
-        modifier = Modifier
-            .size(14.dp)
-            .clip(CircleShape)
-            .background(color)
-            .border(1.dp, Color.White.copy(alpha = 0.5f), CircleShape)
-    )
-}
-
-@Composable
-private fun SettingsSwitchRow(
+private fun SettingToggleRow(
     icon: ImageVector,
     title: String,
     subtitle: String,
@@ -656,9 +823,12 @@ private fun SettingsSwitchRow(
     onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(
             modifier = Modifier.weight(1f),
@@ -668,13 +838,13 @@ private fun SettingsSwitchRow(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(17.dp)
                 )
             }
@@ -682,7 +852,7 @@ private fun SettingsSwitchRow(
             Column {
                 Text(
                     text = title,
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )

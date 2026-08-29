@@ -180,13 +180,19 @@ com.example.weathergpt_android/
   - 🇮🇳 **Telugu / తెలుగు** (`te-IN`)
 - Real-time localized weather intelligence dialog with native audio TTS output.
 
-### [Version 1.8.1] - Live OpenWeather Context Injection for Voice AI, Chat & Dynamic Island
+### [Version 1.9.0] - Open-Meteo Keyless Global Weather Engine & Unified App-Wide Meteorological State
 
-#### 1. Live Weather Parameter Injection in AI Pipelines
-- **Voice AI Pipeline (`domain/voice`)**: Injected real-time OpenWeather atmospheric summary (`temperature`, `condition`, `high/low`, `wind speed`, `humidity`, `AQI`) into `SherpaVoicePipeline` and Nemotron 3.5 Lightning system prompt.
-- **Smart Fallback Answers**: In the absence of an OpenRouter key, voice responses dynamically speak the exact live fetched OpenWeather conditions (`"${liveWeatherData.temperature} with ${liveWeatherData.condition} and wind at ${liveWeatherData.windSpeed}"`).
-- **WeatherGPT Chatbot (`domain/assistant`)**: System prompts and initial greeting messages dynamically incorporate live weather metrics.
-- **Top Dynamic Island (`core/components`)**: Expanded island view dynamically displays live temperature, condition, wind, and AQI.
+#### 1. Open-Meteo Engine Integration (`domain/weather/repository`)
+- Created `OpenMeteoRepository` querying `https://api.open-meteo.com/v1/forecast` & `https://air-quality-api.open-meteo.com/v1/air-quality` (100% free, zero-key, high-precision ECMWF/GFS weather model with WMO code translation).
+- Created `UnifiedWeatherRepository` coordinating Open-Meteo and OpenWeatherMap with automatic fallback and disk caching.
+
+#### 2. App-Wide Weather State Broadcasting
+- Unified reactive `liveWeatherData` broadcast across all modules:
+  - **HomeScreen**: Overview card, 2x2 grid, hourly carousel, 7-day forecast.
+  - **TopIslandHeader**: Dynamic island summary and live expanded weather bar.
+  - **GptChatScreen**: Real-time atmospheric context injected into Nemotron 3.5 Lightning.
+  - **VoiceAiScreen**: Full-duplex Sherpa-ONNX voice dialogue with live meteorological awareness.
+  - **SettingsScreen**: Provider switcher (Open-Meteo vs OpenWeatherMap) with live test connection button.
 
 ---
 

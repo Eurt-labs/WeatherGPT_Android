@@ -80,7 +80,7 @@ fun HomeScreen(
                     color = if (isLiveSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
                 ) {
                     Text(
-                        text = "● Live OpenWeather",
+                        text = "● Live Weather",
                         fontSize = 12.sp,
                         fontWeight = if (isLiveSelected) FontWeight.Bold else FontWeight.Medium,
                         color = if (isLiveSelected) Color.White else MaterialTheme.colorScheme.onSurface,

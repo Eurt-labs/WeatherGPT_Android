@@ -53,7 +53,7 @@ import com.example.weathergpt_android.domain.profile.ui.ProfileSheet
 import com.example.weathergpt_android.domain.settings.ui.SettingsScreen
 import com.example.weathergpt_android.domain.voice.ui.VoiceAiScreen
 import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
-import com.example.weathergpt_android.domain.weather.repository.OpenWeatherRepository
+import com.example.weathergpt_android.domain.weather.repository.UnifiedWeatherRepository
 import com.example.weathergpt_android.domain.weather.ui.GreetingWelcomeView
 import com.example.weathergpt_android.domain.weather.ui.HomeScreen
 import kotlinx.coroutines.launch
@@ -88,7 +88,7 @@ fun WeatherGPTApp(
     val scope = rememberCoroutineScope()
 
     val locationProvider = remember { LocationProvider(context) }
-    val weatherRepository = remember { OpenWeatherRepository(context) }
+    val weatherRepository = remember { UnifiedWeatherRepository(context) }
 
     var locationData by remember { mutableStateOf(locationProvider.getInitialCachedLocation()) }
     var liveWeatherData by remember { mutableStateOf(weatherRepository.getCachedWeather()) }
