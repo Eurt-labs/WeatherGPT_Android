@@ -53,14 +53,14 @@ fun FloatingBottomNavBar(
                 .fillMaxWidth()
                 .height(64.dp)
                 .shadow(
-                    elevation = 14.dp,
+                    elevation = 16.dp,
                     shape = RoundedCornerShape(32.dp),
-                    spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
-                    ambientColor = Color(0x18000000)
+                    spotColor = Color(0x45000000),
+                    ambientColor = Color(0x30000000)
                 ),
             shape = RoundedCornerShape(32.dp),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 2.dp,
+            tonalElevation = 4.dp,
             shadowElevation = 0.dp
         ) {
             Row(

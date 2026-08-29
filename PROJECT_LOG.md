@@ -116,6 +116,18 @@ com.example.weathergpt_android/
   - Tapping the Top Island (Notifications / Profile) opens sheets without dismissing the greeting.
   - Clicking on any bottom navigation tab (Cloud, News, Voice, GPT, Settings) or tapping *"Explore Live Weather"* smoothly transitions into the full dashboard view.
 
+### [Version 1.2.1] - Scroll-to-Fade Dynamic Island & Enhanced Multi-Layer Shadows
+
+#### 1. Scroll-Aware Dynamic Island Animation
+- Attached a global `NestedScrollConnection` in [MainActivity.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/MainActivity.kt) that monitors vertical scrolling across all screens.
+- **Scroll Down**: Top Dynamic Island smoothly fades out and slides upwards (`slideOutVertically`) to maximize visible screen space for weather data, news, voice, and settings.
+- **Scroll Up / Top**: Top Dynamic Island smoothly fades back in (`slideInVertically`).
+- Resets visibility automatically upon tab switching or returning to the initial welcome screen.
+
+#### 2. Enhanced Drop Shadows for Floating Islands
+- **Floating Bottom Nav Bar**: Upgraded to `elevation = 16dp`, `spotColor = Color(0x45000000)`, `ambientColor = Color(0x30000000)`, and `tonalElevation = 4dp` for prominent depth.
+- **Top Dynamic Island**: Upgraded to `elevation = 18dp / 14dp`, `spotColor = Color(0x45000000)`, `ambientColor = Color(0x30000000)`, and `tonalElevation = 4dp`.
+
 ---
 
 ## 🐛 Bug Fixes & Diagnostics Log

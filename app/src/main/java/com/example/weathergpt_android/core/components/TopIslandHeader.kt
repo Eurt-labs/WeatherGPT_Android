@@ -82,10 +82,10 @@ fun TopIslandHeader(
                 .fillMaxWidth()
                 .height(islandHeight)
                 .shadow(
-                    elevation = if (isExpanded) 16.dp else 12.dp,
+                    elevation = if (isExpanded) 18.dp else 14.dp,
                     shape = RoundedCornerShape(28.dp),
-                    spotColor = Color(0x35000000),
-                    ambientColor = Color(0x25000000)
+                    spotColor = Color(0x45000000),
+                    ambientColor = Color(0x30000000)
                 ),
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surface,

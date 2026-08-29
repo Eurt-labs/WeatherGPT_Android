@@ -31,6 +31,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import com.example.weathergpt_android.core.components.FloatingBottomNavBar
@@ -71,10 +75,28 @@ fun WeatherGPTApp(
     val context = LocalContext.current
     var currentTab by remember { mutableStateOf(NavTab.WEATHER) }
     var isInitialLaunchGreeting by remember { mutableStateOf(true) } // Clean launch welcome window
+    var isTopIslandVisible by remember { mutableStateOf(true) } // Scroll-aware top island visibility
     var showNotificationSheet by remember { mutableStateOf(false) }
     var showProfileSheet by remember { mutableStateOf(false) }
     var notificationCount by remember { mutableIntStateOf(3) }
     val userName = "Dhruv"
+
+    // NestedScrollConnection to detect scrolling and fade out the top island when scrolling down
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val delta = available.y
+                if (delta < -10f) {
+                    // Scrolling down -> fade out top island
+                    isTopIslandVisible = false
+                } else if (delta > 10f) {
+                    // Scrolling up -> fade in top island
+                    isTopIslandVisible = true
+                }
+                return Offset.Zero
+            }
+        }
+    }
 
     // Runtime Permission Requester for Location, Microphone, and Notifications
     val permissionsLauncher = rememberLauncherForActivityResult(
@@ -104,6 +126,7 @@ fun WeatherGPTApp(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .nestedScroll(nestedScrollConnection)
     ) {
         // Main Screen Window Content
         if (isInitialLaunchGreeting) {
@@ -112,6 +135,7 @@ fun WeatherGPTApp(
                 userName = userName,
                 onExploreWeather = {
                     isInitialLaunchGreeting = false
+                    isTopIslandVisible = true
                     currentTab = NavTab.WEATHER
                 },
                 onNavigateToGpt = {
@@ -141,11 +165,11 @@ fun WeatherGPTApp(
             }
         }
 
-        // Top Floating Dynamic Island (Hidden in GPT Chat Screen to give full immersion)
+        // Top Floating Dynamic Island (Hidden in GPT tab & Fades out when scrolling down)
         AnimatedVisibility(
-            visible = currentTab != NavTab.GPT || isInitialLaunchGreeting,
-            enter = fadeIn(animationSpec = tween(200)) + slideInVertically(initialOffsetY = { -it }),
-            exit = fadeOut(animationSpec = tween(180)) + slideOutVertically(targetOffsetY = { -it }),
+            visible = (currentTab != NavTab.GPT || isInitialLaunchGreeting) && isTopIslandVisible,
+            enter = fadeIn(animationSpec = tween(220)) + slideInVertically(initialOffsetY = { -it }),
+            exit = fadeOut(animationSpec = tween(200)) + slideOutVertically(targetOffsetY = { -it }),
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()
@@ -169,6 +193,7 @@ fun WeatherGPTApp(
             currentTab = currentTab,
             onTabSelected = { selected ->
                 isInitialLaunchGreeting = false // Transition to selected tab on nav click
+                isTopIslandVisible = true // Reset top island visibility on tab switch
                 currentTab = selected
             }
         )
