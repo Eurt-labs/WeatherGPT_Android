@@ -3,7 +3,6 @@ package com.example.weathergpt_android.domain.settings.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,15 +17,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Thermostat
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -49,12 +47,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.weathergpt_android.core.theme.AppThemeMode
-import com.example.weathergpt_android.core.theme.SkyBlue
+import com.example.weathergpt_android.core.theme.DarkBronzeAccent
+import com.example.weathergpt_android.core.theme.DarkCharcoalCard
+import com.example.weathergpt_android.core.theme.DarkCreamStone
+import com.example.weathergpt_android.core.theme.DarkSlateBase
+import com.example.weathergpt_android.core.theme.LightElectricBlue
+import com.example.weathergpt_android.core.theme.LightLavender
+import com.example.weathergpt_android.core.theme.LightRosePeach
 
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
-    currentTheme: AppThemeMode = AppThemeMode.FROST_LIGHT,
+    currentTheme: AppThemeMode = AppThemeMode.LIGHT,
     onThemeSelected: (AppThemeMode) -> Unit = {}
 ) {
     var isCelsius by remember { mutableStateOf(true) }
@@ -66,8 +70,8 @@ fun SettingsScreen(
         contentPadding = PaddingValues(
             start = 16.dp,
             end = 16.dp,
-            top = 104.dp, // Generous clearance for top island
-            bottom = 110.dp // Generous clearance for bottom floating island
+            top = 104.dp, // Clearance for top island
+            bottom = 110.dp // Clearance for bottom floating island
         ),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
@@ -81,16 +85,16 @@ fun SettingsScreen(
                     letterSpacing = (-0.4).sp
                 )
                 Text(
-                    text = "Personalize your WeatherGPT experience & themes",
+                    text = "Customize theme, units, and notifications",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
 
-        // 1. Theme & Appearance Section
+        // 1. Theme Selection Section (Strictly 2 Themes: Light and Dark)
         item {
-            SettingsSectionHeader(title = "App Themes & Visuals")
+            SettingsSectionHeader(title = "App Theme & Appearance")
         }
 
         item {
@@ -100,8 +104,8 @@ fun SettingsScreen(
                     .shadow(
                         elevation = 8.dp,
                         shape = RoundedCornerShape(22.dp),
-                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                        ambientColor = Color(0x12000000)
+                        spotColor = Color(0x20000000),
+                        ambientColor = Color(0x10000000)
                     ),
                 shape = RoundedCornerShape(22.dp),
                 color = MaterialTheme.colorScheme.surface,
@@ -109,7 +113,7 @@ fun SettingsScreen(
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     AppThemeMode.entries.forEach { mode ->
                         val isSelected = mode == currentTheme
@@ -128,19 +132,22 @@ fun SettingsScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
                                     Box(
                                         modifier = Modifier
-                                            .size(34.dp)
+                                            .size(36.dp)
                                             .clip(CircleShape)
                                             .background(mode.primaryColor),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
-                                            imageVector = if (mode.isDark) Icons.Rounded.DarkMode else Icons.Rounded.Palette,
+                                            imageVector = if (mode.isDark) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
                                             contentDescription = null,
                                             tint = Color.White,
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(19.dp)
                                         )
                                     }
                                     Spacer(modifier = Modifier.width(12.dp))
@@ -156,15 +163,30 @@ fun SettingsScreen(
                                             fontSize = 11.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
+
+                                        // Theme Palette Color Dots Preview
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            if (!mode.isDark) {
+                                                ColorDot(LightElectricBlue)
+                                                ColorDot(LightLavender)
+                                                ColorDot(LightRosePeach)
+                                            } else {
+                                                ColorDot(DarkSlateBase)
+                                                ColorDot(DarkCharcoalCard)
+                                                ColorDot(DarkBronzeAccent)
+                                                ColorDot(DarkCreamStone)
+                                            }
+                                        }
                                     }
                                 }
 
                                 if (isSelected) {
                                     Icon(
                                         imageVector = Icons.Rounded.CheckCircle,
-                                        contentDescription = "Active Theme",
+                                        contentDescription = "Selected Theme",
                                         tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(22.dp)
                                     )
                                 }
                             }
@@ -186,8 +208,8 @@ fun SettingsScreen(
                     .shadow(
                         elevation = 8.dp,
                         shape = RoundedCornerShape(22.dp),
-                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                        ambientColor = Color(0x12000000)
+                        spotColor = Color(0x20000000),
+                        ambientColor = Color(0x10000000)
                     ),
                 shape = RoundedCornerShape(22.dp),
                 color = MaterialTheme.colorScheme.surface,
@@ -276,8 +298,8 @@ fun SettingsScreen(
                     .shadow(
                         elevation = 8.dp,
                         shape = RoundedCornerShape(22.dp),
-                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                        ambientColor = Color(0x12000000)
+                        spotColor = Color(0x20000000),
+                        ambientColor = Color(0x10000000)
                     ),
                 shape = RoundedCornerShape(22.dp),
                 color = MaterialTheme.colorScheme.surface,
@@ -305,7 +327,7 @@ fun SettingsScreen(
             }
         }
 
-        // 4. About & Version Card with Fixed Single-line Badge
+        // 4. About & Version Card
         item {
             SettingsSectionHeader(title = "About")
         }
@@ -317,8 +339,8 @@ fun SettingsScreen(
                     .shadow(
                         elevation = 8.dp,
                         shape = RoundedCornerShape(22.dp),
-                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                        ambientColor = Color(0x12000000)
+                        spotColor = Color(0x20000000),
+                        ambientColor = Color(0x10000000)
                     ),
                 shape = RoundedCornerShape(22.dp),
                 color = MaterialTheme.colorScheme.surface,
@@ -344,7 +366,6 @@ fun SettingsScreen(
                             )
                         }
 
-                        // Fixed non-wrapping Latest badge
                         Surface(
                             shape = RoundedCornerShape(10.dp),
                             color = MaterialTheme.colorScheme.primaryContainer,
@@ -364,6 +385,17 @@ fun SettingsScreen(
             }
         }
     }
+}
+
+@Composable
+private fun ColorDot(color: Color) {
+    Box(
+        modifier = Modifier
+            .size(10.dp)
+            .clip(CircleShape)
+            .background(color)
+            .border(0.5.dp, Color.Black.copy(alpha = 0.2f), CircleShape)
+    )
 }
 
 @Composable

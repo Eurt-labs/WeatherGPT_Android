@@ -1,17 +1,13 @@
 package com.example.weathergpt_android.domain.weather.ui
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -40,11 +36,7 @@ import com.example.weathergpt_android.domain.weather.model.WeatherScenario
 
 @Composable
 fun HomeScreen(
-    modifier: Modifier = Modifier,
-    userName: String = "Dhruv",
-    showGreeting: Boolean = true,
-    onDismissGreeting: () -> Unit = {},
-    onNavigateToGpt: () -> Unit = {}
+    modifier: Modifier = Modifier
 ) {
     var selectedScenario by remember { mutableStateOf(WeatherScenario.SUNNY) }
 
@@ -53,39 +45,11 @@ fun HomeScreen(
         contentPadding = PaddingValues(
             start = 16.dp,
             end = 16.dp,
-            top = 104.dp, // Generous clearance for top island
-            bottom = 110.dp // Generous clearance for bottom floating island
+            top = 104.dp, // Clearance for top island
+            bottom = 110.dp // Clearance for bottom floating island
         ),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Initial Launch Hero Greeting with dismissibility
-        item {
-            AnimatedVisibility(
-                visible = showGreeting,
-                enter = fadeIn(animationSpec = tween(250)) + expandVertically(),
-                exit = fadeOut(animationSpec = tween(200)) + shrinkVertically()
-            ) {
-                AnimatedContent(
-                    targetState = selectedScenario,
-                    transitionSpec = {
-                        fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
-                    },
-                    label = "hero_greeting_anim"
-                ) { current ->
-                    GreetingHeroCard(
-                        userName = userName,
-                        weatherStatus = current.status,
-                        aiSuggestion = current.suggestion,
-                        onAiSuggestionClick = {
-                            onDismissGreeting()
-                            onNavigateToGpt()
-                        },
-                        onDismiss = onDismissGreeting
-                    )
-                }
-            }
-        }
-
         // Interactive Weather Scenario Switcher Pills
         item {
             Row(
@@ -99,9 +63,7 @@ fun HomeScreen(
                     Surface(
                         modifier = Modifier
                             .clip(RoundedCornerShape(16.dp))
-                            .clickable {
-                                selectedScenario = scenario
-                            },
+                            .clickable { selectedScenario = scenario },
                         shape = RoundedCornerShape(16.dp),
                         color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
                     ) {

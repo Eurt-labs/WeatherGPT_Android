@@ -10,9 +10,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -41,6 +44,7 @@ import com.example.weathergpt_android.domain.notifications.ui.NotificationSheet
 import com.example.weathergpt_android.domain.profile.ui.ProfileSheet
 import com.example.weathergpt_android.domain.settings.ui.SettingsScreen
 import com.example.weathergpt_android.domain.voice.ui.VoiceAiScreen
+import com.example.weathergpt_android.domain.weather.ui.GreetingWelcomeView
 import com.example.weathergpt_android.domain.weather.ui.HomeScreen
 
 class MainActivity : ComponentActivity() {
@@ -48,7 +52,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            var themeMode by remember { mutableStateOf(AppThemeMode.FROST_LIGHT) }
+            var themeMode by remember { mutableStateOf(AppThemeMode.LIGHT) }
             WeatherGPTTheme(themeMode = themeMode) {
                 WeatherGPTApp(
                     currentTheme = themeMode,
@@ -61,15 +65,15 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun WeatherGPTApp(
-    currentTheme: AppThemeMode = AppThemeMode.FROST_LIGHT,
+    currentTheme: AppThemeMode = AppThemeMode.LIGHT,
     onThemeChange: (AppThemeMode) -> Unit = {}
 ) {
     val context = LocalContext.current
     var currentTab by remember { mutableStateOf(NavTab.WEATHER) }
+    var isInitialLaunchGreeting by remember { mutableStateOf(true) } // Clean launch welcome window
     var showNotificationSheet by remember { mutableStateOf(false) }
     var showProfileSheet by remember { mutableStateOf(false) }
     var notificationCount by remember { mutableIntStateOf(3) }
-    var showGreetingHero by remember { mutableStateOf(true) } // Initial greeting on fresh launch
     val userName = "Dhruv"
 
     // Runtime Permission Requester for Location, Microphone, and Notifications
@@ -101,58 +105,70 @@ fun WeatherGPTApp(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Main Domain Screen Content with smooth transitions
-        AnimatedContent(
-            targetState = currentTab,
-            transitionSpec = {
-                fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
-            },
-            label = "tab_content_transition"
-        ) { tab ->
-            when (tab) {
-                NavTab.WEATHER -> HomeScreen(
-                    userName = userName,
-                    showGreeting = showGreetingHero,
-                    onDismissGreeting = { showGreetingHero = false },
-                    onNavigateToGpt = {
-                        showGreetingHero = false
-                        currentTab = NavTab.GPT
-                    }
-                )
-                NavTab.NEWS -> NewsScreen()
-                NavTab.VOICE_AI -> VoiceAiScreen()
-                NavTab.GPT -> GptChatScreen()
-                NavTab.SETTINGS -> SettingsScreen(
-                    currentTheme = currentTheme,
-                    onThemeSelected = onThemeChange
-                )
+        // Main Screen Window Content
+        if (isInitialLaunchGreeting) {
+            // Initial Launch Empty Greeting Window
+            GreetingWelcomeView(
+                userName = userName,
+                onExploreWeather = {
+                    isInitialLaunchGreeting = false
+                    currentTab = NavTab.WEATHER
+                },
+                onNavigateToGpt = {
+                    isInitialLaunchGreeting = false
+                    currentTab = NavTab.GPT
+                }
+            )
+        } else {
+            // Domain Screens with smooth transition
+            AnimatedContent(
+                targetState = currentTab,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
+                },
+                label = "tab_content_transition"
+            ) { tab ->
+                when (tab) {
+                    NavTab.WEATHER -> HomeScreen()
+                    NavTab.NEWS -> NewsScreen()
+                    NavTab.VOICE_AI -> VoiceAiScreen()
+                    NavTab.GPT -> GptChatScreen()
+                    NavTab.SETTINGS -> SettingsScreen(
+                        currentTheme = currentTheme,
+                        onThemeSelected = onThemeChange
+                    )
+                }
             }
         }
 
-        // Top Floating Dynamic Island
-        TopIslandHeader(
+        // Top Floating Dynamic Island (Hidden in GPT Chat Screen to give full immersion)
+        AnimatedVisibility(
+            visible = currentTab != NavTab.GPT || isInitialLaunchGreeting,
+            enter = fadeIn(animationSpec = tween(200)) + slideInVertically(initialOffsetY = { -it }),
+            exit = fadeOut(animationSpec = tween(180)) + slideOutVertically(targetOffsetY = { -it }),
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .statusBarsPadding(),
-            notificationCount = notificationCount,
-            userName = userName,
-            onNotificationClick = {
-                showNotificationSheet = true
-                notificationCount = 0
-            },
-            onProfileClick = {
-                showProfileSheet = true
-            }
-        )
+                .statusBarsPadding()
+        ) {
+            TopIslandHeader(
+                notificationCount = notificationCount,
+                userName = userName,
+                onNotificationClick = {
+                    showNotificationSheet = true
+                    notificationCount = 0
+                },
+                onProfileClick = {
+                    showProfileSheet = true
+                }
+            )
+        }
 
         // Bottom Floating Island Navigation Bar
         FloatingBottomNavBar(
             modifier = Modifier.align(Alignment.BottomCenter),
             currentTab = currentTab,
             onTabSelected = { selected ->
-                if (selected != NavTab.WEATHER) {
-                    showGreetingHero = false // Auto-dismiss initial greeting once user navigates
-                }
+                isInitialLaunchGreeting = false // Transition to selected tab on nav click
                 currentTab = selected
             }
         )

@@ -2,70 +2,69 @@ package com.example.weathergpt_android.core.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Light Theme Palette (Default Frost)
-val SkyBlue = Color(0xFF0284C7)
-val SkyBlueLight = Color(0xFFE0F2FE)
-val SkyBlueDark = Color(0xFF0369A1)
+// ==========================================
+// 1. Light Theme Palette (Custom Provided)
+// #3A86FF, #BDB2FF, #FFD6E0, #FFF4F4
+// ==========================================
+val LightElectricBlue = Color(0xFF3A86FF)    // Primary Accent
+val LightLavender = Color(0xFFBDB2FF)        // Secondary Accent
+val LightRosePeach = Color(0xFFFFD6E0)       // Tertiary Highlight
+val LightBgPorcelain = Color(0xFFFFF4F4)     // Background Screen
+val LightCardWhite = Color(0xFFFFFFFF)       // Surface / Card
+val LightSubtleSurface = Color(0xFFF8EEF0)   // Surface Variant
+val LightTextPrimary = Color(0xFF1E293B)     // Dark Charcoal text
+val LightTextSecondary = Color(0xFF64748B)   // Slate text
+val LightTextTertiary = Color(0xFF94A3B8)    // Muted text
 
+// ==========================================
+// 2. Dark Theme Palette (Custom Provided)
+// #2C3639, #3F4E4F, #A27B5C, #DCD7C9
+// ==========================================
+val DarkSlateBase = Color(0xFF2C3639)        // Background Screen
+val DarkCharcoalCard = Color(0xFF3F4E4F)     // Surface / Card
+val DarkBronzeAccent = Color(0xFFA27B5C)     // Primary / Accent
+val DarkCreamStone = Color(0xFFDCD7C9)       // Text Primary
+val DarkMutedStone = Color(0xFFA8A29E)       // Text Secondary
+val DarkSubtleSurface = Color(0xFF354245)    // Surface Variant
+val DarkHighlight = Color(0xFFB38B6D)        // Secondary Accent
+
+// Semantic Weather Highlights
 val WeatherAmber = Color(0xFFF59E0B)
 val WeatherAmberLight = Color(0xFFFEF3C7)
-
 val WeatherEmerald = Color(0xFF10B981)
 val WeatherEmeraldLight = Color(0xFFD1FAE5)
-
-val AiPurple = Color(0xFF8B5CF6)
-val AiPurpleLight = Color(0xFFEDE9FE)
-val AiIndigo = Color(0xFF6366F1)
-
 val AlertRed = Color(0xFFEF4444)
 val AlertRedLight = Color(0xFFFEE2E2)
 
-// Light Theme Flushed Neutrals
-val FrostBackground = Color(0xFFF1F5F9) // Slightly deeper background for card contrast
-val IslandBackgroundLight = Color(0xFFFFFFFF)
-val CardBackgroundLight = Color(0xFFFFFFFF)
-val SubtleSurfaceLight = Color(0xFFF1F5F9)
-val SubtleSurfaceHoverLight = Color(0xFFE2E8F0)
-
-val TextPrimaryLight = Color(0xFF0F172A)
-val TextSecondaryLight = Color(0xFF475569)
-val TextTertiaryLight = Color(0xFF94A3B8)
-val TextOnAccent = Color(0xFFFFFFFF)
-
-val TextPrimary = TextPrimaryLight
-val TextSecondary = TextSecondaryLight
-val TextTertiary = TextTertiaryLight
-
-// Dark / Midnight OLED Palette
-val MidnightBackground = Color(0xFF0B1120)
-val MidnightCard = Color(0xFF1E293B)
-val MidnightSurface = Color(0xFF334155)
-val MidnightIsland = Color(0xFF1E293B)
-val MidnightAccent = Color(0xFF38BDF8)
-val MidnightTextPrimary = Color(0xFFF8FAFC)
-val MidnightTextSecondary = Color(0xFF94A3B8)
-
-// Sunset Glow Palette
-val SunsetBackground = Color(0xFFFFF7ED)
-val SunsetCard = Color(0xFFFFFFFF)
-val SunsetSurface = Color(0xFFFFEDD5)
-val SunsetAccent = Color(0xFFEA580C)
-
-// Oceanic Teal Palette
-val OceanBackground = Color(0xFFF0FDFA)
-val OceanCard = Color(0xFFFFFFFF)
-val OceanSurface = Color(0xFFCCFBF1)
-val OceanAccent = Color(0xFF0D9488)
+// Standard Export Aliases
+val SkyBlue = LightElectricBlue
+val SkyBlueLight = Color(0xFFE0F2FE)
+val AiPurple = LightLavender
+val AiPurpleLight = Color(0xFFEDE9FE)
+val AiIndigo = LightElectricBlue
+val TextPrimary = LightTextPrimary
+val TextSecondary = LightTextSecondary
+val TextTertiary = LightTextTertiary
 
 enum class AppThemeMode(
     val title: String,
     val subtitle: String,
     val primaryColor: Color,
     val backgroundColor: Color,
-    val isDark: Boolean = false
+    val isDark: Boolean
 ) {
-    FROST_LIGHT("Frost Light", "Clean Apple-inspired design", SkyBlue, FrostBackground, false),
-    MIDNIGHT_DARK("Midnight OLED", "Deep slate dark mode", MidnightAccent, MidnightBackground, true),
-    SUNSET_GLOW("Sunset Glow", "Warm twilight amber vibes", SunsetAccent, SunsetBackground, false),
-    OCEAN_TEAL("Oceanic Breeze", "Refreshing coastal teal", OceanAccent, OceanBackground, false)
+    LIGHT(
+        title = "Flushed Light",
+        subtitle = "Electric Blue & Lavender Rose",
+        primaryColor = LightElectricBlue,
+        backgroundColor = LightBgPorcelain,
+        isDark = false
+    ),
+    DARK(
+        title = "Slate Moss Dark",
+        subtitle = "Deep Slate, Charcoal & Bronze",
+        primaryColor = DarkBronzeAccent,
+        backgroundColor = DarkSlateBase,
+        isDark = true
+    )
 }

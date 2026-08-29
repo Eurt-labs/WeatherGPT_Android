@@ -50,8 +50,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.weathergpt_android.core.theme.AiIndigo
-import com.example.weathergpt_android.core.theme.AiPurple
 import com.example.weathergpt_android.core.theme.AlertRed
 
 @Composable
@@ -84,14 +82,14 @@ fun TopIslandHeader(
                 .fillMaxWidth()
                 .height(islandHeight)
                 .shadow(
-                    elevation = if (isExpanded) 14.dp else 8.dp,
+                    elevation = if (isExpanded) 16.dp else 12.dp,
                     shape = RoundedCornerShape(28.dp),
-                    spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                    ambientColor = Color(0x18000000)
+                    spotColor = Color(0x35000000),
+                    ambientColor = Color(0x25000000)
                 ),
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 2.dp,
+            tonalElevation = 4.dp,
             shadowElevation = 0.dp
         ) {
             Column(
@@ -107,7 +105,7 @@ fun TopIslandHeader(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Left: Notification Button with badge
+                    // Left: Notification Bell Button
                     val notifSource = remember { MutableInteractionSource() }
                     val notifPressed by notifSource.collectIsPressedAsState()
                     val notifScale by animateFloatAsState(
@@ -177,11 +175,7 @@ fun TopIslandHeader(
                                 .padding(start = 4.dp, bottom = 6.dp)
                                 .size(5.dp)
                                 .clip(CircleShape)
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(MaterialTheme.colorScheme.primary, AiPurple)
-                                    )
-                                )
+                                .background(MaterialTheme.colorScheme.primary)
                         )
                     }
 
@@ -201,7 +195,10 @@ fun TopIslandHeader(
                             .clip(CircleShape)
                             .background(
                                 Brush.linearGradient(
-                                    colors = listOf(MaterialTheme.colorScheme.primary, AiIndigo)
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.primary,
+                                        MaterialTheme.colorScheme.secondary
+                                    )
                                 )
                             )
                             .clickable(
@@ -245,7 +242,7 @@ fun TopIslandHeader(
                                     modifier = Modifier
                                         .size(26.dp)
                                         .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primaryContainer),
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(

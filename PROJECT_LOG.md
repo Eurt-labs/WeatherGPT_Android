@@ -89,24 +89,32 @@ com.example.weathergpt_android/
 
 ---
 
-### [Version 1.1.0] - Responsive Mobile Sizing, Non-wrapping Badges & Multi-theme Support
+### [Version 1.2.0] - Custom Color Palettes, 2-Theme System, Top Island Shadows & Launch Landing Flow
 
-#### 1. Responsive Screen Sizing & Dynamic Inset Fixes
-- Added generous `top = 104dp` and `bottom = 110dp` list insets across all domain screens ([HomeScreen](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/weather/ui/HomeScreen.kt), [NewsScreen](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/news/ui/NewsScreen.kt), [VoiceAiScreen](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/voice/ui/VoiceAiScreen.kt), [GptChatScreen](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/assistant/ui/GptChatScreen.kt), [SettingsScreen](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/settings/ui/SettingsScreen.kt)) to eliminate header/footer overlaps on physical mobile devices.
-- Refined Top Dynamic Island from fixed height to a slim `56dp` collapsed height with smooth spring expansion (`116dp`) on tap.
-- Fixed `Comfortable` status badge in [WeatherCards.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/weather/ui/WeatherCards.kt) with `wrapContentSize()` and `maxLines = 1` preventing vertical text splitting.
-- Fixed `Latest` badge in [SettingsScreen.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/settings/ui/SettingsScreen.kt) preventing vertical text splitting.
+#### 1. Custom Handcrafted Color Palettes (2 Themes)
+- **Flushed Light Theme**:
+  - Primary Accent: `#3A86FF` (Electric Azure Blue)
+  - Secondary Accent: `#BDB2FF` (Soft Lavender Lilac)
+  - Tertiary Accent: `#FFD6E0` (Soft Pastel Rose)
+  - Background Screen: `#FFF4F4` (Porcelain Warm White)
+  - Card Surfaces: Pure White `#FFFFFF` with warm tinted variants `#F8EEF0`
+- **Slate Moss Dark Theme**:
+  - Base Background: `#2C3639` (Deep Slate Pine)
+  - Surface & Cards: `#3F4E4F` (Muted Charcoal Moss)
+  - Primary Accent: `#A27B5C` (Warm Bronze Camel)
+  - Primary Typography: `#DCD7C9` (Warm Cream Stone)
+- Cleaned up settings to present strictly these **two custom themes** with interactive color dot previews.
 
-#### 2. Dynamic Multi-Theme Engine in Settings
-- Added 4 interactive themes selectable in real-time under [SettingsScreen.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/settings/ui/SettingsScreen.kt):
-  1. **Frost Light (Default)**: Clean Apple-inspired porcelain white with sky blue accents.
-  2. **Midnight OLED**: Deep obsidian dark mode (`#0B1120`) with neon cyan accents.
-  3. **Sunset Glow**: Warm twilight peach/amber vibes (`#FFF7ED`).
-  4. **Oceanic Breeze**: Coastal teal and refreshing ocean blue (`#F0FDFA`).
-- Implemented real-time reactive theme state binding across all screens in [MainActivity.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/MainActivity.kt).
+#### 2. Top Island Prominent Shadows & GPT Immersion
+- Added prominent, multi-layer floating drop shadow to the Top Dynamic Island (`elevation = 12dp`, `spotColor = Color(0x35000000)`, `ambientColor = Color(0x25000000)`).
+- **Auto-hide Top Island on GPT Screen**: When switching to WeatherGPT chat, the Top Island slides out smoothly, granting full screen height to the chat conversation.
+- Fixed GPT chat message list and input bar alignment so the floating text pill sits comfortably above the floating bottom navigation bar without overlapping.
 
-#### 3. Layered Ambient Card Shadows
-- Added soft colored drop shadows with `elevation = 8dp` and `spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)` to give all cards tactile depth and elevate them above the background.
+#### 3. Initial Launch Greeting Landing Flow
+- Built [GreetingWelcomeView.kt](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/weather/ui/GreetingWelcomeView.kt):
+  - On fresh app launch, displays an empty, clean window showing the floating top island, bottom nav bar, and the centered greeting (*"Hi Dhruv 👋, Today's weather is good"* with the AI suggestion).
+  - Tapping the Top Island (Notifications / Profile) opens sheets without dismissing the greeting.
+  - Clicking on any bottom navigation tab (Cloud, News, Voice, GPT, Settings) or tapping *"Explore Live Weather"* smoothly transitions into the full dashboard view.
 
 ---
 
@@ -123,3 +131,5 @@ com.example.weathergpt_android/
 | Top Island & Bottom Nav overlapping screen content on device | Content insets (`top = 84dp`, `bottom = 100dp`) were insufficient for device camera cutouts and navigation bars | Increased insets to `top = 104dp` and `bottom = 110dp` | ✅ Fixed |
 | Text wrapping on `Comfortable` and `Latest` badges | Fixed column container bounds forced horizontal wrapping | Replaced with `wrapContentSize()` and `maxLines = 1` | ✅ Fixed |
 | Faint / flat card appearance on device | Insufficient shadow elevation and contrast | Added multi-layer ambient colored shadows (`elevation = 8dp`, `spotColor = primary.copy(alpha = 0.15f)`) | ✅ Fixed |
+| Top Island lacked shadow and overlapped GPT chat screen | Top Island had no dark spot shadow and was rendered above GPT chat content | Added `12dp` layered shadow and auto-hid top island in GPT tab via `AnimatedVisibility` | ✅ Fixed |
+| Initial greeting redundancy across navigation | Welcome card remained embedded in the long weather dashboard list | Separated into dedicated `GreetingWelcomeView` on launch that transitions on nav click | ✅ Fixed |

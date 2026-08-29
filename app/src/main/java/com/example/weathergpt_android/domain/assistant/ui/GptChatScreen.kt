@@ -12,8 +12,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Thermostat
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -47,9 +51,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.weathergpt_android.core.theme.AiIndigo
-import com.example.weathergpt_android.core.theme.AiPurple
-import com.example.weathergpt_android.core.theme.AiPurpleLight
 import com.example.weathergpt_android.domain.assistant.model.ChatMessage
 import kotlinx.coroutines.launch
 
@@ -93,8 +94,66 @@ fun GptChatScreen(
     )
 
     Column(
-        modifier = modifier.fillMaxSize()
+        modifier = modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .imePadding()
     ) {
+        // Integrated GPT Top Header (since Top Island is hidden in GPT tab)
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Weather",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            letterSpacing = (-0.4).sp
+                        )
+                        Text(
+                            text = "GPT",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.primary,
+                            letterSpacing = (-0.4).sp
+                        )
+                    }
+                    Text(
+                        text = "Real-time conversational meteorological intelligence",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable { messages.clear() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.DeleteOutline,
+                        contentDescription = "Clear Chat",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+
+        // Chat Messages List
         LazyColumn(
             state = listState,
             modifier = Modifier
@@ -103,39 +162,22 @@ fun GptChatScreen(
             contentPadding = PaddingValues(
                 start = 16.dp,
                 end = 16.dp,
-                top = 104.dp, // Clearance for top island
+                top = 6.dp,
                 bottom = 12.dp
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = "WeatherGPT Intelligence",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        letterSpacing = (-0.4).sp
-                    )
-                    Text(
-                        text = "Powered by real-time spatial weather modeling",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
             items(messages, key = { it.id }) { msg ->
                 ChatBubble(message = msg)
             }
         }
 
-        // Suggestions horizontal row
+        // Suggestion Chips Carousel
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 6.dp),
+                .padding(horizontal = 16.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             suggestionChips.forEach { suggestion ->
@@ -154,7 +196,7 @@ fun GptChatScreen(
                             messages.add(
                                 ChatMessage(
                                     id = (System.currentTimeMillis() + 1).toString(),
-                                    text = "Based on our latest hyper-local forecast for San Francisco, tomorrow features clear skies (24°C), low humidity (45%), and UV index 3.",
+                                    text = "Based on our latest hyper-local forecast for San Francisco, conditions feature clear skies (24°C), low humidity (45%), and UV index 3.",
                                     isUser = false,
                                     timestamp = "Just now",
                                     weatherHighlight = "Recommended: Light cotton wear & sunglasses"
@@ -189,29 +231,29 @@ fun GptChatScreen(
             }
         }
 
-        // Input pill container
+        // Input pill container properly padded above the floating navigation bar
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, bottom = 86.dp, top = 4.dp)
+                .padding(start = 16.dp, end = 16.dp, bottom = 84.dp, top = 4.dp)
         ) {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .shadow(
-                        elevation = 8.dp,
+                        elevation = 10.dp,
                         shape = RoundedCornerShape(28.dp),
-                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                        ambientColor = Color(0x10000000)
+                        spotColor = Color(0x25000000),
+                        ambientColor = Color(0x15000000)
                     ),
                 shape = RoundedCornerShape(28.dp),
                 color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 1.dp
+                tonalElevation = 2.dp
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                        .padding(horizontal = 12.dp, vertical = 3.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedTextField(
@@ -239,7 +281,10 @@ fun GptChatScreen(
                             .clip(CircleShape)
                             .background(
                                 Brush.linearGradient(
-                                    listOf(MaterialTheme.colorScheme.primary, AiIndigo)
+                                    listOf(
+                                        MaterialTheme.colorScheme.primary,
+                                        MaterialTheme.colorScheme.secondary
+                                    )
                                 )
                             )
                             .clickable {
@@ -296,7 +341,7 @@ private fun ChatBubble(message: ChatMessage) {
                     .shadow(
                         elevation = 4.dp,
                         shape = RoundedCornerShape(18.dp, 18.dp, 4.dp, 18.dp),
-                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
                     ),
                 shape = RoundedCornerShape(18.dp, 18.dp, 4.dp, 18.dp),
                 color = MaterialTheme.colorScheme.primary
@@ -329,7 +374,7 @@ private fun ChatBubble(message: ChatMessage) {
                     .shadow(
                         elevation = 6.dp,
                         shape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp),
-                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        spotColor = Color(0x20000000),
                         ambientColor = Color(0x10000000)
                     ),
                 shape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp),
@@ -342,13 +387,13 @@ private fun ChatBubble(message: ChatMessage) {
                             modifier = Modifier
                                 .size(22.dp)
                                 .clip(CircleShape)
-                                .background(AiPurpleLight),
+                                .background(MaterialTheme.colorScheme.primaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.AutoAwesome,
                                 contentDescription = null,
-                                tint = AiIndigo,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(12.dp)
                             )
                         }
@@ -357,7 +402,7 @@ private fun ChatBubble(message: ChatMessage) {
                             text = "WeatherGPT",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = AiIndigo
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
 
