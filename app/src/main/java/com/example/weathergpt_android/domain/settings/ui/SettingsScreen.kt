@@ -1,4 +1,4 @@
-package com.example.weathergpt_android.ui.screens
+package com.example.weathergpt_android.domain.settings.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,12 +19,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Thermostat
-import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -44,14 +40,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.weathergpt_android.ui.theme.AiIndigo
-import com.example.weathergpt_android.ui.theme.CardBackground
-import com.example.weathergpt_android.ui.theme.SkyBlue
-import com.example.weathergpt_android.ui.theme.SkyBlueLight
-import com.example.weathergpt_android.ui.theme.SubtleSurface
-import com.example.weathergpt_android.ui.theme.TextPrimary
-import com.example.weathergpt_android.ui.theme.TextSecondary
-import com.example.weathergpt_android.ui.theme.TextTertiary
+import com.example.weathergpt_android.core.theme.CardBackground
+import com.example.weathergpt_android.core.theme.SkyBlue
+import com.example.weathergpt_android.core.theme.SkyBlueLight
+import com.example.weathergpt_android.core.theme.SubtleSurface
+import com.example.weathergpt_android.core.theme.TextPrimary
+import com.example.weathergpt_android.core.theme.TextSecondary
 
 @Composable
 fun SettingsScreen(
@@ -60,7 +54,6 @@ fun SettingsScreen(
     var isCelsius by remember { mutableStateOf(true) }
     var severeWeatherAlerts by remember { mutableStateOf(true) }
     var dailyWalkSuggestions by remember { mutableStateOf(true) }
-    var soundEffects by remember { mutableStateOf(true) }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -143,7 +136,6 @@ fun SettingsScreen(
                             }
                         }
 
-                        // Custom unit selector pill
                         Surface(
                             shape = RoundedCornerShape(14.dp),
                             color = SubtleSurface
@@ -248,7 +240,7 @@ fun SettingsScreen(
                                 color = TextPrimary
                             )
                             Text(
-                                text = "Version 1.0 • Flushed Light Edition",
+                                text = "Version 1.0 • Domain-Driven Clean Edition",
                                 fontSize = 12.sp,
                                 color = TextSecondary
                             )

@@ -1,8 +1,5 @@
-package com.example.weathergpt_android.ui.components
+package com.example.weathergpt_android.domain.notifications.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -37,32 +34,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.weathergpt_android.ui.theme.AiIndigo
-import com.example.weathergpt_android.ui.theme.AlertRed
-import com.example.weathergpt_android.ui.theme.AlertRedLight
-import com.example.weathergpt_android.ui.theme.CardBackground
-import com.example.weathergpt_android.ui.theme.SkyBlue
-import com.example.weathergpt_android.ui.theme.SkyBlueLight
-import com.example.weathergpt_android.ui.theme.SubtleSurface
-import com.example.weathergpt_android.ui.theme.TextPrimary
-import com.example.weathergpt_android.ui.theme.TextSecondary
-import com.example.weathergpt_android.ui.theme.TextTertiary
-import com.example.weathergpt_android.ui.theme.WeatherAmber
-import com.example.weathergpt_android.ui.theme.WeatherAmberLight
-
-data class WeatherNotification(
-    val id: String,
-    val title: String,
-    val message: String,
-    val time: String,
-    val icon: ImageVector,
-    val tint: Color,
-    val bgTint: Color
-)
+import com.example.weathergpt_android.core.theme.AiIndigo
+import com.example.weathergpt_android.core.theme.AlertRedLight
+import com.example.weathergpt_android.core.theme.CardBackground
+import com.example.weathergpt_android.core.theme.SkyBlue
+import com.example.weathergpt_android.core.theme.SkyBlueLight
+import com.example.weathergpt_android.core.theme.SubtleSurface
+import com.example.weathergpt_android.core.theme.TextPrimary
+import com.example.weathergpt_android.core.theme.TextSecondary
+import com.example.weathergpt_android.core.theme.TextTertiary
+import com.example.weathergpt_android.core.theme.WeatherAmber
+import com.example.weathergpt_android.core.theme.WeatherAmberLight
+import com.example.weathergpt_android.domain.notifications.model.WeatherNotification
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

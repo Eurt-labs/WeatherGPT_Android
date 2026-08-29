@@ -1,4 +1,4 @@
-package com.example.weathergpt_android.ui.screens
+package com.example.weathergpt_android.domain.news.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,8 +28,6 @@ import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Thunderstorm
 import androidx.compose.material.icons.rounded.WbSunny
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -43,33 +41,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.weathergpt_android.ui.theme.AlertRed
-import com.example.weathergpt_android.ui.theme.AlertRedLight
-import com.example.weathergpt_android.ui.theme.CardBackground
-import com.example.weathergpt_android.ui.theme.SkyBlue
-import com.example.weathergpt_android.ui.theme.SkyBlueLight
-import com.example.weathergpt_android.ui.theme.SubtleSurface
-import com.example.weathergpt_android.ui.theme.TextPrimary
-import com.example.weathergpt_android.ui.theme.TextSecondary
-import com.example.weathergpt_android.ui.theme.TextTertiary
-import com.example.weathergpt_android.ui.theme.WeatherAmber
-import com.example.weathergpt_android.ui.theme.WeatherAmberLight
-
-data class NewsArticle(
-    val id: String,
-    val title: String,
-    val summary: String,
-    val category: String,
-    val timeAgo: String,
-    val readTime: String,
-    val icon: ImageVector,
-    val iconTint: Color,
-    val iconBg: Color
-)
+import com.example.weathergpt_android.core.theme.AlertRed
+import com.example.weathergpt_android.core.theme.AlertRedLight
+import com.example.weathergpt_android.core.theme.CardBackground
+import com.example.weathergpt_android.core.theme.SkyBlue
+import com.example.weathergpt_android.core.theme.SkyBlueLight
+import com.example.weathergpt_android.core.theme.SubtleSurface
+import com.example.weathergpt_android.core.theme.TextPrimary
+import com.example.weathergpt_android.core.theme.TextSecondary
+import com.example.weathergpt_android.core.theme.TextTertiary
+import com.example.weathergpt_android.core.theme.WeatherAmber
+import com.example.weathergpt_android.core.theme.WeatherAmberLight
+import com.example.weathergpt_android.domain.news.model.NewsArticle
 
 @Composable
 fun NewsScreen(

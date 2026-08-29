@@ -1,4 +1,4 @@
-package com.example.weathergpt_android.ui.screens
+package com.example.weathergpt_android.domain.voice.ui
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -46,19 +46,17 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.weathergpt_android.ui.theme.AiIndigo
-import com.example.weathergpt_android.ui.theme.AiPurple
-import com.example.weathergpt_android.ui.theme.AiPurpleLight
-import com.example.weathergpt_android.ui.theme.CardBackground
-import com.example.weathergpt_android.ui.theme.SkyBlue
-import com.example.weathergpt_android.ui.theme.SkyBlueLight
-import com.example.weathergpt_android.ui.theme.SubtleSurface
-import com.example.weathergpt_android.ui.theme.TextPrimary
-import com.example.weathergpt_android.ui.theme.TextSecondary
-import com.example.weathergpt_android.ui.theme.TextTertiary
+import com.example.weathergpt_android.core.theme.AiIndigo
+import com.example.weathergpt_android.core.theme.AiPurple
+import com.example.weathergpt_android.core.theme.AiPurpleLight
+import com.example.weathergpt_android.core.theme.CardBackground
+import com.example.weathergpt_android.core.theme.SkyBlue
+import com.example.weathergpt_android.core.theme.SkyBlueLight
+import com.example.weathergpt_android.core.theme.SubtleSurface
+import com.example.weathergpt_android.core.theme.TextPrimary
+import com.example.weathergpt_android.core.theme.TextSecondary
 
 @Composable
 fun VoiceAiScreen(
@@ -138,7 +136,6 @@ fun VoiceAiScreen(
                 contentAlignment = Alignment.Center
             ) {
                 if (isListening) {
-                    // Outer ripple 2
                     Box(
                         modifier = Modifier
                             .size(170.dp)
@@ -146,7 +143,6 @@ fun VoiceAiScreen(
                             .clip(CircleShape)
                             .background(SkyBlueLight.copy(alpha = 0.4f))
                     )
-                    // Outer ripple 1
                     Box(
                         modifier = Modifier
                             .size(130.dp)
@@ -156,7 +152,6 @@ fun VoiceAiScreen(
                     )
                 }
 
-                // Main Mic Orb
                 Box(
                     modifier = Modifier
                         .size(90.dp)

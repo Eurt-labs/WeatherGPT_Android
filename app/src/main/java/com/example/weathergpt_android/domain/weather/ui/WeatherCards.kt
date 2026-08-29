@@ -1,4 +1,4 @@
-package com.example.weathergpt_android.ui.components
+package com.example.weathergpt_android.domain.weather.ui
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -28,11 +28,8 @@ import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.Air
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Cloud
-import androidx.compose.material.icons.rounded.Compress
 import androidx.compose.material.icons.rounded.NightsStay
-import androidx.compose.material.icons.rounded.Opacity
 import androidx.compose.material.icons.rounded.Speed
-import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material.icons.rounded.WbTwilight
@@ -54,26 +51,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.weathergpt_android.ui.theme.AiIndigo
-import com.example.weathergpt_android.ui.theme.AiPurple
-import com.example.weathergpt_android.ui.theme.AiPurpleLight
-import com.example.weathergpt_android.ui.theme.CardBackground
-import com.example.weathergpt_android.ui.theme.SkyBlue
-import com.example.weathergpt_android.ui.theme.SkyBlueLight
-import com.example.weathergpt_android.ui.theme.SubtleSurface
-import com.example.weathergpt_android.ui.theme.TextPrimary
-import com.example.weathergpt_android.ui.theme.TextSecondary
-import com.example.weathergpt_android.ui.theme.TextTertiary
-import com.example.weathergpt_android.ui.theme.WeatherAmber
-import com.example.weathergpt_android.ui.theme.WeatherAmberLight
-import com.example.weathergpt_android.ui.theme.WeatherEmerald
-import com.example.weathergpt_android.ui.theme.WeatherEmeraldLight
+import com.example.weathergpt_android.core.theme.AiIndigo
+import com.example.weathergpt_android.core.theme.AiPurple
+import com.example.weathergpt_android.core.theme.CardBackground
+import com.example.weathergpt_android.core.theme.SkyBlue
+import com.example.weathergpt_android.core.theme.SkyBlueLight
+import com.example.weathergpt_android.core.theme.SubtleSurface
+import com.example.weathergpt_android.core.theme.TextPrimary
+import com.example.weathergpt_android.core.theme.TextSecondary
+import com.example.weathergpt_android.core.theme.TextTertiary
+import com.example.weathergpt_android.core.theme.WeatherAmber
+import com.example.weathergpt_android.core.theme.WeatherAmberLight
+import com.example.weathergpt_android.core.theme.WeatherEmerald
+import com.example.weathergpt_android.core.theme.WeatherEmeraldLight
+import com.example.weathergpt_android.domain.weather.model.DayForecast
+import com.example.weathergpt_android.domain.weather.model.HourlyForecast
 import kotlin.math.roundToInt
 
-/**
- * Main wireframe greeting banner:
- * "Hi Name, todays weather is good. Suggestion go for a walk"
- */
 @Composable
 fun GreetingHeroCard(
     userName: String = "Dhruv",
@@ -81,7 +75,6 @@ fun GreetingHeroCard(
     aiSuggestion: String = "Go for a pleasant evening walk around the park.",
     onAiSuggestionClick: () -> Unit = {}
 ) {
-    // Subtle floating animation for weather emblem
     val infiniteTransition = rememberInfiniteTransition(label = "floating_hero")
     val floatOffset by infiniteTransition.animateFloat(
         initialValue = -4f,
@@ -141,7 +134,6 @@ fun GreetingHeroCard(
                     }
                 }
 
-                // Animated Sun & Cloud Emblem
                 Box(
                     modifier = Modifier
                         .offset { IntOffset(0, floatOffset.roundToInt()) }
@@ -161,7 +153,6 @@ fun GreetingHeroCard(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // AI Suggestion Box (Interactive capsule matching "Suggestion go for a walk")
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -228,9 +219,6 @@ fun GreetingHeroCard(
     }
 }
 
-/**
- * Primary Weather Summary Card
- */
 @Composable
 fun PrimaryWeatherCard(
     temperature: String = "24°",
@@ -323,16 +311,6 @@ fun PrimaryWeatherCard(
     }
 }
 
-/**
- * Hourly Forecast Horizontal Pill Carousel
- */
-data class HourlyForecast(
-    val time: String,
-    val temp: String,
-    val icon: ImageVector,
-    val isNow: Boolean = false
-)
-
 @Composable
 fun HourlyForecastSection(
     hourlyList: List<HourlyForecast> = listOf(
@@ -415,9 +393,6 @@ private fun HourlyPill(forecast: HourlyForecast) {
     }
 }
 
-/**
- * 2x2 Weather Metrics Grid
- */
 @Composable
 fun WeatherMetricsGrid(
     windSpeed: String = "14 km/h",
@@ -546,17 +521,6 @@ private fun MetricCard(
         }
     }
 }
-
-/**
- * 7-Day Outlook Card
- */
-data class DayForecast(
-    val day: String,
-    val condition: ImageVector,
-    val minTemp: String,
-    val maxTemp: String,
-    val progress: Float
-)
 
 @Composable
 fun SevenDayForecastCard() {

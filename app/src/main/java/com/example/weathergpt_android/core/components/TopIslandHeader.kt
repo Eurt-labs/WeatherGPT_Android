@@ -1,4 +1,4 @@
-package com.example.weathergpt_android.ui.components
+package com.example.weathergpt_android.core.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -29,7 +29,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
@@ -50,17 +49,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.weathergpt_android.ui.theme.AiIndigo
-import com.example.weathergpt_android.ui.theme.AiPurple
-import com.example.weathergpt_android.ui.theme.AlertRed
-import com.example.weathergpt_android.ui.theme.IslandBackground
-import com.example.weathergpt_android.ui.theme.SkyBlue
-import com.example.weathergpt_android.ui.theme.SkyBlueLight
-import com.example.weathergpt_android.ui.theme.SubtleSurface
-import com.example.weathergpt_android.ui.theme.TextPrimary
-import com.example.weathergpt_android.ui.theme.TextSecondary
-import com.example.weathergpt_android.ui.theme.TextPrimary
-import com.example.weathergpt_android.ui.theme.TextSecondary
+import com.example.weathergpt_android.core.theme.AiIndigo
+import com.example.weathergpt_android.core.theme.AiPurple
+import com.example.weathergpt_android.core.theme.AlertRed
+import com.example.weathergpt_android.core.theme.IslandBackground
+import com.example.weathergpt_android.core.theme.SkyBlue
+import com.example.weathergpt_android.core.theme.SkyBlueLight
+import com.example.weathergpt_android.core.theme.SubtleSurface
+import com.example.weathergpt_android.core.theme.TextPrimary
+import com.example.weathergpt_android.core.theme.TextSecondary
 
 @Composable
 fun TopIslandHeader(

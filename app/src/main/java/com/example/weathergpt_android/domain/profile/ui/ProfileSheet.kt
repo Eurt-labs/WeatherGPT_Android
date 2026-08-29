@@ -1,4 +1,4 @@
-package com.example.weathergpt_android.ui.components
+package com.example.weathergpt_android.domain.profile.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,14 +36,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.weathergpt_android.ui.theme.AiIndigo
-import com.example.weathergpt_android.ui.theme.AlertRed
-import com.example.weathergpt_android.ui.theme.CardBackground
-import com.example.weathergpt_android.ui.theme.SkyBlue
-import com.example.weathergpt_android.ui.theme.SubtleSurface
-import com.example.weathergpt_android.ui.theme.TextPrimary
-import com.example.weathergpt_android.ui.theme.TextSecondary
-import com.example.weathergpt_android.ui.theme.TextTertiary
+import com.example.weathergpt_android.core.theme.AiIndigo
+import com.example.weathergpt_android.core.theme.AlertRed
+import com.example.weathergpt_android.core.theme.CardBackground
+import com.example.weathergpt_android.core.theme.SkyBlue
+import com.example.weathergpt_android.core.theme.SubtleSurface
+import com.example.weathergpt_android.core.theme.TextPrimary
+import com.example.weathergpt_android.core.theme.TextSecondary
+import com.example.weathergpt_android.core.theme.TextTertiary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,7 +67,7 @@ fun ProfileSheet(
                 .padding(horizontal = 24.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Profile Avatar with Glow
+            // Profile Avatar with Gradient Glow
             Box(
                 modifier = Modifier
                     .size(80.dp)

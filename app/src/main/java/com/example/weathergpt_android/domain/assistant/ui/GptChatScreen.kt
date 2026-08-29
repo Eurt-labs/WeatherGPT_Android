@@ -1,4 +1,4 @@
-package com.example.weathergpt_android.ui.screens
+package com.example.weathergpt_android.domain.assistant.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,14 +25,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Thermostat
-import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -48,27 +46,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.weathergpt_android.ui.theme.AiIndigo
-import com.example.weathergpt_android.ui.theme.AiPurple
-import com.example.weathergpt_android.ui.theme.AiPurpleLight
-import com.example.weathergpt_android.ui.theme.CardBackground
-import com.example.weathergpt_android.ui.theme.SkyBlue
-import com.example.weathergpt_android.ui.theme.SkyBlueLight
-import com.example.weathergpt_android.ui.theme.SubtleSurface
-import com.example.weathergpt_android.ui.theme.TextPrimary
-import com.example.weathergpt_android.ui.theme.TextSecondary
-import com.example.weathergpt_android.ui.theme.TextTertiary
-import com.example.weathergpt_android.ui.theme.WeatherAmber
-import com.example.weathergpt_android.ui.theme.WeatherAmberLight
+import com.example.weathergpt_android.core.theme.AiIndigo
+import com.example.weathergpt_android.core.theme.AiPurple
+import com.example.weathergpt_android.core.theme.AiPurpleLight
+import com.example.weathergpt_android.core.theme.CardBackground
+import com.example.weathergpt_android.core.theme.SkyBlue
+import com.example.weathergpt_android.core.theme.SubtleSurface
+import com.example.weathergpt_android.core.theme.TextPrimary
+import com.example.weathergpt_android.core.theme.TextSecondary
+import com.example.weathergpt_android.core.theme.TextTertiary
+import com.example.weathergpt_android.domain.assistant.model.ChatMessage
 import kotlinx.coroutines.launch
-
-data class ChatMessage(
-    val id: String,
-    val text: String,
-    val isUser: Boolean,
-    val timestamp: String,
-    val weatherHighlight: String? = null
-)
 
 @Composable
 fun GptChatScreen(

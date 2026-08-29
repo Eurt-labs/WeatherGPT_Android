@@ -21,18 +21,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.example.weathergpt_android.ui.components.FloatingBottomNavBar
-import com.example.weathergpt_android.ui.components.NotificationSheet
-import com.example.weathergpt_android.ui.components.ProfileSheet
-import com.example.weathergpt_android.ui.components.TopIslandHeader
-import com.example.weathergpt_android.ui.navigation.NavTab
-import com.example.weathergpt_android.ui.screens.GptChatScreen
-import com.example.weathergpt_android.ui.screens.HomeScreen
-import com.example.weathergpt_android.ui.screens.NewsScreen
-import com.example.weathergpt_android.ui.screens.SettingsScreen
-import com.example.weathergpt_android.ui.screens.VoiceAiScreen
-import com.example.weathergpt_android.ui.theme.FlushedBackground
-import com.example.weathergpt_android.ui.theme.WeatherGPTTheme
+import com.example.weathergpt_android.core.components.FloatingBottomNavBar
+import com.example.weathergpt_android.core.components.TopIslandHeader
+import com.example.weathergpt_android.core.navigation.NavTab
+import com.example.weathergpt_android.core.theme.FlushedBackground
+import com.example.weathergpt_android.core.theme.WeatherGPTTheme
+import com.example.weathergpt_android.domain.assistant.ui.GptChatScreen
+import com.example.weathergpt_android.domain.news.ui.NewsScreen
+import com.example.weathergpt_android.domain.notifications.ui.NotificationSheet
+import com.example.weathergpt_android.domain.profile.ui.ProfileSheet
+import com.example.weathergpt_android.domain.settings.ui.SettingsScreen
+import com.example.weathergpt_android.domain.voice.ui.VoiceAiScreen
+import com.example.weathergpt_android.domain.weather.ui.HomeScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,7 +59,7 @@ fun WeatherGPTApp() {
             .fillMaxSize()
             .background(FlushedBackground)
     ) {
-        // Main Screen Content with smooth transition animations
+        // Main Domain Screen Content with smooth transitions
         AnimatedContent(
             targetState = currentTab,
             transitionSpec = {
@@ -95,7 +95,7 @@ fun WeatherGPTApp() {
             }
         )
 
-        // Bottom Floating Island Navigation Bar (Floating, not attached, no outlines)
+        // Bottom Floating Island Navigation Bar
         FloatingBottomNavBar(
             modifier = Modifier.align(Alignment.BottomCenter),
             currentTab = currentTab,
@@ -104,14 +104,14 @@ fun WeatherGPTApp() {
             }
         )
 
-        // Interactive Notification Bottom Sheet
+        // Interactive Notification Sheet
         if (showNotificationSheet) {
             NotificationSheet(
                 onDismissRequest = { showNotificationSheet = false }
             )
         }
 
-        // Interactive User Profile Bottom Sheet
+        // Interactive User Profile Sheet
         if (showProfileSheet) {
             ProfileSheet(
                 userName = "$userName Saraswat",

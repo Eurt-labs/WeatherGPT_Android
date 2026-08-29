@@ -1,4 +1,4 @@
-package com.example.weathergpt_android.ui.theme
+package com.example.weathergpt_android.core.theme
 
 import androidx.compose.ui.graphics.Color
 

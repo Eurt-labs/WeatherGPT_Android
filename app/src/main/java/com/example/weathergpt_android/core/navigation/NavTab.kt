@@ -1,4 +1,4 @@
-package com.example.weathergpt_android.ui.navigation
+package com.example.weathergpt_android.core.navigation
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Feed
