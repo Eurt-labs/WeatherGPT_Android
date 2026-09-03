@@ -1,6 +1,8 @@
 package com.example.weathergpt_android.core.network
 
 import android.content.Context
+import com.example.weathergpt_android.domain.auth.data.UserPreferences
+import com.example.weathergpt_android.domain.auth.model.UserSector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -19,7 +21,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Cloud Backend AI Service powered by FastAPI on Render.
- * Calls /api/ai/chat-stream with Google Gemini 2.5 Flash.
+ * Calls /api/ai/chat-stream with Google Gemini 2.5 Flash, dynamically persona-tuned (SIH26068).
  * Zero user API key required — securely authenticated via HMAC & client secret.
  */
 class OpenRouterService(private val context: Context) {
@@ -43,6 +45,7 @@ class OpenRouterService(private val context: Context) {
     ): Flow<String> = flow {
         val endpoint = "/api/ai/chat-stream"
         val backendUrl = "${BackendConfig.BASE_URL}$endpoint"
+        val profile = UserPreferences.getProfile(context)
 
         val historyArray = JSONArray().apply {
             for ((role, text) in history.takeLast(4)) {
@@ -53,10 +56,17 @@ class OpenRouterService(private val context: Context) {
             }
         }
 
+        val enrichedContext = if (profile.sector == UserSector.FARMER) {
+            "$weatherContext | Farmer Crops: ${profile.crops} | Land: ${profile.landArea}"
+        } else {
+            "$weatherContext | User Role: ${profile.sector.title} | Region: ${profile.monitoredRegion}"
+        }
+
         val jsonBody = JSONObject().apply {
             put("message", userMessage)
             put("location", locationContext)
-            put("weather_context", weatherContext)
+            put("weather_context", enrichedContext)
+            put("sector_focus", profile.sector.id)
             put("is_voice_mode", isVoiceMode)
             put("history", historyArray)
         }
@@ -118,11 +128,13 @@ class OpenRouterService(private val context: Context) {
     ): Result<String> = withContext(Dispatchers.IO) {
         val endpoint = "/api/ai/chat-stream"
         val backendUrl = "${BackendConfig.BASE_URL}$endpoint"
+        val profile = UserPreferences.getProfile(context)
 
         val jsonBody = JSONObject().apply {
             put("message", userMessage)
             put("location", locationContext)
-            put("weather_context", weatherContext)
+            put("weather_context", "$weatherContext | Role: ${profile.sector.title}")
+            put("sector_focus", profile.sector.id)
             put("is_voice_mode", false)
             put("history", JSONArray())
         }

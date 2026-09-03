@@ -16,16 +16,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.CloudDone
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.ExitToApp
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.QueryStats
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.VpnKeyOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -49,20 +51,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.weathergpt_android.core.components.FrostedIconButton
-import com.example.weathergpt_android.core.network.BackendConfig
 import com.example.weathergpt_android.core.network.OpenRouterService
 import com.example.weathergpt_android.core.theme.AppThemeMode
 import com.example.weathergpt_android.domain.assistant.data.ChatDatabaseHelper
+import com.example.weathergpt_android.domain.auth.data.UserPreferences
+import com.example.weathergpt_android.domain.auth.model.UserProfile
 import kotlinx.coroutines.launch
 
 /**
  * Ultra-high contrast Frosted Settings Modal.
- * Cloud-managed backend architecture: zero user API keys required!
+ * Cloud-managed Supabase backend architecture, SIH26068 Persona switcher, and Token Stats.
  */
 @Composable
 fun FrostedSettingsSheet(
     currentTheme: AppThemeMode,
+    userProfile: UserProfile,
     onThemeSelected: (AppThemeMode) -> Unit,
+    onEditPersona: () -> Unit,
+    onSignOut: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -148,7 +154,88 @@ fun FrostedSettingsSheet(
                 )
             }
 
-            // 1. Appearance Mode Switcher
+            // 1. User Profile & SIH26068 Persona Card
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "SIH-26068 USER PERSONA",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = subtitleColor,
+                    letterSpacing = 1.sp
+                )
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    color = if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9),
+                    border = BorderStroke(1.dp, if (isDark) Color(0x30FFFFFF) else Color(0x50CBD5E1))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.AccountCircle,
+                                    contentDescription = null,
+                                    tint = accentColor,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Column {
+                                    Text(
+                                        text = userProfile.name,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = textColor
+                                    )
+                                    Text(
+                                        text = "${userProfile.sector.title} (${userProfile.contact})",
+                                        fontSize = 11.sp,
+                                        color = subtitleColor
+                                    )
+                                }
+                            }
+
+                            // Edit Persona Button
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(accentColor.copy(alpha = 0.2f))
+                                    .clickable(onClick = onEditPersona)
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Edit,
+                                        contentDescription = "Edit",
+                                        tint = accentColor,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Text(
+                                        text = "Edit",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = accentColor
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 2. Appearance Mode Switcher
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "APPEARANCE MODE",
@@ -189,10 +276,10 @@ fun FrostedSettingsSheet(
                 }
             }
 
-            // 2. Cloud-Managed Zero-Key Architecture Card
+            // 3. Cloud Backend & Supabase Architecture Card
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "CLOUD BACKEND ARCHITECTURE",
+                    text = "CLOUD BACKEND & SUPABASE AUTH",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = subtitleColor,
@@ -220,14 +307,14 @@ fun FrostedSettingsSheet(
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
-                                text = "Render Cloud FastAPI",
+                                text = "Render FastAPI + Supabase",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = textColor
                             )
                         }
                         Text(
-                            text = "Zero user API key required. Keys and reasoning are securely managed by the cloud backend.",
+                            text = "Authenticated with Supabase Auth OTP. Keys & user profiles securely managed by the server.",
                             fontSize = 12.sp,
                             lineHeight = 17.sp,
                             color = subtitleColor
@@ -236,7 +323,7 @@ fun FrostedSettingsSheet(
                 }
             }
 
-            // 3. Local Database & Tokens Analytics Card
+            // 4. Local Database & Tokens Analytics Card
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "LOCAL DATABASE & TOKENS",
@@ -319,48 +406,6 @@ fun FrostedSettingsSheet(
                 }
             }
 
-            // 4. AI Engine & Voice Profile Card
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                color = if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9),
-                border = BorderStroke(1.dp, if (isDark) Color(0x30FFFFFF) else Color(0x50CBD5E1))
-            ) {
-                Row(
-                    modifier = Modifier.padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(accentColor.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Memory,
-                            contentDescription = null,
-                            tint = accentColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Column {
-                        Text(
-                            text = "Google: Gemini 2.5 Flash",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = textColor
-                        )
-                        Text(
-                            text = "Voice: Puck • 100% Pure Open-Meteo",
-                            fontSize = 11.sp,
-                            color = subtitleColor
-                        )
-                    }
-                }
-            }
-
             // 5. Test Backend Connection Button
             Button(
                 onClick = {
@@ -400,6 +445,34 @@ fun FrostedSettingsSheet(
                     color = if (status.startsWith("✓")) Color(0xFF10B981) else Color(0xFFEF4444),
                     fontWeight = FontWeight.Medium
                 )
+            }
+
+            // 6. Sign Out Button
+            Button(
+                onClick = onSignOut,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isDark) Color(0x30EF4444) else Color(0x18EF4444),
+                    contentColor = Color(0xFFEF4444)
+                )
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.ExitToApp,
+                        contentDescription = "Sign Out",
+                        tint = Color(0xFFEF4444),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = "Sign Out",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }

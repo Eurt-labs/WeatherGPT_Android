@@ -38,20 +38,26 @@ import com.example.weathergpt_android.core.theme.ThemePreferences
 import com.example.weathergpt_android.core.theme.WeatherGPTTheme
 import com.example.weathergpt_android.domain.assistant.ui.GptChatScreen
 import com.example.weathergpt_android.domain.assistant.ui.UnifiedMainScreen
+import com.example.weathergpt_android.domain.auth.data.UserPreferences
+import com.example.weathergpt_android.domain.auth.model.UserProfile
+import com.example.weathergpt_android.domain.auth.ui.AuthOtpScreen
 import com.example.weathergpt_android.domain.location.model.LocationData
 import com.example.weathergpt_android.domain.location.provider.LocationProvider
+import com.example.weathergpt_android.domain.onboarding.ui.PersonalizedOnboardingScreen
 import com.example.weathergpt_android.domain.settings.ui.FrostedSettingsSheet
 import com.example.weathergpt_android.domain.voice.ui.ImmersiveVoiceScreen
 import com.example.weathergpt_android.domain.weather.repository.UnifiedWeatherRepository
 import kotlinx.coroutines.launch
 
 /**
- * Single Unified WeatherGPT Flow (Matching Screenshot 2 & 3)
+ * Single Unified WeatherGPT Flow with Supabase OTP Auth & SIH26068 Personalization
  */
 enum class AppScreen {
-    MAIN_HUB,     // Single Primary Dashboard (Screenshot 2)
-    VOICE_AI,     // Immersive Full-Screen Voice with Animated Edge Lighting (Screenshot 3)
-    ACTIVE_CHAT   // Conversational Chat View
+    AUTH_OTP,          // Step 1: Sign in with Email / Phone & 6-digit OTP
+    ONBOARDING_SETUP,  // Step 2: SIH26068 Multi-Sector Questionnaire
+    MAIN_HUB,          // Step 3: Personalized Unified Hub (Screenshot 2)
+    VOICE_AI,          // Step 4: Immersive Voice AI with Edge Lighting (Screenshot 3)
+    ACTIVE_CHAT        // Conversational Chat Screen
 }
 
 class MainActivity : ComponentActivity() {
@@ -89,7 +95,16 @@ fun WeatherGPTApp(
     var locationData by remember { mutableStateOf(locationProvider.getInitialCachedLocation()) }
     var liveWeatherData by remember { mutableStateOf(weatherRepository.getCachedWeather()) }
 
-    var currentScreen by remember { mutableStateOf(AppScreen.MAIN_HUB) }
+    var userProfile by remember { mutableStateOf(UserPreferences.getProfile(context)) }
+
+    // Initial Screen Check: Auth -> Onboarding -> Main Hub
+    val initialScreen = when {
+        !UserPreferences.isLoggedIn(context) -> AppScreen.AUTH_OTP
+        !UserPreferences.isOnboarded(context) -> AppScreen.ONBOARDING_SETUP
+        else -> AppScreen.MAIN_HUB
+    }
+
+    var currentScreen by remember { mutableStateOf(initialScreen) }
     var activeChatPrompt by remember { mutableStateOf<String?>(null) }
     var showSettingsSheet by remember { mutableStateOf(false) }
 
@@ -102,8 +117,17 @@ fun WeatherGPTApp(
     }
 
     // Android System Back Button Handling
-    BackHandler(enabled = currentScreen != AppScreen.MAIN_HUB) {
-        currentScreen = AppScreen.MAIN_HUB
+    BackHandler(enabled = currentScreen != AppScreen.MAIN_HUB && currentScreen != AppScreen.AUTH_OTP) {
+        when (currentScreen) {
+            AppScreen.ACTIVE_CHAT -> currentScreen = AppScreen.MAIN_HUB
+            AppScreen.VOICE_AI -> currentScreen = AppScreen.MAIN_HUB
+            AppScreen.ONBOARDING_SETUP -> {
+                if (UserPreferences.isOnboarded(context)) {
+                    currentScreen = AppScreen.MAIN_HUB
+                }
+            }
+            else -> {}
+        }
     }
 
     // Permission Requester for Location and Audio
@@ -145,7 +169,7 @@ fun WeatherGPTApp(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Main Screen Router with Smooth Crossfade Transition
+        // Screen Router with Smooth Crossfade Transition
         AnimatedContent(
             targetState = currentScreen,
             transitionSpec = {
@@ -154,10 +178,31 @@ fun WeatherGPTApp(
             label = "screen_transition"
         ) { screen ->
             when (screen) {
+                AppScreen.AUTH_OTP -> AuthOtpScreen(
+                    currentTheme = currentTheme,
+                    onAuthSuccess = { profile, isNewUser ->
+                        userProfile = profile
+                        if (isNewUser || !profile.isOnboarded) {
+                            currentScreen = AppScreen.ONBOARDING_SETUP
+                        } else {
+                            currentScreen = AppScreen.MAIN_HUB
+                        }
+                    }
+                )
+
+                AppScreen.ONBOARDING_SETUP -> PersonalizedOnboardingScreen(
+                    currentTheme = currentTheme,
+                    initialProfile = userProfile,
+                    onComplete = { completedProfile ->
+                        userProfile = completedProfile
+                        currentScreen = AppScreen.MAIN_HUB
+                    }
+                )
+
                 AppScreen.MAIN_HUB -> UnifiedMainScreen(
                     currentTheme = currentTheme,
                     liveWeatherData = liveWeatherData,
-                    userName = "Dhruv",
+                    userProfile = userProfile,
                     onLaunchVoice = { currentScreen = AppScreen.VOICE_AI },
                     onLaunchChatWithPrompt = { prompt ->
                         activeChatPrompt = prompt
@@ -184,7 +229,7 @@ fun WeatherGPTApp(
             }
         }
 
-        // Frosted Glass Settings Sheet Dialog / Overlay (High Contrast & Visible)
+        // Frosted Glass Settings Sheet Dialog / Overlay
         AnimatedVisibility(
             visible = showSettingsSheet,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -198,7 +243,18 @@ fun WeatherGPTApp(
             ) {
                 FrostedSettingsSheet(
                     currentTheme = currentTheme,
+                    userProfile = userProfile,
                     onThemeSelected = onThemeChange,
+                    onEditPersona = {
+                        showSettingsSheet = false
+                        currentScreen = AppScreen.ONBOARDING_SETUP
+                    },
+                    onSignOut = {
+                        UserPreferences.logout(context)
+                        showSettingsSheet = false
+                        userProfile = UserProfile()
+                        currentScreen = AppScreen.AUTH_OTP
+                    },
                     onDismiss = { showSettingsSheet = false }
                 )
             }
