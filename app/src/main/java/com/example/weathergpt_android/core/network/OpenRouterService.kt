@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Cloud Backend AI Service powered by FastAPI on Render.
- * Calls /api/ai/chat-stream with Google Gemini 2.5 Flash, dynamically persona-tuned (SIH26068).
+ * Calls /api/ai/chat-stream with Google Gemini 2.5 Flash, dynamically persona-tuned.
  * Extracts raw textual tokens from SSE JSON chunks cleanly.
  */
 class OpenRouterService(private val context: Context) {

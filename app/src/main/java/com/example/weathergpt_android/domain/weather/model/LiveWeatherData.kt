@@ -17,7 +17,7 @@ data class LiveWeatherData(
     val lastUpdatedTime: String = "Live",
     val hourlyList: List<HourlyForecast> = defaultHourlyList(),
     val dailyList: List<DayForecast> = defaultDailyList(),
-    // Multi-Sector Meteorological Intelligence (SIH 2026)
+    // Multi-Sector Meteorological Intelligence
     val soilMoisture: String = "0.33 m³/m³",
     val soilTemperature: String = "28°C",
     val irrigationAdvice: String = "Adequate soil moisture. Irrigation not required today.",

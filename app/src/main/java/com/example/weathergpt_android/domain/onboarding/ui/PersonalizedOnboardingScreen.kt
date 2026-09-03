@@ -73,7 +73,7 @@ import com.example.weathergpt_android.domain.auth.network.AuthApiService
 import kotlinx.coroutines.launch
 
 /**
- * 3-Step SIH26068 Personalization Startup Questionnaire.
+ * 3-Step Personalization Startup Questionnaire.
  * Step 1: Language First (English, Hindi, Marathi, Bengali, Tamil, Telugu).
  * Step 2: Primary Sector / Focus (Farmer, Disaster, Commuter, Aviation).
  * Step 3: Name & Custom Sector Attributes (Crops, Land Area, Region).
@@ -138,7 +138,7 @@ fun PersonalizedOnboardingScreen(
                     )
 
                     Text(
-                        text = "SIH-26068 Personalization",
+                        text = "Personalized Setup",
                         fontSize = 11.sp,
                         color = subtitleColor
                     )

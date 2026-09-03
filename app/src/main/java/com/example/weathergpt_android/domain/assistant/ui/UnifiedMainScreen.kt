@@ -56,7 +56,7 @@ import com.example.weathergpt_android.domain.auth.model.UserSector
 import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
 
 /**
- * Single Unified Main Screen personalized to the user's role (SIH26068).
+ * Single Unified Main Screen personalized to the user's role.
  * Tapping bottom bar opens Chat; tapping mic opens Voice.
  * Kisan AI card displays Chat History.
  */
@@ -175,7 +175,7 @@ fun UnifiedMainScreen(
                 }
             }
 
-            // Personalized Greeting Headline (SIH26068)
+            // Personalized Greeting Headline
             Column(
                 modifier = Modifier.padding(top = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)

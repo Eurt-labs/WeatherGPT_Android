@@ -54,11 +54,11 @@ import com.example.weathergpt_android.domain.weather.repository.UnifiedWeatherRe
 import kotlinx.coroutines.launch
 
 /**
- * Single Unified WeatherGPT Flow with Supabase OTP Auth & SIH26068 Personalization
+ * Single Unified WeatherGPT Flow with Supabase OTP Auth & Multi-Sector Personalization
  */
 enum class AppScreen {
     AUTH_OTP,          // Step 1: Sign in with Email / Phone & 6-digit OTP
-    ONBOARDING_SETUP,  // Step 2: SIH26068 Multi-Sector Questionnaire
+    ONBOARDING_SETUP,  // Step 2: Multi-Sector Questionnaire
     MAIN_HUB,          // Step 3: Personalized Unified Hub (Screenshot 2)
     VOICE_AI,          // Step 4: Immersive Voice AI with Edge Lighting (Screenshot 3)
     ACTIVE_CHAT        // Conversational Chat Screen

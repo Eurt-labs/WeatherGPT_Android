@@ -62,7 +62,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Ultra-high contrast Frosted Settings Modal.
- * Cloud-managed Supabase backend architecture, SIH26068 Persona switcher, and Token Stats.
+ * Cloud-managed Supabase backend architecture, Persona switcher, and Token Stats.
  */
 @Composable
 fun FrostedSettingsSheet(
@@ -166,10 +166,10 @@ fun FrostedSettingsSheet(
                 )
             }
 
-            // 1. User Profile & SIH26068 Persona Card
+            // 1. User Profile & Persona Card
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "SIH-26068 USER PERSONA",
+                    text = "USER PERSONA",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = subtitleColor,
