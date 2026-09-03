@@ -37,25 +37,21 @@ import com.example.weathergpt_android.core.theme.AppThemeMode
 import com.example.weathergpt_android.core.theme.ThemePreferences
 import com.example.weathergpt_android.core.theme.WeatherGPTTheme
 import com.example.weathergpt_android.domain.assistant.ui.GptChatScreen
-import com.example.weathergpt_android.domain.assistant.ui.NewChatBentoScreen
-import com.example.weathergpt_android.domain.assistant.ui.SmartAssistantScreen
-import com.example.weathergpt_android.domain.assistant.ui.WeatherGptWelcomeScreen
+import com.example.weathergpt_android.domain.assistant.ui.UnifiedMainScreen
 import com.example.weathergpt_android.domain.location.model.LocationData
 import com.example.weathergpt_android.domain.location.provider.LocationProvider
 import com.example.weathergpt_android.domain.settings.ui.FrostedSettingsSheet
-import com.example.weathergpt_android.domain.voice.ui.VoiceAiScreen
+import com.example.weathergpt_android.domain.voice.ui.ImmersiveVoiceScreen
 import com.example.weathergpt_android.domain.weather.repository.UnifiedWeatherRepository
 import kotlinx.coroutines.launch
 
 /**
- * WeatherGPT Application Screens (Voice & Chat Focused Modern Flow)
+ * Single Unified WeatherGPT Flow (Matching Screenshot 2 & 3)
  */
 enum class AppScreen {
-    WELCOME,          // Screen 1: Welcome & Feature Overview (Left Phone)
-    SMART_ASSISTANT,  // Screen 2: Breathing Waveform & Quick Query Chips (Center Phone)
-    NEW_CHAT_BENTO,   // Screen 3: 2x2 Bento Action Grid (Right Phone)
-    ACTIVE_CHAT,      // Full Screen Chat Conversation with Gemini 2.5 Flash
-    VOICE_AI          // Hands-Free Full Screen Multimodal Voice AI
+    MAIN_HUB,     // Single Primary Dashboard (Screenshot 2)
+    VOICE_AI,     // Immersive Full-Screen Voice with Animated Edge Lighting (Screenshot 3)
+    ACTIVE_CHAT   // Conversational Chat View
 }
 
 class MainActivity : ComponentActivity() {
@@ -93,7 +89,7 @@ fun WeatherGPTApp(
     var locationData by remember { mutableStateOf(locationProvider.getInitialCachedLocation()) }
     var liveWeatherData by remember { mutableStateOf(weatherRepository.getCachedWeather()) }
 
-    var currentScreen by remember { mutableStateOf(AppScreen.SMART_ASSISTANT) }
+    var currentScreen by remember { mutableStateOf(AppScreen.MAIN_HUB) }
     var activeChatPrompt by remember { mutableStateOf<String?>(null) }
     var showSettingsSheet by remember { mutableStateOf(false) }
 
@@ -106,14 +102,8 @@ fun WeatherGPTApp(
     }
 
     // Android System Back Button Handling
-    BackHandler(enabled = currentScreen != AppScreen.SMART_ASSISTANT) {
-        when (currentScreen) {
-            AppScreen.ACTIVE_CHAT -> currentScreen = AppScreen.SMART_ASSISTANT
-            AppScreen.NEW_CHAT_BENTO -> currentScreen = AppScreen.SMART_ASSISTANT
-            AppScreen.VOICE_AI -> currentScreen = AppScreen.SMART_ASSISTANT
-            AppScreen.WELCOME -> currentScreen = AppScreen.SMART_ASSISTANT
-            AppScreen.SMART_ASSISTANT -> {}
-        }
+    BackHandler(enabled = currentScreen != AppScreen.MAIN_HUB) {
+        currentScreen = AppScreen.MAIN_HUB
     }
 
     // Permission Requester for Location and Audio
@@ -159,42 +149,27 @@ fun WeatherGPTApp(
         AnimatedContent(
             targetState = currentScreen,
             transitionSpec = {
-                fadeIn(animationSpec = tween(240)) togetherWith fadeOut(animationSpec = tween(200))
+                fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
             },
             label = "screen_transition"
         ) { screen ->
             when (screen) {
-                AppScreen.WELCOME -> WeatherGptWelcomeScreen(
+                AppScreen.MAIN_HUB -> UnifiedMainScreen(
                     currentTheme = currentTheme,
                     liveWeatherData = liveWeatherData,
-                    onNavigateToAssistant = { currentScreen = AppScreen.SMART_ASSISTANT },
-                    onNavigateToBento = { currentScreen = AppScreen.NEW_CHAT_BENTO },
-                    onNavigateToVoice = { currentScreen = AppScreen.VOICE_AI },
-                    onOpenSettings = { showSettingsSheet = true }
-                )
-
-                AppScreen.SMART_ASSISTANT -> SmartAssistantScreen(
-                    currentTheme = currentTheme,
-                    liveWeatherData = liveWeatherData,
-                    onBack = { currentScreen = AppScreen.WELCOME },
-                    onClose = { currentScreen = AppScreen.NEW_CHAT_BENTO },
-                    onStartChatWithPrompt = { prompt ->
+                    userName = "Dhruv",
+                    onLaunchVoice = { currentScreen = AppScreen.VOICE_AI },
+                    onLaunchChatWithPrompt = { prompt ->
                         activeChatPrompt = prompt
                         currentScreen = AppScreen.ACTIVE_CHAT
                     },
-                    onLaunchVoiceAi = { currentScreen = AppScreen.VOICE_AI }
+                    onOpenSettings = { showSettingsSheet = true }
                 )
 
-                AppScreen.NEW_CHAT_BENTO -> NewChatBentoScreen(
-                    currentTheme = currentTheme,
+                AppScreen.VOICE_AI -> ImmersiveVoiceScreen(
+                    locationData = locationData,
                     liveWeatherData = liveWeatherData,
-                    onBack = { currentScreen = AppScreen.SMART_ASSISTANT },
-                    onOpenSettings = { showSettingsSheet = true },
-                    onStartVoiceMode = { currentScreen = AppScreen.VOICE_AI },
-                    onStartChatWithPrompt = { prompt ->
-                        activeChatPrompt = prompt
-                        currentScreen = AppScreen.ACTIVE_CHAT
-                    }
+                    onClose = { currentScreen = AppScreen.MAIN_HUB }
                 )
 
                 AppScreen.ACTIVE_CHAT -> GptChatScreen(
@@ -202,20 +177,14 @@ fun WeatherGPTApp(
                     locationData = locationData,
                     liveWeatherData = liveWeatherData,
                     initialPrompt = activeChatPrompt,
-                    onBack = { currentScreen = AppScreen.SMART_ASSISTANT },
+                    onBack = { currentScreen = AppScreen.MAIN_HUB },
                     onOpenSettings = { showSettingsSheet = true },
                     onLaunchVoice = { currentScreen = AppScreen.VOICE_AI }
-                )
-
-                AppScreen.VOICE_AI -> VoiceAiScreen(
-                    locationData = locationData,
-                    liveWeatherData = liveWeatherData,
-                    onSpeakingStateChanged = {}
                 )
             }
         }
 
-        // Frosted Glass Settings Sheet Dialog / Overlay
+        // Frosted Glass Settings Sheet Dialog / Overlay (High Contrast & Visible)
         AnimatedVisibility(
             visible = showSettingsSheet,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -224,7 +193,7 @@ fun WeatherGPTApp(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0x60000000)),
+                    .background(Color(0x75000000)),
                 contentAlignment = Alignment.Center
             ) {
                 FrostedSettingsSheet(

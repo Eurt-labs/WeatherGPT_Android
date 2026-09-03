@@ -18,11 +18,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import com.example.weathergpt_android.core.theme.AppThemeMode
 
 /**
- * Hardware-accelerated fluid ambient glow background supporting both Dark and Light themes.
- * Renders warm amber/coral glow and oceanic teal/cyan radial gradients with subtle breathing animation.
+ * Immersive Edge-to-Edge Background matching the user's reference screenshot (Screenshot 2).
+ * Eliminates all circular boundary flaws and renders a seamless deep obsidian canvas with
+ * a diagonal luminous neon purple/magenta light wave.
  */
 @Composable
 fun AmbientGlowBackground(
@@ -36,24 +39,21 @@ fun AmbientGlowBackground(
         AppThemeMode.SYSTEM -> isSystemInDarkTheme()
     }
 
-    val infiniteTransition = rememberInfiniteTransition(label = "ambient_glow_anim")
-    val pulse by infiniteTransition.animateFloat(
-        initialValue = 0.95f,
-        targetValue = 1.08f,
+    val infiniteTransition = rememberInfiniteTransition(label = "ambient_light_anim")
+    val wavePulse by infiniteTransition.animateFloat(
+        initialValue = 0.85f,
+        targetValue = 1.15f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 5000, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 4000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "ambient_pulse"
+        label = "wave_pulse"
     )
 
-    val baseColor = if (isDark) Color(0xFF090D14) else Color(0xFFF1F5F9)
-    val amberGlow = if (isDark) Color(0xFFDF5B18) else Color(0xFFFF9E64)
-    val tealGlow = if (isDark) Color(0xFF007A87) else Color(0xFF48CAE4)
-    val secondaryGlow = if (isDark) Color(0xFF8B2500) else Color(0xFFFFB4A2)
-
-    val amberAlpha = if (isDark) 0.38f else 0.28f
-    val tealAlpha = if (isDark) 0.32f else 0.24f
+    val baseColor = if (isDark) Color(0xFF07080B) else Color(0xFFF1F5F9)
+    val neonPurple = if (isDark) Color(0xFF9333EA) else Color(0xFFA855F7)
+    val neonMagenta = if (isDark) Color(0xFFC026D3) else Color(0xFFE879F9)
+    val neonBlue = if (isDark) Color(0xFF3B82F6) else Color(0xFF60A5FA)
 
     Box(
         modifier = modifier
@@ -64,42 +64,58 @@ fun AmbientGlowBackground(
             val width = size.width
             val height = size.height
 
-            // 1. Fiery Amber / Orange Radial Glow (Top-Left / Mid-Left)
-            drawCircle(
-                brush = Brush.radialGradient(
+            // 1. Full Screen Linear Glow Bleed (Top to Bottom edge-to-edge, NO hard circle)
+            drawRect(
+                brush = Brush.verticalGradient(
                     colors = listOf(
-                        amberGlow.copy(alpha = amberAlpha * pulse),
-                        secondaryGlow.copy(alpha = amberAlpha * 0.5f * pulse),
-                        Color.Transparent
+                        baseColor,
+                        if (isDark) Color(0x189333EA) else Color(0x10A855F7),
+                        if (isDark) Color(0x25C026D3) else Color(0x15E879F9),
+                        baseColor
                     ),
-                    center = Offset(width * 0.15f, height * 0.32f),
-                    radius = width * 0.9f * pulse
+                    startY = height * 0.1f,
+                    endY = height * 0.7f
                 )
             )
 
-            // 2. Oceanic Teal / Cyan Radial Glow (Mid-Right / Bottom-Right)
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        tealGlow.copy(alpha = tealAlpha * pulse),
-                        Color(0xFF00B4D8).copy(alpha = tealAlpha * 0.4f * pulse),
-                        Color.Transparent
-                    ),
-                    center = Offset(width * 0.88f, height * 0.65f),
-                    radius = width * 0.85f * pulse
+            // 2. Diagonal Luminous Light Wave (Matching the radiant streak in Screenshot 2)
+            val wavePath = Path().apply {
+                moveTo(0f, height * 0.44f)
+                cubicTo(
+                    width * 0.35f, height * 0.38f * wavePulse,
+                    width * 0.7f, height * 0.48f,
+                    width, height * 0.34f
                 )
+            }
+
+            // Glow Stroke 1 (Broad Soft Ambient)
+            drawPath(
+                path = wavePath,
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        neonBlue.copy(alpha = 0.20f * wavePulse),
+                        neonPurple.copy(alpha = 0.35f * wavePulse),
+                        neonMagenta.copy(alpha = 0.28f * wavePulse)
+                    ),
+                    start = Offset(0f, height * 0.4f),
+                    end = Offset(width, height * 0.35f)
+                ),
+                style = Stroke(width = width * 0.28f)
             )
 
-            // 3. Subtle center deep illumination
-            drawCircle(
-                brush = Brush.radialGradient(
+            // Glow Stroke 2 (Vibrant Focused Core)
+            drawPath(
+                path = wavePath,
+                brush = Brush.linearGradient(
                     colors = listOf(
-                        amberGlow.copy(alpha = amberAlpha * 0.2f),
-                        Color.Transparent
+                        neonBlue.copy(alpha = 0.35f * wavePulse),
+                        neonMagenta.copy(alpha = 0.65f * wavePulse),
+                        neonPurple.copy(alpha = 0.45f * wavePulse)
                     ),
-                    center = Offset(width * 0.45f, height * 0.18f),
-                    radius = width * 0.6f
-                )
+                    start = Offset(0f, height * 0.4f),
+                    end = Offset(width, height * 0.35f)
+                ),
+                style = Stroke(width = 42f)
             )
         }
 
