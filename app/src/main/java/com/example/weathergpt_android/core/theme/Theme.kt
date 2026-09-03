@@ -12,11 +12,18 @@ import androidx.core.view.WindowCompat
 
 @Composable
 fun WeatherGPTTheme(
-    themeMode: AppThemeMode = AppThemeMode.LIGHT,
+    themeMode: AppThemeMode = AppThemeMode.SYSTEM,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when (themeMode) {
-        AppThemeMode.LIGHT -> lightColorScheme(
+    val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDark = when (themeMode) {
+        AppThemeMode.DARK -> true
+        AppThemeMode.LIGHT -> false
+        AppThemeMode.SYSTEM -> systemDark
+    }
+
+    val colorScheme = if (!isDark) {
+        lightColorScheme(
             primary = M3LightPrimary,
             onPrimary = Color.White,
             primaryContainer = M3LightPrimaryContainer,
@@ -34,7 +41,8 @@ fun WeatherGPTTheme(
             surfaceVariant = M3LightSurfaceVariant,
             onSurfaceVariant = M3LightTextSecondary
         )
-        AppThemeMode.DARK -> darkColorScheme(
+    } else {
+        darkColorScheme(
             primary = DarkBronzeAccent,
             onPrimary = Color.White,
             primaryContainer = DarkBronzeAccent.copy(alpha = 0.3f),
@@ -61,8 +69,8 @@ fun WeatherGPTTheme(
             if (window != null) {
                 val insetsController = WindowCompat.getInsetsController(window, view)
                 // In Light mode: dark icons (true). In Dark mode: light icons (false).
-                insetsController.isAppearanceLightStatusBars = !themeMode.isDark
-                insetsController.isAppearanceLightNavigationBars = !themeMode.isDark
+                insetsController.isAppearanceLightStatusBars = !isDark
+                insetsController.isAppearanceLightNavigationBars = !isDark
             }
         }
     }

@@ -56,6 +56,13 @@ enum class AppThemeMode(
     val backgroundColor: Color,
     val isDark: Boolean
 ) {
+    SYSTEM(
+        title = "System Default",
+        subtitle = "Follow device appearance",
+        primaryColor = M3LightPrimary,
+        backgroundColor = M3LightBackground,
+        isDark = false
+    ),
     LIGHT(
         title = "Material 3 Light",
         subtitle = "Clean Material Design 3 palette",

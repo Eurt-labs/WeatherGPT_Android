@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -20,43 +21,42 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
-import com.example.weathergpt_android.core.components.FloatingBottomNavBar
-import com.example.weathergpt_android.core.components.TopIslandHeader
-import com.example.weathergpt_android.core.navigation.NavTab
 import com.example.weathergpt_android.core.theme.AppThemeMode
 import com.example.weathergpt_android.core.theme.ThemePreferences
 import com.example.weathergpt_android.core.theme.WeatherGPTTheme
 import com.example.weathergpt_android.domain.assistant.ui.GptChatScreen
+import com.example.weathergpt_android.domain.assistant.ui.NewChatBentoScreen
+import com.example.weathergpt_android.domain.assistant.ui.SmartAssistantScreen
+import com.example.weathergpt_android.domain.assistant.ui.WeatherGptWelcomeScreen
 import com.example.weathergpt_android.domain.location.model.LocationData
 import com.example.weathergpt_android.domain.location.provider.LocationProvider
-import com.example.weathergpt_android.domain.news.ui.NewsScreen
-import com.example.weathergpt_android.domain.notifications.ui.NotificationSheet
-import com.example.weathergpt_android.domain.profile.ui.ProfileSheet
-import com.example.weathergpt_android.domain.settings.ui.SettingsScreen
+import com.example.weathergpt_android.domain.settings.ui.FrostedSettingsSheet
 import com.example.weathergpt_android.domain.voice.ui.VoiceAiScreen
-import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
 import com.example.weathergpt_android.domain.weather.repository.UnifiedWeatherRepository
-import com.example.weathergpt_android.domain.weather.ui.GreetingWelcomeView
-import com.example.weathergpt_android.domain.weather.ui.HomeScreen
 import kotlinx.coroutines.launch
+
+/**
+ * WeatherGPT Application Screens (Voice & Chat Focused Modern Flow)
+ */
+enum class AppScreen {
+    WELCOME,          // Screen 1: Welcome & Feature Overview (Left Phone)
+    SMART_ASSISTANT,  // Screen 2: Breathing Waveform & Quick Query Chips (Center Phone)
+    NEW_CHAT_BENTO,   // Screen 3: 2x2 Bento Action Grid (Right Phone)
+    ACTIVE_CHAT,      // Full Screen Chat Conversation with Gemini 2.5 Flash
+    VOICE_AI          // Hands-Free Full Screen Multimodal Voice AI
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,7 +81,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun WeatherGPTApp(
-    currentTheme: AppThemeMode = AppThemeMode.LIGHT,
+    currentTheme: AppThemeMode = AppThemeMode.SYSTEM,
     onThemeChange: (AppThemeMode) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -93,14 +93,9 @@ fun WeatherGPTApp(
     var locationData by remember { mutableStateOf(locationProvider.getInitialCachedLocation()) }
     var liveWeatherData by remember { mutableStateOf(weatherRepository.getCachedWeather()) }
 
-    var isAiSpeaking by remember { mutableStateOf(false) }
-    var currentTab by remember { mutableStateOf(NavTab.WEATHER) }
-    var isInitialLaunchGreeting by remember { mutableStateOf(true) } // Clean launch welcome window
-    var isTopIslandVisible by remember { mutableStateOf(true) } // Scroll-aware top island visibility
-    var showNotificationSheet by remember { mutableStateOf(false) }
-    var showProfileSheet by remember { mutableStateOf(false) }
-    var notificationCount by remember { mutableIntStateOf(3) }
-    val userName = "Dhruv"
+    var currentScreen by remember { mutableStateOf(AppScreen.SMART_ASSISTANT) }
+    var activeChatPrompt by remember { mutableStateOf<String?>(null) }
+    var showSettingsSheet by remember { mutableStateOf(false) }
 
     fun refreshLiveWeather(loc: LocationData) {
         scope.launch {
@@ -110,22 +105,18 @@ fun WeatherGPTApp(
         }
     }
 
-    // NestedScrollConnection to detect scrolling and fade out the top island when scrolling down
-    val nestedScrollConnection = remember {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                val delta = available.y
-                if (delta < -10f) {
-                    isTopIslandVisible = false
-                } else if (delta > 10f) {
-                    isTopIslandVisible = true
-                }
-                return Offset.Zero
-            }
+    // Android System Back Button Handling
+    BackHandler(enabled = currentScreen != AppScreen.SMART_ASSISTANT) {
+        when (currentScreen) {
+            AppScreen.ACTIVE_CHAT -> currentScreen = AppScreen.SMART_ASSISTANT
+            AppScreen.NEW_CHAT_BENTO -> currentScreen = AppScreen.SMART_ASSISTANT
+            AppScreen.VOICE_AI -> currentScreen = AppScreen.SMART_ASSISTANT
+            AppScreen.WELCOME -> currentScreen = AppScreen.SMART_ASSISTANT
+            AppScreen.SMART_ASSISTANT -> {}
         }
     }
 
-    // Runtime Permission Requester for Location, Microphone, and Notifications
+    // Permission Requester for Location and Audio
     val permissionsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -156,7 +147,6 @@ fun WeatherGPTApp(
         if (missingPermissions.isNotEmpty()) {
             permissionsLauncher.launch(missingPermissions.toTypedArray())
         } else {
-            // Already granted, trigger live location and live weather fetch
             locationProvider.fetchRealtimeLocation(scope) { resolved ->
                 locationData = resolved
                 refreshLiveWeather(resolved)
@@ -164,112 +154,85 @@ fun WeatherGPTApp(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .nestedScroll(nestedScrollConnection)
-    ) {
-        // Main Screen Window Content
-        if (isInitialLaunchGreeting) {
-            // Initial Launch Empty Greeting Window
-            GreetingWelcomeView(
-                userName = userName,
-                onExploreWeather = {
-                    isInitialLaunchGreeting = false
-                    isTopIslandVisible = true
-                    currentTab = NavTab.WEATHER
-                },
-                onNavigateToGpt = {
-                    isInitialLaunchGreeting = false
-                    currentTab = NavTab.GPT
-                }
-            )
-        } else {
-            // Domain Screens with smooth transition
-            AnimatedContent(
-                targetState = currentTab,
-                transitionSpec = {
-                    fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
-                },
-                label = "tab_content_transition"
-            ) { tab ->
-                when (tab) {
-                    NavTab.WEATHER -> HomeScreen(
-                        locationData = locationData,
-                        liveWeatherData = liveWeatherData
-                    )
-                    NavTab.NEWS -> NewsScreen()
-                    NavTab.VOICE_AI -> VoiceAiScreen(
-                        locationData = locationData,
-                        liveWeatherData = liveWeatherData,
-                        onSpeakingStateChanged = { isAiSpeaking = it }
-                    )
-                    NavTab.GPT -> GptChatScreen(
-                        locationData = locationData,
-                        liveWeatherData = liveWeatherData
-                    )
-                    NavTab.SETTINGS -> SettingsScreen(
-                        currentTheme = currentTheme,
-                        onThemeSelected = onThemeChange
-                    )
-                }
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Main Screen Router with Smooth Crossfade Transition
+        AnimatedContent(
+            targetState = currentScreen,
+            transitionSpec = {
+                fadeIn(animationSpec = tween(240)) togetherWith fadeOut(animationSpec = tween(200))
+            },
+            label = "screen_transition"
+        ) { screen ->
+            when (screen) {
+                AppScreen.WELCOME -> WeatherGptWelcomeScreen(
+                    currentTheme = currentTheme,
+                    liveWeatherData = liveWeatherData,
+                    onNavigateToAssistant = { currentScreen = AppScreen.SMART_ASSISTANT },
+                    onNavigateToBento = { currentScreen = AppScreen.NEW_CHAT_BENTO },
+                    onNavigateToVoice = { currentScreen = AppScreen.VOICE_AI },
+                    onOpenSettings = { showSettingsSheet = true }
+                )
+
+                AppScreen.SMART_ASSISTANT -> SmartAssistantScreen(
+                    currentTheme = currentTheme,
+                    liveWeatherData = liveWeatherData,
+                    onBack = { currentScreen = AppScreen.WELCOME },
+                    onClose = { currentScreen = AppScreen.NEW_CHAT_BENTO },
+                    onStartChatWithPrompt = { prompt ->
+                        activeChatPrompt = prompt
+                        currentScreen = AppScreen.ACTIVE_CHAT
+                    },
+                    onLaunchVoiceAi = { currentScreen = AppScreen.VOICE_AI }
+                )
+
+                AppScreen.NEW_CHAT_BENTO -> NewChatBentoScreen(
+                    currentTheme = currentTheme,
+                    liveWeatherData = liveWeatherData,
+                    onBack = { currentScreen = AppScreen.SMART_ASSISTANT },
+                    onOpenSettings = { showSettingsSheet = true },
+                    onStartVoiceMode = { currentScreen = AppScreen.VOICE_AI },
+                    onStartChatWithPrompt = { prompt ->
+                        activeChatPrompt = prompt
+                        currentScreen = AppScreen.ACTIVE_CHAT
+                    }
+                )
+
+                AppScreen.ACTIVE_CHAT -> GptChatScreen(
+                    currentTheme = currentTheme,
+                    locationData = locationData,
+                    liveWeatherData = liveWeatherData,
+                    initialPrompt = activeChatPrompt,
+                    onBack = { currentScreen = AppScreen.SMART_ASSISTANT },
+                    onOpenSettings = { showSettingsSheet = true },
+                    onLaunchVoice = { currentScreen = AppScreen.VOICE_AI }
+                )
+
+                AppScreen.VOICE_AI -> VoiceAiScreen(
+                    locationData = locationData,
+                    liveWeatherData = liveWeatherData,
+                    onSpeakingStateChanged = {}
+                )
             }
         }
 
-        // Top Floating Dynamic Island (Hidden in GPT & Voice AI tabs for full immersion)
+        // Frosted Glass Settings Sheet Dialog / Overlay
         AnimatedVisibility(
-            visible = (currentTab != NavTab.GPT && currentTab != NavTab.VOICE_AI || isInitialLaunchGreeting) && isTopIslandVisible,
-            enter = fadeIn(animationSpec = tween(220)) + slideInVertically(initialOffsetY = { -it }),
-            exit = fadeOut(animationSpec = tween(200)) + slideOutVertically(targetOffsetY = { -it }),
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .statusBarsPadding()
+            visible = showSettingsSheet,
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
         ) {
-            TopIslandHeader(
-                notificationCount = notificationCount,
-                userName = userName,
-                liveWeatherData = liveWeatherData,
-                onNotificationClick = {
-                    showNotificationSheet = true
-                    notificationCount = 0
-                },
-                onProfileClick = {
-                    showProfileSheet = true
-                }
-            )
-        }
-
-        // Bottom Attached Navigation Bar with Breathing Aura on Voice Mode
-        FloatingBottomNavBar(
-            modifier = Modifier.align(Alignment.BottomCenter),
-            currentTab = currentTab,
-            isAiSpeaking = isAiSpeaking,
-            onTabSelected = { selected ->
-                if (selected != NavTab.VOICE_AI) {
-                    isAiSpeaking = false // Immediately stop speaking aura when switching away
-                }
-                isInitialLaunchGreeting = false // Transition to selected tab on nav click
-                isTopIslandVisible = true // Reset top island visibility on tab switch
-                currentTab = selected
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0x60000000)),
+                contentAlignment = Alignment.Center
+            ) {
+                FrostedSettingsSheet(
+                    currentTheme = currentTheme,
+                    onThemeSelected = onThemeChange,
+                    onDismiss = { showSettingsSheet = false }
+                )
             }
-        )
-
-        // Interactive Notification Sheet
-        if (showNotificationSheet) {
-            NotificationSheet(
-                onDismissRequest = { showNotificationSheet = false }
-            )
-        }
-
-        // Interactive User Profile Sheet
-        if (showProfileSheet) {
-            ProfileSheet(
-                userName = "$userName Saraswat",
-                userEmail = "dhruv@weathergpt.ai",
-                location = locationData.formattedLocation,
-                onDismissRequest = { showProfileSheet = false }
-            )
         }
     }
 }
