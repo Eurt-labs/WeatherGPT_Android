@@ -24,18 +24,26 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.ExitToApp
+import androidx.compose.material.icons.automirrored.rounded.ExitToApp
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.QueryStats
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.example.weathergpt_android.domain.weather.repository.UnifiedWeatherRepository
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -60,6 +68,13 @@ import com.example.weathergpt_android.domain.auth.data.UserPreferences
 import com.example.weathergpt_android.domain.auth.model.UserProfile
 import kotlinx.coroutines.launch
 
+enum class DiagnosticStatus {
+    NOT_RUN,
+    RUNNING,
+    SUCCESS,
+    FAILED
+}
+
 /**
  * Ultra-high contrast Frosted Settings Modal.
  * Cloud-managed Supabase backend architecture, Persona switcher, and Token Stats.
@@ -78,6 +93,7 @@ fun FrostedSettingsSheet(
     val scope = rememberCoroutineScope()
     val dbHelper = remember { ChatDatabaseHelper.getInstance(context) }
     val openRouterService = remember { OpenRouterService(context) }
+    val weatherRepo = remember { UnifiedWeatherRepository(context) }
 
     val isDark = when (currentTheme) {
         AppThemeMode.DARK -> true
@@ -86,8 +102,13 @@ fun FrostedSettingsSheet(
     }
 
     var totalTokens by remember { mutableIntStateOf(0) }
-    var isTestingConnection by remember { mutableStateOf(false) }
-    var testStatusText by remember { mutableStateOf<String?>(null) }
+    var isTestingAll by remember { mutableStateOf(false) }
+    var geminiStatus by remember { mutableStateOf(DiagnosticStatus.NOT_RUN) }
+    var weatherStatus by remember { mutableStateOf(DiagnosticStatus.NOT_RUN) }
+    var dbStatus by remember { mutableStateOf(DiagnosticStatus.NOT_RUN) }
+    var geminiDetail by remember { mutableStateOf<String?>(null) }
+    var weatherDetail by remember { mutableStateOf<String?>(null) }
+    var dbDetail by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         totalTokens = dbHelper.getTotalTokens()
@@ -288,10 +309,10 @@ fun FrostedSettingsSheet(
                 }
             }
 
-            // 3. Cloud Backend & Supabase Architecture Card
+            // 3. System Diagnostics & All-in-One Health Check
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "CLOUD BACKEND & SUPABASE AUTH",
+                    text = "SYSTEM HEALTH & DIAGNOSTICS",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = subtitleColor,
@@ -300,45 +321,229 @@ fun FrostedSettingsSheet(
 
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(18.dp),
                     color = if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9),
                     border = BorderStroke(1.dp, if (isDark) Color(0x30FFFFFF) else Color(0x50CBD5E1))
                 ) {
                     Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.CloudDone,
-                                contentDescription = null,
-                                tint = Color(0xFF10B981),
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Text(
-                                text = "Render FastAPI + Supabase",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = textColor
-                            )
-                        }
-                        Text(
-                            text = "Authenticated with Supabase Auth OTP. Keys & user profiles securely managed by the server.",
-                            fontSize = 12.sp,
-                            lineHeight = 17.sp,
-                            color = subtitleColor
+                        // Diagnostic Row 1: Gemini AI
+                        DiagnosticItemRow(
+                            title = "Gemini 2.5 Flash AI",
+                            subtitle = geminiDetail ?: "Cloud LLM & Reasoning Engine",
+                            icon = Icons.Rounded.AutoAwesome,
+                            status = geminiStatus,
+                            accentColor = accentColor,
+                            textColor = textColor,
+                            subtitleColor = subtitleColor
                         )
+
+                        // Diagnostic Row 2: Live Weather
+                        DiagnosticItemRow(
+                            title = "Live Weather Service",
+                            subtitle = weatherDetail ?: "Open-Meteo Meteorological Feed",
+                            icon = Icons.Rounded.WbSunny,
+                            status = weatherStatus,
+                            accentColor = Color(0xFFF59E0B),
+                            textColor = textColor,
+                            subtitleColor = subtitleColor
+                        )
+
+                        // Diagnostic Row 3: Local SQLite Database
+                        DiagnosticItemRow(
+                            title = "Local SQLite Database",
+                            subtitle = dbDetail ?: "$totalTokens tokens cached locally",
+                            icon = Icons.Rounded.Storage,
+                            status = dbStatus,
+                            accentColor = Color(0xFF10B981),
+                            textColor = textColor,
+                            subtitleColor = subtitleColor
+                        )
+
+                        // Live Verdict Banner
+                        if (geminiStatus != DiagnosticStatus.NOT_RUN ||
+                            weatherStatus != DiagnosticStatus.NOT_RUN ||
+                            dbStatus != DiagnosticStatus.NOT_RUN
+                        ) {
+                            val isRunning = geminiStatus == DiagnosticStatus.RUNNING ||
+                                            weatherStatus == DiagnosticStatus.RUNNING ||
+                                            dbStatus == DiagnosticStatus.RUNNING
+
+                            if (!isRunning) {
+                                val allSuccess = geminiStatus == DiagnosticStatus.SUCCESS &&
+                                                 weatherStatus == DiagnosticStatus.SUCCESS &&
+                                                 dbStatus == DiagnosticStatus.SUCCESS
+
+                                if (allSuccess) {
+                                    Surface(
+                                        color = Color(0x2010B981),
+                                        shape = RoundedCornerShape(12.dp),
+                                        border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.5f))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.CheckCircle,
+                                                contentDescription = null,
+                                                tint = Color(0xFF10B981),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Text(
+                                                text = "All Systems Operational (Gemini, Weather, Database) ✓",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF10B981)
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    val failedList = mutableListOf<String>()
+                                    if (geminiStatus == DiagnosticStatus.FAILED) failedList.add("Gemini AI (${geminiDetail ?: "Failed"})")
+                                    if (weatherStatus == DiagnosticStatus.FAILED) failedList.add("Weather (${weatherDetail ?: "Failed"})")
+                                    if (dbStatus == DiagnosticStatus.FAILED) failedList.add("Database (${dbDetail ?: "Failed"})")
+
+                                    Surface(
+                                        color = Color(0x25EF4444),
+                                        shape = RoundedCornerShape(12.dp),
+                                        border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f))
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.ErrorOutline,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFFEF4444),
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Text(
+                                                    text = "Service Issue Detected!",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFFEF4444)
+                                                )
+                                            }
+                                            Text(
+                                                text = "The following is not working: ${failedList.joinToString(" • ")}",
+                                                fontSize = 11.sp,
+                                                lineHeight = 15.sp,
+                                                color = Color(0xFFFCA5A5)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Test All Connections Button
+                        Button(
+                            onClick = {
+                                isTestingAll = true
+                                geminiStatus = DiagnosticStatus.RUNNING
+                                weatherStatus = DiagnosticStatus.RUNNING
+                                dbStatus = DiagnosticStatus.RUNNING
+                                geminiDetail = "Testing connection..."
+                                weatherDetail = "Fetching live coordinates..."
+                                dbDetail = "Checking token tables..."
+
+                                scope.launch {
+                                    // 1. Database Check
+                                    try {
+                                        val count = dbHelper.getTotalTokens()
+                                        totalTokens = count
+                                        dbStatus = DiagnosticStatus.SUCCESS
+                                        dbDetail = "$count tokens stored"
+                                    } catch (e: Exception) {
+                                        dbStatus = DiagnosticStatus.FAILED
+                                        dbDetail = e.localizedMessage ?: "Database query failed"
+                                    }
+
+                                    // 2. Weather API Check
+                                    try {
+                                        val weatherRes = weatherRepo.fetchLiveWeather(28.6139, 77.2090)
+                                        if (weatherRes.isSuccess) {
+                                            val weather = weatherRes.getOrNull()
+                                            weatherStatus = DiagnosticStatus.SUCCESS
+                                            weatherDetail = "${weather?.temperature ?: "Online"}, ${weather?.condition ?: "OK"}"
+                                        } else {
+                                            weatherStatus = DiagnosticStatus.FAILED
+                                            weatherDetail = weatherRes.exceptionOrNull()?.localizedMessage ?: "Weather API failed"
+                                        }
+                                    } catch (e: Exception) {
+                                        weatherStatus = DiagnosticStatus.FAILED
+                                        weatherDetail = e.localizedMessage ?: "Network error"
+                                    }
+
+                                    // 3. Gemini AI Check
+                                    try {
+                                        val geminiRes = openRouterService.generateChatCompletion("Ping test: confirm connection")
+                                        if (geminiRes.isSuccess) {
+                                            geminiStatus = DiagnosticStatus.SUCCESS
+                                            geminiDetail = "Gemini 2.5 Flash Online"
+                                        } else {
+                                            geminiStatus = DiagnosticStatus.FAILED
+                                            geminiDetail = geminiRes.exceptionOrNull()?.localizedMessage ?: "AI Service unavailable"
+                                        }
+                                    } catch (e: Exception) {
+                                        geminiStatus = DiagnosticStatus.FAILED
+                                        geminiDetail = e.localizedMessage ?: "Network error"
+                                    }
+
+                                    isTestingAll = false
+                                }
+                            },
+                            enabled = !isTestingAll,
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = accentColor,
+                                contentColor = Color.White
+                            )
+                        ) {
+                            if (isTestingAll) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        color = Color.White,
+                                        strokeWidth = 2.dp
+                                    )
+                                    Text("Testing All Services...", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                }
+                            } else {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Refresh,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text("Test All Connections", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
                     }
                 }
             }
 
-            // 4. Local Database & Tokens Analytics Card
+            // 4. Local Database Tokens & Management
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "LOCAL DATABASE & TOKENS",
+                    text = "LOCAL CHAT DATA",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = subtitleColor,
@@ -392,6 +597,7 @@ fun FrostedSettingsSheet(
                                     scope.launch {
                                         dbHelper.clearHistory()
                                         totalTokens = 0
+                                        dbDetail = "0 tokens stored"
                                     }
                                 }
                                 .padding(horizontal = 10.dp, vertical = 6.dp)
@@ -418,47 +624,6 @@ fun FrostedSettingsSheet(
                 }
             }
 
-            // 5. Test Backend Connection Button
-            Button(
-                onClick = {
-                    isTestingConnection = true
-                    testStatusText = "Connecting to Cloud FastAPI backend..."
-                    scope.launch {
-                        val res = openRouterService.generateChatCompletion(
-                            userMessage = "Ping test: Confirm connection"
-                        )
-                        isTestingConnection = false
-                        res.onSuccess {
-                            testStatusText = "✓ Connected to Cloud Backend!"
-                        }.onFailure {
-                            testStatusText = "✗ Backend error: ${it.message}"
-                        }
-                    }
-                },
-                enabled = !isTestingConnection,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = accentColor,
-                    contentColor = Color.White
-                )
-            ) {
-                Text(
-                    text = if (isTestingConnection) "Connecting..." else "Test Cloud Backend Connection",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-
-            testStatusText?.let { status ->
-                Text(
-                    text = status,
-                    fontSize = 12.sp,
-                    color = if (status.startsWith("✓")) Color(0xFF10B981) else Color(0xFFEF4444),
-                    fontWeight = FontWeight.Medium
-                )
-            }
-
             // 6. Sign Out Button
             Button(
                 onClick = onSignOut,
@@ -474,7 +639,7 @@ fun FrostedSettingsSheet(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.ExitToApp,
+                        imageVector = Icons.AutoMirrored.Rounded.ExitToApp,
                         contentDescription = "Sign Out",
                         tint = Color(0xFFEF4444),
                         modifier = Modifier.size(18.dp)
@@ -531,6 +696,124 @@ private fun ThemeOptionButton(
                 color = if (isSelected) (if (isDark) Color.White else Color(0xFF0F172A))
                         else (if (isDark) Color(0xFFB4B9C8) else Color(0xFF64748B))
             )
+        }
+    }
+}
+
+@Composable
+private fun DiagnosticItemRow(
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    status: DiagnosticStatus,
+    accentColor: Color,
+    textColor: Color,
+    subtitleColor: Color
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(accentColor.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier.size(17.dp)
+                )
+            }
+            Column(modifier = Modifier.padding(end = 8.dp)) {
+                Text(
+                    text = title,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = textColor
+                )
+                Text(
+                    text = subtitle,
+                    fontSize = 11.sp,
+                    color = subtitleColor
+                )
+            }
+        }
+
+        when (status) {
+            DiagnosticStatus.NOT_RUN -> {
+                Text(
+                    text = "Ready",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = subtitleColor
+                )
+            }
+            DiagnosticStatus.RUNNING -> {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(12.dp),
+                        color = accentColor,
+                        strokeWidth = 1.5.dp
+                    )
+                    Text(
+                        text = "Testing...",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = accentColor
+                    )
+                }
+            }
+            DiagnosticStatus.SUCCESS -> {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.CheckCircle,
+                        contentDescription = null,
+                        tint = Color(0xFF10B981),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        text = "Online",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF10B981)
+                    )
+                }
+            }
+            DiagnosticStatus.FAILED -> {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.ErrorOutline,
+                        contentDescription = null,
+                        tint = Color(0xFFEF4444),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        text = "Not Working",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFEF4444)
+                    )
+                }
+            }
         }
     }
 }
