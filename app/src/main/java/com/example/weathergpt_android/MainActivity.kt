@@ -19,8 +19,12 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -238,10 +242,17 @@ fun WeatherGPTApp(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0x75000000)),
+                    .background(Color(0x80000000))
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .clickable { showSettingsSheet = false },
                 contentAlignment = Alignment.Center
             ) {
                 FrostedSettingsSheet(
+                    modifier = Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { /* absorb clicks on the sheet */ },
                     currentTheme = currentTheme,
                     userProfile = userProfile,
                     onThemeSelected = onThemeChange,

@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -100,7 +102,7 @@ fun FrostedSettingsSheet(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(18.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
             .shadow(28.dp, RoundedCornerShape(28.dp), ambientColor = Color(0x50000000), spotColor = Color(0x50000000)),
         shape = RoundedCornerShape(28.dp),
         color = cardBackground,
@@ -109,10 +111,20 @@ fun FrostedSettingsSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(22.dp)
+                .padding(horizontal = 20.dp, vertical = 16.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Drag handle / sheet indicator pill
+            Box(
+                modifier = Modifier
+                    .width(40.dp)
+                    .height(4.dp)
+                    .clip(CircleShape)
+                    .background(subtitleColor.copy(alpha = 0.35f))
+                    .align(Alignment.CenterHorizontally)
+            )
+
             // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
