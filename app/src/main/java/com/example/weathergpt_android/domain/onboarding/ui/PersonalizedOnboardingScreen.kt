@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,17 +28,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.Flight
 import androidx.compose.material.icons.rounded.Grass
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.Thunderstorm
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -52,7 +55,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -71,8 +73,10 @@ import com.example.weathergpt_android.domain.auth.network.AuthApiService
 import kotlinx.coroutines.launch
 
 /**
- * Multi-Step Personalized Onboarding Questionnaire (SIH Problem Statement 26068).
- * Analyzes user type and configures tailored AI recommendations, widgets, and language.
+ * 3-Step SIH26068 Personalization Startup Questionnaire.
+ * Step 1: Language First (English, Hindi, Marathi, Bengali, Tamil, Telugu).
+ * Step 2: Primary Sector / Focus (Farmer, Disaster, Commuter, Aviation).
+ * Step 3: Name & Custom Sector Attributes (Crops, Land Area, Region).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -92,20 +96,19 @@ fun PersonalizedOnboardingScreen(
         AppThemeMode.SYSTEM -> isSystemInDarkTheme()
     }
 
-    var currentStep by remember { mutableIntStateOf(1) } // 1: Sector, 2: Name/Language, 3: Specifics
+    var currentStep by remember { mutableIntStateOf(1) } // 1: Language First, 2: Sector, 3: Details
+    var selectedLanguage by remember { mutableStateOf(initialProfile.preferredLanguage.ifBlank { "en" }) }
     var selectedSector by remember { mutableStateOf(initialProfile.sector) }
-    var userName by remember { mutableStateOf(initialProfile.name) }
-    var selectedLanguage by remember { mutableStateOf("en") }
-    var selectedCrops by remember { mutableStateOf("Wheat, Mustard") }
-    var landArea by remember { mutableStateOf("5 Acres") }
-    var monitoredRegion by remember { mutableStateOf("Hathras, Uttar Pradesh") }
+    var userName by remember { mutableStateOf(initialProfile.name.ifBlank { "Dhruv" }) }
+    var selectedCrops by remember { mutableStateOf(initialProfile.crops.ifBlank { "Wheat, Mustard" }) }
+    var landArea by remember { mutableStateOf(initialProfile.landArea.ifBlank { "5 Acres" }) }
+    var monitoredRegion by remember { mutableStateOf(initialProfile.monitoredRegion.ifBlank { "Hathras, Uttar Pradesh" }) }
     var isSaving by remember { mutableStateOf(false) }
 
     val textColor = if (isDark) Color.White else Color(0xFF0F172A)
     val subtitleColor = if (isDark) Color.White.copy(alpha = 0.65f) else Color(0xFF64748B)
     val neonPurple = Color(0xFF9333EA)
     val neonMagenta = Color(0xFFC026D3)
-    val neonCoral = Color(0xFFFF5722)
 
     AmbientGlowBackground(
         currentTheme = currentTheme,
@@ -168,7 +171,76 @@ fun PersonalizedOnboardingScreen(
                 ) {
                     when (step) {
                         1 -> {
-                            // Step 1: Sector / Role Selection
+                            // Step 1: Language First!
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = "Choose Your Language",
+                                    fontSize = 26.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = textColor
+                                )
+                                Text(
+                                    text = "Choose how WeatherGPT will speak, listen, and explain weather to you.",
+                                    fontSize = 13.sp,
+                                    color = subtitleColor
+                                )
+                            }
+
+                            // Interactive Language Selection Cards
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                LanguageSelectCard(
+                                    code = "en",
+                                    name = "English",
+                                    nativeName = "English",
+                                    isSelected = selectedLanguage == "en",
+                                    onClick = { selectedLanguage = "en" },
+                                    isDark = isDark
+                                )
+                                LanguageSelectCard(
+                                    code = "hi",
+                                    name = "Hindi",
+                                    nativeName = "हिन्दी",
+                                    isSelected = selectedLanguage == "hi",
+                                    onClick = { selectedLanguage = "hi" },
+                                    isDark = isDark
+                                )
+                                LanguageSelectCard(
+                                    code = "mr",
+                                    name = "Marathi",
+                                    nativeName = "मराठी",
+                                    isSelected = selectedLanguage == "mr",
+                                    onClick = { selectedLanguage = "mr" },
+                                    isDark = isDark
+                                )
+                                LanguageSelectCard(
+                                    code = "bn",
+                                    name = "Bengali",
+                                    nativeName = "বাংলা",
+                                    isSelected = selectedLanguage == "bn",
+                                    onClick = { selectedLanguage = "bn" },
+                                    isDark = isDark
+                                )
+                                LanguageSelectCard(
+                                    code = "ta",
+                                    name = "Tamil",
+                                    nativeName = "தமிழ்",
+                                    isSelected = selectedLanguage == "ta",
+                                    onClick = { selectedLanguage = "ta" },
+                                    isDark = isDark
+                                )
+                                LanguageSelectCard(
+                                    code = "te",
+                                    name = "Telugu",
+                                    nativeName = "తెలుగు",
+                                    isSelected = selectedLanguage == "te",
+                                    onClick = { selectedLanguage = "te" },
+                                    isDark = isDark
+                                )
+                            }
+                        }
+
+                        2 -> {
+                            // Step 2: Sector / Role Selection
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
                                     text = "What is your primary focus?",
@@ -177,7 +249,7 @@ fun PersonalizedOnboardingScreen(
                                     color = textColor
                                 )
                                 Text(
-                                    text = "We customize forecasts, advisories, and AI reasoning to your role.",
+                                    text = "We customize forecasts, soil models, and AI reasoning to your role.",
                                     fontSize = 13.sp,
                                     color = subtitleColor
                                 )
@@ -220,17 +292,17 @@ fun PersonalizedOnboardingScreen(
                             )
                         }
 
-                        2 -> {
-                            // Step 2: Name & Language
+                        3 -> {
+                            // Step 3: Name & Custom Sector Attributes
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
-                                    text = "Personal Details",
+                                    text = "Tell us about yourself",
                                     fontSize = 24.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = textColor
                                 )
                                 Text(
-                                    text = "How should WeatherGPT address you and speak with you?",
+                                    text = "Enter your name and details so WeatherGPT can personalize every alert.",
                                     fontSize = 13.sp,
                                     color = subtitleColor
                                 )
@@ -268,49 +340,6 @@ fun PersonalizedOnboardingScreen(
                                 }
                             }
 
-                            // Language Selection
-                            Text(
-                                text = "PREFERRED LANGUAGE FOR VOICE & CHAT",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = subtitleColor,
-                                letterSpacing = 1.sp
-                            )
-
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                LanguagePill(code = "en", label = "English", isSelected = selectedLanguage == "en", onSelect = { selectedLanguage = "en" }, isDark = isDark)
-                                LanguagePill(code = "hi", label = "हिन्दी (Hindi)", isSelected = selectedLanguage == "hi", onSelect = { selectedLanguage = "hi" }, isDark = isDark)
-                                LanguagePill(code = "mr", label = "मराठी (Marathi)", isSelected = selectedLanguage == "mr", onSelect = { selectedLanguage = "mr" }, isDark = isDark)
-                                LanguagePill(code = "bn", label = "বাংলা (Bengali)", isSelected = selectedLanguage == "bn", onSelect = { selectedLanguage = "bn" }, isDark = isDark)
-                                LanguagePill(code = "ta", label = "தமிழ் (Tamil)", isSelected = selectedLanguage == "ta", onSelect = { selectedLanguage = "ta" }, isDark = isDark)
-                            }
-                        }
-
-                        3 -> {
-                            // Step 3: Sector Specifics
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(
-                                    text = "Tailor Your Advisory",
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = textColor
-                                )
-                                Text(
-                                    text = when (selectedSector) {
-                                        UserSector.FARMER -> "Configure crop types & acreage for precise irrigation models."
-                                        UserSector.DISASTER_OFFICER -> "Set high-priority river basins or alert regions."
-                                        UserSector.COMMUTER -> "Set primary commute route and travel window."
-                                        UserSector.AVIATION_LOGISTICS -> "Set regional hubs for wind and visibility briefs."
-                                    },
-                                    fontSize = 13.sp,
-                                    color = subtitleColor
-                                )
-                            }
-
                             when (selectedSector) {
                                 UserSector.FARMER -> {
                                     // Crop Selector Pills
@@ -320,65 +349,89 @@ fun PersonalizedOnboardingScreen(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         verticalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        val commonCrops = listOf("Wheat", "Mustard", "Rice", "Cotton", "Potato", "Sugarcane")
+                                        val commonCrops = listOf("Wheat", "Mustard", "Rice", "Cotton", "Potato", "Sugarcane", "Maize", "Soybean")
+                                        val activeList = selectedCrops.split(",").map { it.trim() }.filter { it.isNotEmpty() }
                                         commonCrops.forEach { crop ->
-                                            val isSelected = selectedCrops.contains(crop)
-                                            CropOptionPill(
-                                                crop = crop,
-                                                isSelected = isSelected,
+                                            val isChosen = activeList.contains(crop)
+                                            CropChip(
+                                                label = crop,
+                                                isSelected = isChosen,
                                                 onClick = {
-                                                    selectedCrops = if (isSelected) {
-                                                        selectedCrops.split(", ").filter { it != crop }.joinToString(", ")
+                                                    val updated = if (isChosen) {
+                                                        activeList.filter { it != crop }
                                                     } else {
-                                                        if (selectedCrops.isEmpty()) crop else "$selectedCrops, $crop"
+                                                        activeList + crop
                                                     }
+                                                    selectedCrops = updated.joinToString(", ")
                                                 },
                                                 isDark = isDark
                                             )
                                         }
                                     }
 
-                                    Spacer(modifier = Modifier.height(6.dp))
-
-                                    // Land Area Input
+                                    // Land Area
                                     Surface(
                                         modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(16.dp),
+                                        shape = RoundedCornerShape(18.dp),
                                         color = if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9),
                                         border = BorderStroke(1.dp, if (isDark) Color(0x35FFFFFF) else Color(0x60CBD5E1))
                                     ) {
-                                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                                            Text(text = "LAND AREA", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = subtitleColor)
-                                            BasicTextField(
-                                                value = landArea,
-                                                onValueChange = { landArea = it },
-                                                textStyle = TextStyle(color = textColor, fontSize = 14.sp, fontWeight = FontWeight.Medium),
-                                                cursorBrush = SolidColor(neonMagenta),
-                                                singleLine = true,
-                                                modifier = Modifier.fillMaxWidth()
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Place,
+                                                contentDescription = null,
+                                                tint = Color(0xFF10B981),
+                                                modifier = Modifier.size(20.dp)
                                             )
+                                            Column {
+                                                Text(text = "FARM / LAND AREA", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = subtitleColor)
+                                                BasicTextField(
+                                                    value = landArea,
+                                                    onValueChange = { landArea = it },
+                                                    textStyle = TextStyle(color = textColor, fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
+                                                    cursorBrush = SolidColor(neonMagenta),
+                                                    singleLine = true,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
+                                            }
                                         }
                                     }
                                 }
 
                                 else -> {
-                                    // Monitored Region Input for Disaster/Commuter/Aviation
+                                    // Monitored Region Input
                                     Surface(
                                         modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(16.dp),
+                                        shape = RoundedCornerShape(18.dp),
                                         color = if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9),
                                         border = BorderStroke(1.dp, if (isDark) Color(0x35FFFFFF) else Color(0x60CBD5E1))
                                     ) {
-                                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                                            Text(text = "MONITORED REGION / CITY", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = subtitleColor)
-                                            BasicTextField(
-                                                value = monitoredRegion,
-                                                onValueChange = { monitoredRegion = it },
-                                                textStyle = TextStyle(color = textColor, fontSize = 14.sp, fontWeight = FontWeight.Medium),
-                                                cursorBrush = SolidColor(neonMagenta),
-                                                singleLine = true,
-                                                modifier = Modifier.fillMaxWidth()
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Place,
+                                                contentDescription = null,
+                                                tint = Color(0xFF38BDF8),
+                                                modifier = Modifier.size(20.dp)
                                             )
+                                            Column {
+                                                Text(text = "MONITORED REGION / CITY", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = subtitleColor)
+                                                BasicTextField(
+                                                    value = monitoredRegion,
+                                                    onValueChange = { monitoredRegion = it },
+                                                    textStyle = TextStyle(color = textColor, fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
+                                                    cursorBrush = SolidColor(neonMagenta),
+                                                    singleLine = true,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -390,33 +443,38 @@ fun PersonalizedOnboardingScreen(
 
             // Bottom Navigation Buttons
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 if (currentStep > 1) {
-                    Button(
-                        onClick = { currentStep-- },
+                    IconButton(
+                        onClick = { currentStep -= 1 },
                         modifier = Modifier
-                            .weight(1f)
-                            .height(52.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isDark) Color(0xFF1E2032) else Color(0xFFE2E8F0),
-                            contentColor = textColor
-                        )
+                            .size(50.dp)
+                            .clip(CircleShape)
+                            .background(if (isDark) Color(0x20FFFFFF) else Color(0xFFE2E8F0))
                     ) {
-                        Text(text = "Back", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Icon(
+                            imageVector = Icons.Rounded.ArrowBack,
+                            contentDescription = "Back",
+                            tint = textColor
+                        )
                     }
+                } else {
+                    Box(modifier = Modifier.size(50.dp))
                 }
 
                 Button(
                     onClick = {
                         if (currentStep < 3) {
-                            currentStep++
+                            currentStep += 1
                         } else {
-                            // Finish and Save Profile to Supabase + Local Cache
+                            // Finish and Save Profile
                             isSaving = true
-                            val finalProfile = initialProfile.copy(
+                            val completedProfile = initialProfile.copy(
                                 name = userName.ifBlank { "Dhruv" },
                                 sector = selectedSector,
                                 preferredLanguage = selectedLanguage,
@@ -426,33 +484,132 @@ fun PersonalizedOnboardingScreen(
                                 isOnboarded = true
                             )
 
+                            UserPreferences.saveProfile(context, completedProfile)
+
                             scope.launch {
-                                UserPreferences.saveProfile(context, finalProfile)
-                                authService.saveUserProfile(finalProfile)
+                                authService.saveUserProfile(completedProfile)
                                 isSaving = false
-                                onComplete(finalProfile)
+                                onComplete(completedProfile)
                             }
                         }
                     },
                     enabled = !isSaving,
                     modifier = Modifier
-                        .weight(if (currentStep > 1) 1.6f else 1f)
-                        .height(52.dp),
-                    shape = RoundedCornerShape(16.dp),
+                        .height(52.dp)
+                        .weight(1f)
+                        .padding(start = 12.dp),
+                    shape = RoundedCornerShape(18.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = neonMagenta,
+                        containerColor = neonPurple,
                         contentColor = Color.White
                     )
                 ) {
                     if (isSaving) {
                         CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp))
                     } else {
-                        Text(
-                            text = if (currentStep < 3) "Continue" else "Launch WeatherGPT",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = if (currentStep == 3) "Launch WeatherGPT 🚀" else "Continue",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Icon(
+                                imageVector = if (currentStep == 3) Icons.Rounded.Check else Icons.Rounded.ArrowForward,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LanguageSelectCard(
+    code: String,
+    name: String,
+    nativeName: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    isDark: Boolean
+) {
+    val bg = if (isSelected) {
+        if (isDark) Color(0x35C026D3) else Color(0x20C026D3)
+    } else {
+        if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9)
+    }
+
+    val border = if (isSelected) Color(0xFFC026D3) else Color.Transparent
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(18.dp),
+        color = bg,
+        border = BorderStroke(1.5.dp, border)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(if (isSelected) Color(0xFFC026D3) else if (isDark) Color(0x20FFFFFF) else Color(0xFFE2E8F0)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Language,
+                        contentDescription = null,
+                        tint = if (isSelected) Color.White else if (isDark) Color.White else Color(0xFF475569),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Column {
+                    Text(
+                        text = nativeName,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDark) Color.White else Color(0xFF0F172A)
+                    )
+                    Text(
+                        text = name,
+                        fontSize = 12.sp,
+                        color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+                    )
+                }
+            }
+
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFC026D3)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Check,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(14.dp)
+                    )
                 }
             }
         }
@@ -465,7 +622,13 @@ private fun StepBarSegment(isActive: Boolean, modifier: Modifier = Modifier) {
         modifier = modifier
             .height(4.dp)
             .clip(RoundedCornerShape(2.dp))
-            .background(if (isActive) Color(0xFFC026D3) else Color(0x35FFFFFF))
+            .then(
+                if (isActive) {
+                    Modifier.background(Brush.horizontalGradient(listOf(Color(0xFF9333EA), Color(0xFFC026D3))))
+                } else {
+                    Modifier.background(Color(0x25FFFFFF))
+                }
+            )
     )
 }
 
@@ -478,12 +641,13 @@ private fun SectorSelectCard(
     onClick: () -> Unit,
     isDark: Boolean
 ) {
-    val activeBorder = Color(0xFFC026D3)
-    val inactiveBorder = if (isDark) Color(0x28FFFFFF) else Color(0x50CBD5E1)
-    val activeBg = if (isDark) Color(0x30C026D3) else Color(0x20C026D3)
-    val inactiveBg = if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9)
-    val textColor = if (isDark) Color.White else Color(0xFF0F172A)
-    val subtitleColor = if (isDark) Color.White.copy(alpha = 0.65f) else Color(0xFF64748B)
+    val bg = if (isSelected) {
+        if (isDark) Color(0x359333EA) else Color(0x209333EA)
+    } else {
+        if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9)
+    }
+
+    val border = if (isSelected) Color(0xFF9333EA) else Color.Transparent
 
     Surface(
         modifier = Modifier
@@ -491,78 +655,96 @@ private fun SectorSelectCard(
             .clip(RoundedCornerShape(20.dp))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(20.dp),
-        color = if (isSelected) activeBg else inactiveBg,
-        border = BorderStroke(if (isSelected) 1.8.dp else 1.dp, if (isSelected) activeBorder else inactiveBorder)
+        color = bg,
+        border = BorderStroke(1.5.dp, border)
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(46.dp)
                     .clip(CircleShape)
-                    .background(if (isSelected) Color(0xFFC026D3) else (if (isDark) Color(0xFF282A3E) else Color(0xFFE2E8F0))),
+                    .background(if (isSelected) Color(0xFF9333EA) else if (isDark) Color(0x25FFFFFF) else Color(0xFFE2E8F0)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = if (isSelected) Color.White else (if (isDark) Color.White.copy(alpha = 0.8f) else Color(0xFF475569)),
+                    tint = if (isSelected) Color.White else if (isDark) Color.White else Color(0xFF334155),
                     modifier = Modifier.size(22.dp)
                 )
             }
 
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = textColor)
-                Text(text = subtitle, fontSize = 12.sp, color = subtitleColor, lineHeight = 16.sp)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isDark) Color.White else Color(0xFF0F172A)
+                )
+                Text(
+                    text = subtitle,
+                    fontSize = 12.sp,
+                    color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+                )
             }
 
             if (isSelected) {
-                Icon(
-                    imageVector = Icons.Rounded.Check,
-                    contentDescription = null,
-                    tint = Color(0xFFC026D3),
-                    modifier = Modifier.size(20.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF9333EA)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Check,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun LanguagePill(code: String, label: String, isSelected: Boolean, onSelect: () -> Unit, isDark: Boolean) {
-    val activeBg = Color(0xFFC026D3)
-    val inactiveBg = if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9)
-    val textColor = if (isSelected) Color.White else (if (isDark) Color.White.copy(alpha = 0.8f) else Color(0xFF0F172A))
+private fun CropChip(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    isDark: Boolean
+) {
+    val bg = if (isSelected) Color(0xFF10B981) else if (isDark) Color(0xFF1B1D2C) else Color(0xFFE2E8F0)
+    val textColor = if (isSelected) Color.White else if (isDark) Color.White else Color(0xFF1E293B)
 
     Surface(
         modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onSelect),
-        shape = RoundedCornerShape(12.dp),
-        color = if (isSelected) activeBg else inactiveBg,
-        border = BorderStroke(1.dp, if (isSelected) activeBg else (if (isDark) Color(0x30FFFFFF) else Color(0x50CBD5E1)))
-    ) {
-        Text(text = label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = textColor, modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp))
-    }
-}
-
-@Composable
-private fun CropOptionPill(crop: String, isSelected: Boolean, onClick: () -> Unit, isDark: Boolean) {
-    val activeBg = Color(0xFF10B981)
-    val inactiveBg = if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9)
-    val textColor = if (isSelected) Color.White else (if (isDark) Color.White.copy(alpha = 0.8f) else Color(0xFF0F172A))
-
-    Surface(
-        modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        color = if (isSelected) activeBg else inactiveBg,
-        border = BorderStroke(1.dp, if (isSelected) activeBg else (if (isDark) Color(0x30FFFFFF) else Color(0x50CBD5E1)))
+        shape = RoundedCornerShape(14.dp),
+        color = bg
     ) {
-        Text(text = crop, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = textColor, modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp))
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            if (isSelected) {
+                Icon(
+                    imageVector = Icons.Rounded.Check,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(12.dp)
+                )
+            }
+            Text(text = label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = textColor)
+        }
     }
 }

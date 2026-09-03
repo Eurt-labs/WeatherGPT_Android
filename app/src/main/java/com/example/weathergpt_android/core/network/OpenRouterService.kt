@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit
 /**
  * Cloud Backend AI Service powered by FastAPI on Render.
  * Calls /api/ai/chat-stream with Google Gemini 2.5 Flash, dynamically persona-tuned (SIH26068).
- * Zero user API key required — securely authenticated via HMAC & client secret.
+ * Extracts raw textual tokens from SSE JSON chunks cleanly.
  */
 class OpenRouterService(private val context: Context) {
     private val client = OkHttpClient.Builder()
@@ -32,6 +32,28 @@ class OpenRouterService(private val context: Context) {
         .writeTimeout(15, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
         .build()
+
+    /**
+     * Parses an SSE data payload and extracts only the assistant content token.
+     * Prevents raw JSON strings from leaking into the UI / TTS.
+     */
+    private fun extractTokenFromSseChunk(data: String): String {
+        if (data.isBlank() || data == "[DONE]") return ""
+        return try {
+            val json = JSONObject(data)
+            val choices = json.optJSONArray("choices")
+            if (choices != null && choices.length() > 0) {
+                val first = choices.getJSONObject(0)
+                val delta = first.optJSONObject("delta")
+                delta?.optString("content", "") ?: first.optString("text", "")
+            } else {
+                json.optString("content", json.optString("text", ""))
+            }
+        } catch (e: Exception) {
+            // If it's not JSON, return as plain text
+            data
+        }
+    }
 
     /**
      * Real-time Server-Sent Events (SSE) streaming flow directly from FastAPI / Render backend.
@@ -57,9 +79,9 @@ class OpenRouterService(private val context: Context) {
         }
 
         val enrichedContext = if (profile.sector == UserSector.FARMER) {
-            "$weatherContext | Farmer Crops: ${profile.crops} | Land: ${profile.landArea}"
+            "$weatherContext | Farmer Crops: ${profile.crops} | Land: ${profile.landArea} | Language: ${profile.preferredLanguage}"
         } else {
-            "$weatherContext | User Role: ${profile.sector.title} | Region: ${profile.monitoredRegion}"
+            "$weatherContext | User Role: ${profile.sector.title} | Region: ${profile.monitoredRegion} | Language: ${profile.preferredLanguage}"
         }
 
         val jsonBody = JSONObject().apply {
@@ -105,10 +127,11 @@ class OpenRouterService(private val context: Context) {
             while (reader.readLine().also { line = it } != null) {
                 val currentLine = line ?: continue
                 if (currentLine.startsWith("data:")) {
-                    val data = currentLine.removePrefix("data:").trim()
-                    if (data == "[DONE]") break
-                    if (data.isNotEmpty()) {
-                        emit(data)
+                    val rawData = currentLine.removePrefix("data:").trim()
+                    if (rawData == "[DONE]") break
+                    val token = extractTokenFromSseChunk(rawData)
+                    if (token.isNotEmpty()) {
+                        emit(token)
                     }
                 }
             }
@@ -167,10 +190,11 @@ class OpenRouterService(private val context: Context) {
             while (reader.readLine().also { line = it } != null) {
                 val currentLine = line ?: continue
                 if (currentLine.startsWith("data:")) {
-                    val data = currentLine.removePrefix("data:").trim()
-                    if (data == "[DONE]") break
-                    if (data.isNotEmpty()) {
-                        fullText.append(data)
+                    val rawData = currentLine.removePrefix("data:").trim()
+                    if (rawData == "[DONE]") break
+                    val token = extractTokenFromSseChunk(rawData)
+                    if (token.isNotEmpty()) {
+                        fullText.append(token)
                     }
                 }
             }

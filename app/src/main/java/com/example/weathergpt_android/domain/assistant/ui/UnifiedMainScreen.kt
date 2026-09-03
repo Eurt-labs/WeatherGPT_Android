@@ -1,11 +1,5 @@
 package com.example.weathergpt_android.domain.assistant.ui
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -37,7 +31,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,19 +44,21 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.weathergpt_android.core.components.AmbientGlowBackground
 import com.example.weathergpt_android.core.theme.AppThemeMode
+import com.example.weathergpt_android.domain.assistant.data.ChatDatabaseHelper
 import com.example.weathergpt_android.domain.auth.model.UserProfile
 import com.example.weathergpt_android.domain.auth.model.UserSector
 import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
 
 /**
  * Single Unified Main Screen personalized to the user's role (SIH26068).
- * Features Obsidian base with diagonal neon purple light streak, top live pill, avatar,
- * 2x2 Bento Action Cards, and bottom glowing voice launcher bar.
+ * Tapping bottom bar opens Chat; tapping mic opens Voice.
+ * Kisan AI card displays Chat History.
  */
 @Composable
 fun UnifiedMainScreen(
@@ -69,6 +70,15 @@ fun UnifiedMainScreen(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val dbHelper = remember { ChatDatabaseHelper.getInstance(context) }
+    var totalHistoryCount by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        val messages = dbHelper.getAllMessages()
+        totalHistoryCount = messages.size
+    }
+
     val isDark = when (currentTheme) {
         AppThemeMode.DARK -> true
         AppThemeMode.LIGHT -> false
@@ -107,7 +117,7 @@ fun UnifiedMainScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Top Left Sector Pill (e.g. "🌾 Kisan AI ✨")
+                // Top Left Sector Pill
                 Surface(
                     modifier = Modifier
                         .clip(RoundedCornerShape(22.dp))
@@ -144,7 +154,7 @@ fun UnifiedMainScreen(
                     }
                 }
 
-                // Top Right Avatar with Neon Magenta/Purple Glowing Ring
+                // Top Right Avatar with Neon Ring
                 Box(
                     modifier = Modifier
                         .size(44.dp)
@@ -185,7 +195,7 @@ fun UnifiedMainScreen(
                 )
             }
 
-            // 2x2 Bento Action Cards (Dynamically prioritized by Sector)
+            // 2x2 Bento Action Cards
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -216,7 +226,7 @@ fun UnifiedMainScreen(
                     )
                 }
 
-                // Row 2: Personalized by Sector
+                // Row 2: Kisan AI Box displays Chat History
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
@@ -224,11 +234,11 @@ fun UnifiedMainScreen(
                     when (userProfile.sector) {
                         UserSector.FARMER -> {
                             BentoHubCard(
-                                title = "Kisan Advisory",
-                                subtitle = "Soil & Irrigation",
+                                title = "Kisan AI",
+                                subtitle = if (totalHistoryCount > 0) "Chat History ($totalHistoryCount)" else "View Chat History",
                                 icon = Icons.Rounded.Grass,
                                 iconTint = Color(0xFF10B981),
-                                onClick = { onLaunchChatWithPrompt("Explain current soil moisture, evapotranspiration, and irrigation advice for ${userProfile.crops}.") },
+                                onClick = { onLaunchChatWithPrompt("") }, // Opens Chat Window to view history
                                 modifier = Modifier.weight(1f),
                                 isDark = isDark
                             )
@@ -256,11 +266,11 @@ fun UnifiedMainScreen(
                             )
 
                             BentoHubCard(
-                                title = "Relief Hotline",
-                                subtitle = "Emergency Ops",
+                                title = "Chat History",
+                                subtitle = if (totalHistoryCount > 0) "History ($totalHistoryCount)" else "Emergency Log",
                                 icon = Icons.Rounded.AutoAwesome,
                                 iconTint = neonPurple,
-                                onClick = { onLaunchChatWithPrompt("What are the recommended evacuation steps and relief protocols for active alerts?") },
+                                onClick = { onLaunchChatWithPrompt("") },
                                 modifier = Modifier.weight(1f),
                                 isDark = isDark
                             )
@@ -278,11 +288,11 @@ fun UnifiedMainScreen(
                             )
 
                             BentoHubCard(
-                                title = "Transit Radar",
-                                subtitle = "Umbrella Alert",
+                                title = "Chat History",
+                                subtitle = if (totalHistoryCount > 0) "History ($totalHistoryCount)" else "View History",
                                 icon = Icons.Rounded.Thunderstorm,
                                 iconTint = Color(0xFFF59E0B),
-                                onClick = { onLaunchChatWithPrompt("Should I carry an umbrella today? What is the rain risk?") },
+                                onClick = { onLaunchChatWithPrompt("") },
                                 modifier = Modifier.weight(1f),
                                 isDark = isDark
                             )
@@ -300,11 +310,11 @@ fun UnifiedMainScreen(
                             )
 
                             BentoHubCard(
-                                title = "Cargo & Transit",
-                                subtitle = "Route Clearance",
+                                title = "Chat History",
+                                subtitle = if (totalHistoryCount > 0) "History ($totalHistoryCount)" else "Flight Logs",
                                 icon = Icons.Rounded.Thunderstorm,
                                 iconTint = Color(0xFFEF4444),
-                                onClick = { onLaunchChatWithPrompt("Are there storm cells affecting road or air transit routes?") },
+                                onClick = { onLaunchChatWithPrompt("") },
                                 modifier = Modifier.weight(1f),
                                 isDark = isDark
                             )
@@ -313,13 +323,13 @@ fun UnifiedMainScreen(
                 }
             }
 
-            // Bottom Glowing Launcher Bar
+            // Bottom Capsule: Tapping the bar opens Chat; tapping mic opens Voice!
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(64.dp)
                     .clip(RoundedCornerShape(32.dp))
-                    .clickable(onClick = onLaunchVoice),
+                    .clickable(onClick = { onLaunchChatWithPrompt("") }), // Tapping capsule opens Chat window
                 shape = RoundedCornerShape(32.dp),
                 color = if (isDark) Color(0x35160A2A) else Color(0xE0FFFFFF),
                 border = BorderStroke(
@@ -335,13 +345,14 @@ fun UnifiedMainScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Tap here to speak with WeatherGPT",
+                        text = "Tap here to chat with WeatherGPT",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
-                        color = textColor.copy(alpha = 0.9f)
+                        color = textColor.copy(alpha = 0.9f),
+                        modifier = Modifier.weight(1f)
                     )
 
-                    // Glowing Circular Mic Icon
+                    // Glowing Circular Mic Icon: Tapping specifically opens Voice!
                     Box(
                         modifier = Modifier
                             .size(44.dp)
@@ -350,7 +361,8 @@ fun UnifiedMainScreen(
                                 Brush.radialGradient(
                                     listOf(Color(0xFFE879F9), Color(0xFFC026D3), Color(0xFF7C3AED))
                                 )
-                            ),
+                            )
+                            .clickable(onClick = onLaunchVoice),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
