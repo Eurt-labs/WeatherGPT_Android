@@ -58,6 +58,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import com.example.weathergpt_android.core.components.LiquidMetalButton
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.weathergpt_android.core.components.AmbientGlowBackground
@@ -340,8 +341,9 @@ fun AuthOtpScreen(
                             }
                         }
 
-                        // Try Application as Guest Button
-                        Button(
+                        // ThreeUI Exact Canonical LiquidMetalButton (Sign up Pill)
+                        LiquidMetalButton(
+                            text = "Sign up",
                             onClick = {
                                 val guestProfile = UserProfile(
                                     userId = "guest_" + System.currentTimeMillis(),
@@ -359,22 +361,9 @@ fun AuthOtpScreen(
                                 )
                                 onAuthSuccess(guestProfile, true)
                             },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isDark) Color(0x25C026D3) else Color(0x15C026D3),
-                                contentColor = neonMagenta
-                            ),
-                            border = BorderStroke(1.dp, neonMagenta.copy(alpha = 0.5f))
-                        ) {
-                            Text(
-                                text = "Try Application (Explore as Guest) ✨",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                            height = 68.dp
+                        )
                     } else {
                         // Step 2: 6-Digit OTP Code Input
                         Text(
