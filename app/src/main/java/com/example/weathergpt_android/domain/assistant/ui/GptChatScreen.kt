@@ -1,5 +1,9 @@
 package com.example.weathergpt_android.domain.assistant.ui
 
+import android.speech.tts.TextToSpeech
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,7 +13,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,24 +21,30 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.VolumeUp
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -46,27 +55,39 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.weathergpt_android.core.components.AmbientGlowBackground
-import com.example.weathergpt_android.core.components.FrostedBottomInputBar
-import com.example.weathergpt_android.core.components.FrostedGlassCard
 import com.example.weathergpt_android.core.components.FrostedIconButton
 import com.example.weathergpt_android.core.network.OpenRouterService
 import com.example.weathergpt_android.core.theme.AppThemeMode
+import com.example.weathergpt_android.domain.assistant.data.ChatDatabaseHelper
 import com.example.weathergpt_android.domain.assistant.model.ChatMessage
+import com.example.weathergpt_android.domain.auth.data.UserPreferences
+import com.example.weathergpt_android.domain.auth.model.UserSector
 import com.example.weathergpt_android.domain.location.model.LocationData
 import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
+/**
+ * Obsidian Frosted Glass Chat Window for WeatherGPT.
+ * Connected with SQLite persistence (ChatDatabaseHelper), SSE token sanitization,
+ * TTS speech output, and sector-personalized prompt hints.
+ */
 @Composable
 fun GptChatScreen(
     currentTheme: AppThemeMode,
@@ -80,7 +101,10 @@ fun GptChatScreen(
 ) {
     val context = LocalContext.current
     val openRouterService = remember { OpenRouterService(context) }
+    val dbHelper = remember { ChatDatabaseHelper.getInstance(context) }
+    val userProfile = remember { UserPreferences.getProfile(context) }
     val scope = rememberCoroutineScope()
+
     val isDark = when (currentTheme) {
         AppThemeMode.DARK -> true
         AppThemeMode.LIGHT -> false
@@ -89,20 +113,88 @@ fun GptChatScreen(
 
     val textColor = if (isDark) Color.White else Color(0xFF0F172A)
     val subtitleColor = if (isDark) Color.White.copy(alpha = 0.65f) else Color(0xFF64748B)
+    val neonPurple = Color(0xFF9333EA)
+    val neonMagenta = Color(0xFFC026D3)
+    val neonCoral = Color(0xFFFF5722)
 
     var isGenerating by remember { mutableStateOf(false) }
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
-    val messages = remember {
-        mutableStateListOf(
-            ChatMessage(
-                id = "1",
-                text = "Hello! I'm WeatherGPT powered by Google Gemini 2.5 Flash.\n\nCurrently in ${locationData.cityName}, it's ${liveWeatherData.temperature} with ${liveWeatherData.condition}, humidity at ${liveWeatherData.humidity}, and AQI at ${liveWeatherData.aqi}. Ask me anything!",
+    // TextToSpeech for Voice Readout
+    var tts by remember { mutableStateOf<TextToSpeech?>(null) }
+    DisposableEffect(Unit) {
+        val ttsEngine = TextToSpeech(context) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                val locale = when (userProfile.preferredLanguage.lowercase()) {
+                    "hi" -> Locale("hi", "IN")
+                    "mr" -> Locale("mr", "IN")
+                    "bn" -> Locale("bn", "IN")
+                    "ta" -> Locale("ta", "IN")
+                    "te" -> Locale("te", "IN")
+                    else -> Locale.ENGLISH
+                }
+                tts?.language = locale
+            }
+        }
+        tts = ttsEngine
+        onDispose {
+            ttsEngine.stop()
+            ttsEngine.shutdown()
+        }
+    }
+
+    val messages = remember { mutableStateListOf<ChatMessage>() }
+
+    // Load persisted chat history from SQLite on launch
+    LaunchedEffect(Unit) {
+        val savedHistory = dbHelper.getAllMessages()
+        if (savedHistory.isNotEmpty()) {
+            messages.addAll(savedHistory)
+        } else {
+            val greeting = when (userProfile.sector) {
+                UserSector.FARMER -> "नमस्ते ${userProfile.name}! I am WeatherGPT Kisan AI.\n\nCurrently in ${locationData.cityName}, temperature is ${liveWeatherData.temperature} with ${liveWeatherData.condition}. Soil moisture is ${liveWeatherData.soilMoisture}. Ask about irrigation, sowing, or weather advisories for ${userProfile.crops}!"
+                UserSector.DISASTER_OFFICER -> "Hello Officer ${userProfile.name}. WeatherGPT Disaster Command active.\n\nCurrent Flood Risk is ${liveWeatherData.floodRiskLevel}. River discharge & storm alert models standing by for ${userProfile.monitoredRegion}."
+                UserSector.COMMUTER -> "Hi ${userProfile.name}! Currently in ${locationData.cityName}: ${liveWeatherData.temperature}, ${liveWeatherData.condition}, and AQI is ${liveWeatherData.aqi}. Ask for rain windows and travel advisories!"
+                UserSector.AVIATION_LOGISTICS -> "Aviation WeatherGPT online. Surface wind ${liveWeatherData.windSpeed}, visibility good. Ask for cloud ceilings, crosswinds, or route briefings."
+            }
+            val welcomeMsg = ChatMessage(
+                id = "welcome_msg",
+                text = greeting,
                 isUser = false,
                 timestamp = "Just now"
             )
-        )
+            messages.add(welcomeMsg)
+            scope.launch {
+                dbHelper.saveMessage(welcomeMsg, 0)
+            }
+        }
+    }
+
+    /**
+     * Sanitizes tokens so raw JSON SSE chunks never appear in the chat bubble.
+     */
+    fun sanitizeChunk(raw: String): String {
+        if (!raw.contains("{\"id\":") && !raw.startsWith("data:")) return raw
+        return try {
+            val lines = raw.lines()
+            val sb = StringBuilder()
+            for (line in lines) {
+                val clean = line.removePrefix("data:").trim()
+                if (clean.isNotEmpty() && clean != "[DONE]") {
+                    val json = JSONObject(clean)
+                    val choices = json.optJSONArray("choices")
+                    if (choices != null && choices.length() > 0) {
+                        val delta = choices.getJSONObject(0).optJSONObject("delta")
+                        val content = delta?.optString("content", "") ?: choices.getJSONObject(0).optString("text", "")
+                        sb.append(content)
+                    }
+                }
+            }
+            if (sb.isNotEmpty()) sb.toString() else raw
+        } catch (e: Exception) {
+            raw
+        }
     }
 
     fun sendMessage(userText: String) {
@@ -115,6 +207,9 @@ fun GptChatScreen(
             timestamp = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
         )
         messages.add(userMessage)
+        scope.launch {
+            dbHelper.saveMessage(userMessage, userMessage.text.length / 4)
+        }
 
         val assistantMessageId = UUID.randomUUID().toString()
         val assistantMessage = ChatMessage(
@@ -138,25 +233,37 @@ fun GptChatScreen(
 
             val weatherContext = "${liveWeatherData.temperature}, ${liveWeatherData.condition}, Humidity ${liveWeatherData.humidity}, Wind ${liveWeatherData.windSpeed}, AQI ${liveWeatherData.aqi}, Soil ${liveWeatherData.soilMoisture}, Flood ${liveWeatherData.floodRiskLevel}"
 
+            var accumulatedResponse = ""
+
             openRouterService.streamChatCompletion(
                 userMessage = userText,
                 locationContext = "${locationData.cityName}, ${locationData.country}",
                 weatherContext = weatherContext,
-                history = history
+                history = history,
+                isVoiceMode = false
             ).catch { error ->
                 val index = messages.indexOfFirst { it.id == assistantMessageId }
                 if (index != -1) {
-                    messages[index] = messages[index].copy(
-                        text = "Connection error: ${error.localizedMessage ?: "Please check your network and OpenRouter API key in Settings."}"
-                    )
+                    val errorMsg = "Connection error: ${error.localizedMessage ?: "Please check internet connection."}"
+                    messages[index] = messages[index].copy(text = errorMsg)
+                    dbHelper.saveMessage(messages[index], 0)
                 }
                 isGenerating = false
             }.collect { token ->
+                val cleanToken = sanitizeChunk(token)
+                accumulatedResponse += cleanToken
                 val index = messages.indexOfFirst { it.id == assistantMessageId }
                 if (index != -1) {
-                    val currentText = messages[index].text
-                    messages[index] = messages[index].copy(text = currentText + token)
+                    messages[index] = messages[index].copy(text = accumulatedResponse)
                     listState.scrollToItem(messages.size - 1)
+                }
+            }
+
+            // Save final assistant message to SQLite
+            if (accumulatedResponse.isNotBlank()) {
+                val index = messages.indexOfFirst { it.id == assistantMessageId }
+                if (index != -1) {
+                    dbHelper.saveMessage(messages[index], accumulatedResponse.length / 4)
                 }
             }
             isGenerating = false
@@ -186,14 +293,14 @@ fun GptChatScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 10.dp),
+                    .padding(bottom = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 FrostedIconButton(
                     icon = Icons.AutoMirrored.Rounded.ArrowBack,
                     onClick = onBack,
-                    size = 38.dp,
+                    size = 40.dp,
                     isDark = isDark
                 )
 
@@ -204,48 +311,52 @@ fun GptChatScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(10.dp)
+                                .size(9.dp)
                                 .clip(CircleShape)
-                                .background(if (isGenerating) Color(0xFFFF8A65) else Color(0xFF10B981))
+                                .background(if (isGenerating) neonMagenta else Color(0xFF10B981))
                         )
                         Text(
-                            text = "WeatherGPT",
-                            fontSize = 16.sp,
+                            text = userProfile.sector.title,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             color = textColor
                         )
                     }
                     Text(
-                        text = "Google: Gemini 2.5 Flash",
+                        text = "Gemini 2.5 Flash • ${locationData.cityName}",
                         fontSize = 11.sp,
                         color = subtitleColor
                     )
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Clear History Button
                     FrostedIconButton(
                         icon = Icons.Rounded.DeleteOutline,
                         onClick = {
+                            scope.launch {
+                                dbHelper.clearHistory()
+                            }
                             messages.clear()
-                            messages.add(
-                                ChatMessage(
-                                    id = "1",
-                                    text = "Conversation cleared. How can I help you today?",
-                                    isUser = false,
-                                    timestamp = "Just now"
-                                )
+                            val reset = ChatMessage(
+                                id = "cleared",
+                                text = "Conversation history cleared. Ask me anything about the weather!",
+                                isUser = false,
+                                timestamp = "Just now"
                             )
+                            messages.add(reset)
                         },
-                        size = 38.dp,
-                        iconSize = 18.dp,
+                        size = 40.dp,
+                        iconSize = 19.dp,
                         isDark = isDark
                     )
 
+                    // Settings Button
                     FrostedIconButton(
                         icon = Icons.Rounded.Settings,
                         onClick = onOpenSettings,
-                        size = 38.dp,
-                        iconSize = 18.dp,
+                        size = 40.dp,
+                        iconSize = 19.dp,
                         isDark = isDark
                     )
                 }
@@ -257,7 +368,7 @@ fun GptChatScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-                contentPadding = PaddingValues(vertical = 12.dp),
+                contentPadding = PaddingValues(vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 items(messages, key = { it.id }) { msg ->
@@ -265,26 +376,173 @@ fun GptChatScreen(
                         message = msg,
                         isDark = isDark,
                         onSpeak = {
-                            // Instant voice synthesis / playback trigger
+                            tts?.speak(msg.text, TextToSpeech.QUEUE_FLUSH, null, msg.id)
                         }
                     )
                 }
             }
 
-            // Bottom Frosted Input Bar
-            FrostedBottomInputBar(
-                inputText = inputText,
-                onInputChange = { inputText = it },
-                onSend = {
-                    val text = inputText
-                    inputText = ""
-                    sendMessage(text)
-                },
-                onMicClick = onLaunchVoice,
-                onVoiceWaveformClick = onLaunchVoice,
-                placeholderText = "Ask Gemini 2.5 Flash...",
-                isDark = isDark
-            )
+            // Quick Prompt Suggestion Pills (if not generating)
+            AnimatedVisibility(
+                visible = !isGenerating && messages.size <= 4,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                val suggestions = when (userProfile.sector) {
+                    UserSector.FARMER -> listOf(
+                        "🌾 Irrigation advice for ${userProfile.crops.split(",").firstOrNull() ?: "Wheat"}",
+                        "💧 Current soil moisture status",
+                        "🌧️ Will it rain in next 3 days?"
+                    )
+                    UserSector.DISASTER_OFFICER -> listOf(
+                        "🚨 Flash flood and river discharge check",
+                        "⚡ Severe weather alerts",
+                        "🛡️ Evacuation protocol briefing"
+                    )
+                    UserSector.COMMUTER -> listOf(
+                        "☔ Do I need an umbrella today?",
+                        "🚗 Rain impact on evening commute",
+                        "😷 Air Quality Index breakdown"
+                    )
+                    UserSector.AVIATION_LOGISTICS -> listOf(
+                        "✈️ METAR brief: Crosswinds & gusts",
+                        "☁️ Cloud ceiling & visibility",
+                        "📦 Road freight weather hazards"
+                    )
+                }
+
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(suggestions) { prompt ->
+                        Surface(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .clickable { sendMessage(prompt) },
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (isDark) Color(0x351E1035) else Color(0xFFF1F5F9),
+                            border = BorderStroke(1.dp, if (isDark) Color(0x40C026D3) else Color(0xFFE2E8F0))
+                        ) {
+                            Text(
+                                text = prompt,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = if (isDark) Color.White.copy(alpha = 0.85f) else Color(0xFF334155),
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Bottom Obsidian Frosted Input Bar
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp)
+                    .shadow(16.dp, RoundedCornerShape(30.dp), ambientColor = Color(0x40000000), spotColor = Color(0x40000000)),
+                shape = RoundedCornerShape(30.dp),
+                color = if (isDark) Color(0x55120824) else Color(0xEEFFFFFF),
+                border = BorderStroke(
+                    1.2.dp,
+                    Brush.horizontalGradient(listOf(neonPurple.copy(alpha = 0.6f), neonMagenta.copy(alpha = 0.6f), neonCoral.copy(alpha = 0.4f)))
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Voice AI Mic Button inside Input Bar
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(if (isDark) Color(0x25C026D3) else Color(0x15C026D3))
+                            .clickable(onClick = onLaunchVoice),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Mic,
+                            contentDescription = "Voice Mode",
+                            tint = neonMagenta,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    // Input Field
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 4.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (inputText.isEmpty()) {
+                            Text(
+                                text = "Ask Gemini 2.5 Flash in ${userProfile.preferredLanguage.uppercase()}...",
+                                color = subtitleColor,
+                                fontSize = 14.sp
+                            )
+                        }
+                        BasicTextField(
+                            value = inputText,
+                            onValueChange = { inputText = it },
+                            textStyle = TextStyle(
+                                color = textColor,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Normal
+                            ),
+                            cursorBrush = SolidColor(neonMagenta),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                            keyboardActions = KeyboardActions(onSend = {
+                                if (inputText.isNotBlank()) {
+                                    val t = inputText
+                                    inputText = ""
+                                    sendMessage(t)
+                                }
+                            }),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    // Send Button with Glowing Purple/Magenta Gradient
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(
+                                Brush.radialGradient(
+                                    listOf(Color(0xFFE879F9), Color(0xFFC026D3), Color(0xFF7C3AED))
+                                )
+                            )
+                            .clickable(enabled = !isGenerating && inputText.isNotBlank()) {
+                                if (inputText.isNotBlank()) {
+                                    val t = inputText
+                                    inputText = ""
+                                    sendMessage(t)
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isGenerating) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.Send,
+                                contentDescription = "Send",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -298,32 +556,49 @@ private fun ChatBubbleItem(
     val isUser = message.isUser
     val alignment = if (isUser) Alignment.End else Alignment.Start
 
+    val neonPurple = Color(0xFF9333EA)
+    val neonMagenta = Color(0xFFC026D3)
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = alignment
     ) {
         if (isUser) {
-            // User message bubble (Amber/Cyan vibrant gradient)
+            // User message bubble: Signature Gradient Pill
             Surface(
-                modifier = Modifier.widthIn(max = 290.dp),
+                modifier = Modifier
+                    .widthIn(max = 295.dp)
+                    .shadow(8.dp, RoundedCornerShape(22.dp, 22.dp, 4.dp, 22.dp), ambientColor = Color(0x30000000), spotColor = Color(0x30000000)),
                 shape = RoundedCornerShape(22.dp, 22.dp, 4.dp, 22.dp),
-                color = if (isDark) Color(0xFFDF5B18) else Color(0xFF0284C7),
-                border = BorderStroke(1.dp, if (isDark) Color(0xFFFF8A65) else Color(0xFF38BDF8))
+                color = Color.Transparent,
+                border = BorderStroke(1.dp, Color(0x40FFFFFF))
             ) {
-                Text(
-                    text = message.text,
-                    color = Color.White,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .background(Brush.horizontalGradient(listOf(neonPurple, neonMagenta)))
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Text(
+                        text = message.text,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         } else {
-            // Assistant frosted glass message bubble
-            FrostedGlassCard(
-                modifier = Modifier.widthIn(max = 320.dp),
-                cornerRadius = 22.dp,
-                isDark = isDark
+            // Assistant frosted glass message bubble with neon accents
+            Surface(
+                modifier = Modifier
+                    .widthIn(max = 330.dp)
+                    .shadow(12.dp, RoundedCornerShape(4.dp, 22.dp, 22.dp, 22.dp), ambientColor = Color(0x30000000), spotColor = Color(0x30000000)),
+                shape = RoundedCornerShape(4.dp, 22.dp, 22.dp, 22.dp),
+                color = if (isDark) Color(0x30180F2C) else Color(0xF0FFFFFF),
+                border = BorderStroke(
+                    1.dp,
+                    if (isDark) Brush.horizontalGradient(listOf(Color(0x50C026D3), Color(0x209333EA))) else Brush.horizontalGradient(listOf(Color(0x30C026D3), Color(0x209333EA)))
+                )
             ) {
                 Column(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -342,13 +617,13 @@ private fun ChatBubbleItem(
                                 modifier = Modifier
                                     .size(20.dp)
                                     .clip(CircleShape)
-                                    .background(if (isDark) Color(0x35FF8A65) else Color(0x350284C7)),
+                                    .background(Color(0x30C026D3)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.AutoAwesome,
                                     contentDescription = null,
-                                    tint = if (isDark) Color(0xFFFF8A65) else Color(0xFF0284C7),
+                                    tint = neonMagenta,
                                     modifier = Modifier.size(12.dp)
                                 )
                             }
@@ -356,30 +631,38 @@ private fun ChatBubbleItem(
                                 text = "Gemini 2.5 Flash",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (isDark) Color(0xFFFF9E64) else Color(0xFF0284C7)
+                                color = neonMagenta
                             )
                         }
 
-                        Icon(
-                            imageVector = Icons.Rounded.GraphicEq,
-                            contentDescription = "Read Aloud",
-                            tint = if (isDark) Color.White.copy(alpha = 0.5f) else Color(0xFF94A3B8),
+                        // Read aloud speaker button
+                        Box(
                             modifier = Modifier
-                                .size(16.dp)
-                                .clickable(onClick = onSpeak)
-                        )
+                                .size(26.dp)
+                                .clip(CircleShape)
+                                .background(if (isDark) Color(0x20FFFFFF) else Color(0x40E2E8F0))
+                                .clickable(onClick = onSpeak),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.GraphicEq,
+                                contentDescription = "Read Aloud",
+                                tint = if (isDark) Color.White.copy(alpha = 0.7f) else Color(0xFF64748B),
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
                     }
 
                     Text(
                         text = if (message.text.isEmpty()) "..." else message.text,
                         color = if (isDark) Color.White.copy(alpha = 0.95f) else Color(0xFF0F172A),
                         fontSize = 14.sp,
-                        lineHeight = 21.sp
+                        lineHeight = 22.sp
                     )
 
                     Text(
                         text = message.timestamp,
-                        color = if (isDark) Color.White.copy(alpha = 0.45f) else Color(0xFF94A3B8),
+                        color = if (isDark) Color.White.copy(alpha = 0.40f) else Color(0xFF94A3B8),
                         fontSize = 10.sp
                     )
                 }
