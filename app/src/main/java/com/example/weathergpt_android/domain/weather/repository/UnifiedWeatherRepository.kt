@@ -2,15 +2,17 @@ package com.example.weathergpt_android.domain.weather.repository
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.example.weathergpt_android.core.network.WeatherProviderPreferences
 import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
-import com.example.weathergpt_android.domain.weather.model.WeatherProviderType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+/**
+ * 100% Pure Open-Meteo Unified Weather Repository.
+ * Zero external keys required, 10,000 free high-resolution calls/day,
+ * CPCB AQI, soil moisture, flood risk, and aviation metrics.
+ */
 class UnifiedWeatherRepository(private val context: Context) {
     private val openMeteoRepo = OpenMeteoRepository()
-    private val openWeatherRepo = OpenWeatherRepository(context)
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences("weathergpt_live_cache", Context.MODE_PRIVATE)
@@ -23,6 +25,8 @@ class UnifiedWeatherRepository(private val context: Context) {
         val hum = prefs.getString("cached_hum", "52%") ?: "52%"
         val uv = prefs.getString("cached_uv", "3 (Mod)") ?: "3 (Mod)"
         val aqi = prefs.getString("cached_aqi", "34 (Good)") ?: "34 (Good)"
+        val soil = prefs.getString("cached_soil", "0.29 m³/m³") ?: "0.29 m³/m³"
+        val flood = prefs.getString("cached_flood", "Normal (Low Risk)") ?: "Normal (Low Risk)"
 
         return LiveWeatherData(
             temperature = temp,
@@ -32,6 +36,8 @@ class UnifiedWeatherRepository(private val context: Context) {
             humidity = hum,
             uvIndex = uv,
             aqi = aqi,
+            soilMoisture = soil,
+            floodRiskLevel = flood,
             isLive = true
         )
     }
@@ -45,36 +51,20 @@ class UnifiedWeatherRepository(private val context: Context) {
             .putString("cached_hum", data.humidity)
             .putString("cached_uv", data.uvIndex)
             .putString("cached_aqi", data.aqi)
+            .putString("cached_soil", data.soilMoisture)
+            .putString("cached_flood", data.floodRiskLevel)
             .putLong("cached_time", System.currentTimeMillis())
             .apply()
     }
 
     suspend fun fetchLiveWeather(
         latitude: Double,
-        longitude: Double,
-        forceProvider: WeatherProviderType? = null
+        longitude: Double
     ): Result<LiveWeatherData> = withContext(Dispatchers.IO) {
-        val selectedProvider = forceProvider ?: WeatherProviderPreferences.getSelectedProvider(context)
-
-        val result = when (selectedProvider) {
-            WeatherProviderType.OPEN_METEO -> {
-                openMeteoRepo.fetchWeather(latitude, longitude)
-            }
-            WeatherProviderType.OPEN_WEATHER -> {
-                val owResult = openWeatherRepo.fetchLiveWeather(latitude, longitude)
-                if (owResult.isSuccess) {
-                    owResult
-                } else {
-                    // Seamless fallback to Open-Meteo if OpenWeather fails
-                    openMeteoRepo.fetchWeather(latitude, longitude)
-                }
-            }
+        val result = openMeteoRepo.fetchWeather(latitude, longitude)
+        result.onSuccess { data ->
+            cacheWeather(data)
         }
-
-        result.onSuccess { liveData ->
-            cacheWeather(liveData)
-        }
-
         result
     }
 }

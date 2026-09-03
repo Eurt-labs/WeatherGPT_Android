@@ -55,7 +55,6 @@ import com.example.weathergpt_android.core.components.AmbientGlowBackground
 import com.example.weathergpt_android.core.components.FrostedBottomInputBar
 import com.example.weathergpt_android.core.components.FrostedGlassCard
 import com.example.weathergpt_android.core.components.FrostedIconButton
-import com.example.weathergpt_android.core.network.OpenRouterPreferences
 import com.example.weathergpt_android.core.network.OpenRouterService
 import com.example.weathergpt_android.core.theme.AppThemeMode
 import com.example.weathergpt_android.domain.assistant.model.ChatMessage
@@ -362,7 +361,7 @@ private fun ChatBubbleItem(
                         }
 
                         Icon(
-                            imageVector = Icons.Rounded.VolumeUp,
+                            imageVector = Icons.Rounded.GraphicEq,
                             contentDescription = "Read Aloud",
                             tint = if (isDark) Color.White.copy(alpha = 0.5f) else Color(0xFF94A3B8),
                             modifier = Modifier

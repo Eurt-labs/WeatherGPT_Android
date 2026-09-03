@@ -17,96 +17,61 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.util.concurrent.TimeUnit
 
+/**
+ * Cloud Backend AI Service powered by FastAPI on Render.
+ * Calls /api/ai/chat-stream with Google Gemini 2.5 Flash.
+ * Zero user API key required — securely authenticated via HMAC & client secret.
+ */
 class OpenRouterService(private val context: Context) {
-    // Ultra-low latency optimized HTTP/2 client with persistent connection pooling
     private val client = OkHttpClient.Builder()
         .connectionPool(ConnectionPool(8, 5, TimeUnit.MINUTES))
-        .connectTimeout(12, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(12, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(45, TimeUnit.SECONDS)
+        .writeTimeout(15, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
         .build()
 
     /**
-     * Real-time Server-Sent Events (SSE) streaming flow for instant token rendering via Google Gemma 4 31B
+     * Real-time Server-Sent Events (SSE) streaming flow directly from FastAPI / Render backend.
      */
     fun streamChatCompletion(
         userMessage: String,
-        locationContext: String = "San Francisco, CA",
-        weatherContext: String = "24°C, Clear Sky, Humidity 52%, Wind 14 km/h, AQI 34",
+        locationContext: String = "Live Location",
+        weatherContext: String = "",
         history: List<Pair<String, String>> = emptyList(),
         isVoiceMode: Boolean = false
     ): Flow<String> = flow {
-        val apiKey = OpenRouterPreferences.getApiKey(context)
-        val model = OpenRouterPreferences.getSelectedModel(context)
+        val endpoint = "/api/ai/chat-stream"
+        val backendUrl = "${BackendConfig.BASE_URL}$endpoint"
 
-        val systemPrompt = if (isVoiceMode) {
-            """
-                You are WeatherGPT Voice, an ultra-fast multimodal AI meteorologist powered by Google Gemini 2.5 Flash.
-                Location: $locationContext
-                Live Weather: $weatherContext
-                
-                CRITICAL INSTRUCTIONS FOR LOW LATENCY:
-                - Give a direct, punchy, 1-to-2 sentence answer in the user's language (English, Hindi, Marathi, Bengali, Tamil, Telugu, etc.).
-                - Never use markdown bolding, bullet points, or preamble like 'Sure!' or 'Here is the forecast:'.
-                - Speak naturally for immediate audio playback.
-            """.trimIndent()
-        } else {
-            """
-                You are WeatherGPT, an advanced AI meteorologist powered by Google Gemini 2.5 Flash.
-                Location: $locationContext
-                Live Weather: $weatherContext
-                
-                Guidelines:
-                - Provide clear, concise, actionable weather intelligence and advice in the user's language (English, Hindi, Marathi, Bengali, Tamil, Telugu, etc.).
-                - Keep responses crisp and immediately useful.
-            """.trimIndent()
-        }
-
-        val messagesArray = JSONArray()
-        messagesArray.put(
-            JSONObject().apply {
-                put("role", "system")
-                put("content", systemPrompt)
-            }
-        )
-
-        for ((role, text) in history.takeLast(4)) {
-            messagesArray.put(
-                JSONObject().apply {
-                    put("role", if (role == "user") "user" else "assistant")
+        val historyArray = JSONArray().apply {
+            for ((role, text) in history.takeLast(4)) {
+                put(JSONObject().apply {
+                    put("role", role)
                     put("content", text)
-                }
-            )
-        }
-
-        messagesArray.put(
-            JSONObject().apply {
-                put("role", "user")
-                put("content", userMessage)
+                })
             }
-        )
+        }
 
         val jsonBody = JSONObject().apply {
-            put("model", model)
-            put("messages", messagesArray)
-            put("stream", true)
-            put("temperature", 0.3)
-            put("max_tokens", if (isVoiceMode) 120 else 450)
+            put("message", userMessage)
+            put("location", locationContext)
+            put("weather_context", weatherContext)
+            put("is_voice_mode", isVoiceMode)
+            put("history", historyArray)
         }
 
-        val requestBody = jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+        val requestBody = jsonBody.toString().toRequestBody("application/json".toMediaType())
+        val securityHeaders = HmacSigner.generateSecurityHeaders(endpoint)
 
         val requestBuilder = Request.Builder()
-            .url("https://openrouter.ai/api/v1/chat/completions")
+            .url(backendUrl)
             .post(requestBody)
             .addHeader("Content-Type", "application/json")
             .addHeader("Accept", "text/event-stream")
-            .addHeader("HTTP-Referer", "https://weathergpt.ai")
-            .addHeader("X-Title", "WeatherGPT Android")
 
-        if (apiKey.isNotBlank()) {
-            requestBuilder.addHeader("Authorization", "Bearer $apiKey")
+        for ((headerName, headerVal) in securityHeaders) {
+            requestBuilder.addHeader(headerName, headerVal)
         }
 
         val request = requestBuilder.build()
@@ -114,39 +79,28 @@ class OpenRouterService(private val context: Context) {
         try {
             val response = client.newCall(request).execute()
             if (!response.isSuccessful) {
-                val errorBody = response.body?.string() ?: "HTTP ${response.code}"
-                emit("Error (${response.code}): $errorBody")
+                emit("Cloud backend error: HTTP ${response.code}. Please check connection.")
                 return@flow
             }
 
-            val inputStream = response.body?.byteStream()
-            if (inputStream != null) {
-                val reader = BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8))
-                var line: String?
+            val responseBody = response.body
+            if (responseBody == null) {
+                emit("Empty response from AI server.")
+                return@flow
+            }
 
-                while (reader.readLine().also { line = it } != null) {
-                    val currentLine = line?.trim() ?: continue
-                    if (currentLine.startsWith("data:")) {
-                        val data = currentLine.removePrefix("data:").trim()
-                        if (data == "[DONE]") break
-                        if (data.isNotBlank()) {
-                            try {
-                                val json = JSONObject(data)
-                                val choices = json.optJSONArray("choices")
-                                if (choices != null && choices.length() > 0) {
-                                    val delta = choices.getJSONObject(0).optJSONObject("delta")
-                                    val token = delta?.optString("content") ?: ""
-                                    if (token.isNotEmpty()) {
-                                        emit(token)
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                // Skip malformed chunks
-                            }
-                        }
+            val reader = BufferedReader(InputStreamReader(responseBody.byteStream(), Charsets.UTF_8))
+            var line: String?
+
+            while (reader.readLine().also { line = it } != null) {
+                val currentLine = line ?: continue
+                if (currentLine.startsWith("data:")) {
+                    val data = currentLine.removePrefix("data:").trim()
+                    if (data == "[DONE]") break
+                    if (data.isNotEmpty()) {
+                        emit(data)
                     }
                 }
-                reader.close()
             }
         } catch (e: Exception) {
             emit("Connection failed: ${e.message}")
@@ -154,66 +108,61 @@ class OpenRouterService(private val context: Context) {
     }.flowOn(Dispatchers.IO)
 
     /**
-     * Non-streaming fallback for Google Gemma 4 31B
+     * Non-streaming fallback for status tests & one-shot queries.
      */
     suspend fun generateChatCompletion(
         userMessage: String,
-        locationContext: String = "San Francisco, CA",
-        weatherContext: String = "24°C, Sunny, Humidity 52%, Wind 14 km/h, AQI 34",
+        locationContext: String = "Live Location",
+        weatherContext: String = "",
         history: List<Pair<String, String>> = emptyList()
     ): Result<String> = withContext(Dispatchers.IO) {
-        val apiKey = OpenRouterPreferences.getApiKey(context)
-        val model = OpenRouterPreferences.getSelectedModel(context)
-
-        val messagesArray = JSONArray().apply {
-            put(JSONObject().apply {
-                put("role", "system")
-                put("content", "You are WeatherGPT powered by Google Gemini 2.5 Flash. Location: $locationContext. Weather: $weatherContext. Be concise and fast in the user's language.")
-            })
-            for ((role, text) in history.takeLast(4)) {
-                put(JSONObject().apply {
-                    put("role", if (role == "user") "user" else "assistant")
-                    put("content", text)
-                })
-            }
-            put(JSONObject().apply {
-                put("role", "user")
-                put("content", userMessage)
-            })
-        }
+        val endpoint = "/api/ai/chat-stream"
+        val backendUrl = "${BackendConfig.BASE_URL}$endpoint"
 
         val jsonBody = JSONObject().apply {
-            put("model", model)
-            put("messages", messagesArray)
-            put("temperature", 0.4)
-            put("max_tokens", 350)
+            put("message", userMessage)
+            put("location", locationContext)
+            put("weather_context", weatherContext)
+            put("is_voice_mode", false)
+            put("history", JSONArray())
         }
 
-        val request = Request.Builder()
-            .url("https://openrouter.ai/api/v1/chat/completions")
-            .post(jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
+        val requestBody = jsonBody.toString().toRequestBody("application/json".toMediaType())
+        val securityHeaders = HmacSigner.generateSecurityHeaders(endpoint)
+
+        val requestBuilder = Request.Builder()
+            .url(backendUrl)
+            .post(requestBody)
             .addHeader("Content-Type", "application/json")
-            .addHeader("HTTP-Referer", "https://weathergpt.ai")
-            .addHeader("X-Title", "WeatherGPT Android")
-            .apply {
-                if (apiKey.isNotBlank()) addHeader("Authorization", "Bearer $apiKey")
-            }
-            .build()
+            .addHeader("Accept", "text/event-stream")
+
+        for ((headerName, headerVal) in securityHeaders) {
+            requestBuilder.addHeader(headerName, headerVal)
+        }
+
+        val request = requestBuilder.build()
 
         try {
             val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: ""
             if (!response.isSuccessful) {
-                return@withContext Result.failure(Exception("HTTP ${response.code}: $body"))
+                return@withContext Result.failure(Exception("HTTP ${response.code}: ${response.message}"))
             }
-            val json = JSONObject(body)
-            val choices = json.optJSONArray("choices")
-            if (choices != null && choices.length() > 0) {
-                val content = choices.getJSONObject(0).optJSONObject("message")?.optString("content") ?: ""
-                Result.success(content)
-            } else {
-                Result.failure(Exception("Empty choices in response"))
+
+            val reader = BufferedReader(InputStreamReader(response.body?.byteStream() ?: return@withContext Result.failure(Exception("Empty body"))))
+            val fullText = StringBuilder()
+            var line: String?
+
+            while (reader.readLine().also { line = it } != null) {
+                val currentLine = line ?: continue
+                if (currentLine.startsWith("data:")) {
+                    val data = currentLine.removePrefix("data:").trim()
+                    if (data == "[DONE]") break
+                    if (data.isNotEmpty()) {
+                        fullText.append(data)
+                    }
+                }
             }
+            Result.success(fullText.toString().trim())
         } catch (e: Exception) {
             Result.failure(e)
         }

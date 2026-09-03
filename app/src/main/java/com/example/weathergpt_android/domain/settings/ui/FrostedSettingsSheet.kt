@@ -14,18 +14,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CloudDone
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.DeleteOutline
-import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.QueryStats
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.VpnKeyOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -44,14 +44,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.weathergpt_android.core.components.FrostedIconButton
-import com.example.weathergpt_android.core.network.OpenRouterPreferences
+import com.example.weathergpt_android.core.network.BackendConfig
 import com.example.weathergpt_android.core.network.OpenRouterService
 import com.example.weathergpt_android.core.theme.AppThemeMode
 import com.example.weathergpt_android.domain.assistant.data.ChatDatabaseHelper
@@ -59,8 +57,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Ultra-high contrast Frosted Settings Modal.
- * Guaranteed 100% text readability on all displays, token database analytics,
- * and appearance mode controls.
+ * Cloud-managed backend architecture: zero user API keys required!
  */
 @Composable
 fun FrostedSettingsSheet(
@@ -80,7 +77,6 @@ fun FrostedSettingsSheet(
         AppThemeMode.SYSTEM -> isSystemInDarkTheme()
     }
 
-    var apiKey by remember { mutableStateOf(OpenRouterPreferences.getApiKey(context)) }
     var totalTokens by remember { mutableIntStateOf(0) }
     var isTestingConnection by remember { mutableStateOf(false) }
     var testStatusText by remember { mutableStateOf<String?>(null) }
@@ -89,7 +85,6 @@ fun FrostedSettingsSheet(
         totalTokens = dbHelper.getTotalTokens()
     }
 
-    // High contrast backdrop & text colors
     val cardBackground = if (isDark) Color(0xF212131F) else Color(0xFAF8FAFC)
     val cardBorder = if (isDark) Color(0x38FFFFFF) else Color(0x80CBD5E1)
     val textColor = if (isDark) Color(0xFFFFFFFF) else Color(0xFF0F172A)
@@ -194,7 +189,54 @@ fun FrostedSettingsSheet(
                 }
             }
 
-            // 2. Chat & Token Database Analytics Card
+            // 2. Cloud-Managed Zero-Key Architecture Card
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "CLOUD BACKEND ARCHITECTURE",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = subtitleColor,
+                    letterSpacing = 1.sp
+                )
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9),
+                    border = BorderStroke(1.dp, if (isDark) Color(0x30FFFFFF) else Color(0x50CBD5E1))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.CloudDone,
+                                contentDescription = null,
+                                tint = Color(0xFF10B981),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "Render Cloud FastAPI",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = textColor
+                            )
+                        }
+                        Text(
+                            text = "Zero user API key required. Keys and reasoning are securely managed by the cloud backend.",
+                            fontSize = 12.sp,
+                            lineHeight = 17.sp,
+                            color = subtitleColor
+                        )
+                    }
+                }
+            }
+
+            // 3. Local Database & Tokens Analytics Card
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "LOCAL DATABASE & TOKENS",
@@ -277,63 +319,6 @@ fun FrostedSettingsSheet(
                 }
             }
 
-            // 3. OpenRouter API Key Input (High Contrast)
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "OPENROUTER API KEY",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = subtitleColor,
-                    letterSpacing = 1.sp
-                )
-
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    color = if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9),
-                    border = BorderStroke(1.dp, if (isDark) Color(0x35FFFFFF) else Color(0x50CBD5E1))
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Key,
-                            contentDescription = null,
-                            tint = accentColor,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Box(modifier = Modifier.weight(1f)) {
-                            if (apiKey.isEmpty()) {
-                                Text(
-                                    text = "sk-or-v1-...",
-                                    color = subtitleColor,
-                                    fontSize = 13.sp
-                                )
-                            }
-                            BasicTextField(
-                                value = apiKey,
-                                onValueChange = {
-                                    apiKey = it
-                                    OpenRouterPreferences.saveApiKey(context, it)
-                                },
-                                textStyle = TextStyle(
-                                    color = textColor,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium
-                                ),
-                                cursorBrush = SolidColor(accentColor),
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-                }
-            }
-
             // 4. AI Engine & Voice Profile Card
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -368,7 +353,7 @@ fun FrostedSettingsSheet(
                             color = textColor
                         )
                         Text(
-                            text = "Voice: Puck • Pure Open-Meteo • Free Tier",
+                            text = "Voice: Puck • 100% Pure Open-Meteo",
                             fontSize = 11.sp,
                             color = subtitleColor
                         )
@@ -376,24 +361,20 @@ fun FrostedSettingsSheet(
                 }
             }
 
-            // 5. Test Connection Button
+            // 5. Test Backend Connection Button
             Button(
                 onClick = {
-                    if (apiKey.isBlank()) {
-                        testStatusText = "Please enter your OpenRouter API Key."
-                        return@Button
-                    }
                     isTestingConnection = true
-                    testStatusText = "Testing Gemini 2.5 Flash connection..."
+                    testStatusText = "Connecting to Cloud FastAPI backend..."
                     scope.launch {
                         val res = openRouterService.generateChatCompletion(
-                            userMessage = "Ping test: Reply with 'Gemini 2.5 Flash Connected!'"
+                            userMessage = "Ping test: Confirm connection"
                         )
                         isTestingConnection = false
                         res.onSuccess {
-                            testStatusText = "✓ $it"
+                            testStatusText = "✓ Connected to Cloud Backend!"
                         }.onFailure {
-                            testStatusText = "✗ Error: ${it.message}"
+                            testStatusText = "✗ Backend error: ${it.message}"
                         }
                     }
                 },
@@ -406,7 +387,7 @@ fun FrostedSettingsSheet(
                 )
             ) {
                 Text(
-                    text = if (isTestingConnection) "Testing..." else "Test Gemini 2.5 Connection",
+                    text = if (isTestingConnection) "Connecting..." else "Test Cloud Backend Connection",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold
                 )
