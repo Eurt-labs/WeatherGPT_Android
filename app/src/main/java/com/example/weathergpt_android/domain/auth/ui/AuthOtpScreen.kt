@@ -404,10 +404,10 @@ fun AuthOtpScreen(
                                 BasicTextField(
                                     value = otpInput,
                                     onValueChange = {
-                                        if (it.length <= 6) {
+                                        if (it.length <= 8) {
                                             otpInput = it
-                                            if (it.length == 6) {
-                                                // Auto verify upon typing 6th digit
+                                            if (it.length == 6 || it.length == 8) {
+                                                // Auto verify upon entering complete code
                                                 isLoading = true
                                                 scope.launch {
                                                     val res = authService.verifyOtp(
@@ -457,7 +457,7 @@ fun AuthOtpScreen(
                         Button(
                             onClick = {
                                 if (otpInput.length < 6) {
-                                    statusMessage = "Please enter the full 6-digit code."
+                                    statusMessage = "Please enter your verification code."
                                     isError = true
                                     return@Button
                                 }
