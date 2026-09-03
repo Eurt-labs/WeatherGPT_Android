@@ -38,11 +38,11 @@ class OpenRouterService(private val context: Context) {
         isVoiceMode: Boolean = false
     ): Flow<String> = flow {
         val apiKey = OpenRouterPreferences.getApiKey(context)
-        val model = OpenRouterPreferences.MODEL_GEMMA_4_31B
+        val model = OpenRouterPreferences.getSelectedModel(context)
 
         val systemPrompt = if (isVoiceMode) {
             """
-                You are WeatherGPT Voice, an ultra-fast AI meteorologist powered by Google Gemma 4.
+                You are WeatherGPT Voice, an ultra-fast multimodal AI meteorologist powered by Google Gemini 2.5 Flash.
                 Location: $locationContext
                 Live Weather: $weatherContext
                 
@@ -53,7 +53,7 @@ class OpenRouterService(private val context: Context) {
             """.trimIndent()
         } else {
             """
-                You are WeatherGPT, an advanced AI meteorologist powered by Google Gemma 4.
+                You are WeatherGPT, an advanced AI meteorologist powered by Google Gemini 2.5 Flash.
                 Location: $locationContext
                 Live Weather: $weatherContext
                 
@@ -163,12 +163,12 @@ class OpenRouterService(private val context: Context) {
         history: List<Pair<String, String>> = emptyList()
     ): Result<String> = withContext(Dispatchers.IO) {
         val apiKey = OpenRouterPreferences.getApiKey(context)
-        val model = OpenRouterPreferences.MODEL_GEMMA_4_31B
+        val model = OpenRouterPreferences.getSelectedModel(context)
 
         val messagesArray = JSONArray().apply {
             put(JSONObject().apply {
                 put("role", "system")
-                put("content", "You are WeatherGPT powered by Google Gemma 4. Location: $locationContext. Weather: $weatherContext. Be concise and fast in the user's language.")
+                put("content", "You are WeatherGPT powered by Google Gemini 2.5 Flash. Location: $locationContext. Weather: $weatherContext. Be concise and fast in the user's language.")
             })
             for ((role, text) in history.takeLast(4)) {
                 put(JSONObject().apply {

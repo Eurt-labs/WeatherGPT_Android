@@ -459,9 +459,9 @@ fun SettingsScreen(
             }
         }
 
-        // 3. OpenRouter AI Engine (Google Gemma 4 31B Exclusive)
+        // 3. OpenRouter AI Engine (Google Gemini 2.5 Flash)
         item {
-            SettingsSectionHeader(title = "OpenRouter AI Engine (Google Gemma 4 31B)")
+            SettingsSectionHeader(title = "AI Engine (Google Gemini 2.5 Flash)")
         }
 
         item {
@@ -500,13 +500,13 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "Google: Gemma 4 31B (Free)",
+                                text = "Google: Gemini 2.5 Flash (Free)",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Exclusive Universal Multilingual & Voice Model",
+                                text = "1M Token Context • Native Multimodal Voice & Chat",
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -605,10 +605,10 @@ fun SettingsScreen(
                                     return@Button
                                 }
                                 isTestingConnection = true
-                                testStatusText = "Testing Google Gemma 4 31B connection..."
+                                testStatusText = "Testing Google Gemini 2.5 Flash connection..."
                                 scope.launch {
                                     val result = openRouterService.generateChatCompletion(
-                                        userMessage = "Reply with 'Connected successfully to Google Gemma 4 31B!'"
+                                        userMessage = "Reply with 'Connected successfully to Google Gemini 2.5 Flash!'"
                                     )
                                     isTestingConnection = false
                                     result.onSuccess { reply ->
@@ -621,7 +621,7 @@ fun SettingsScreen(
                             enabled = !isTestingConnection,
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text(text = if (isTestingConnection) "Testing..." else "Test Gemma 4 Connection", fontSize = 12.sp)
+                            Text(text = if (isTestingConnection) "Testing..." else "Test Gemini 2.5 Flash Connection", fontSize = 12.sp)
                         }
 
                         if (apiKey.isNotBlank()) {
