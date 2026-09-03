@@ -339,6 +339,42 @@ fun AuthOtpScreen(
                                 Text(text = "Send Verification OTP", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             }
                         }
+
+                        // Try Application as Guest Button
+                        Button(
+                            onClick = {
+                                val guestProfile = UserProfile(
+                                    userId = "guest_" + System.currentTimeMillis(),
+                                    name = "Dhruv",
+                                    contact = "guest@weathergpt.local",
+                                    contactType = "guest",
+                                    isOnboarded = false
+                                )
+                                UserPreferences.saveAuthSession(
+                                    context,
+                                    userId = guestProfile.userId,
+                                    token = "guest_token_" + System.currentTimeMillis(),
+                                    contact = guestProfile.contact,
+                                    contactType = "guest"
+                                )
+                                onAuthSuccess(guestProfile, true)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isDark) Color(0x25C026D3) else Color(0x15C026D3),
+                                contentColor = neonMagenta
+                            ),
+                            border = BorderStroke(1.dp, neonMagenta.copy(alpha = 0.5f))
+                        ) {
+                            Text(
+                                text = "Try Application (Explore as Guest) ✨",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     } else {
                         // Step 2: 6-Digit OTP Code Input
                         Text(
