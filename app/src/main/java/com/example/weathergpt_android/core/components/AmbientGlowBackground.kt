@@ -1,11 +1,5 @@
 package com.example.weathergpt_android.core.components
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -13,19 +7,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
 import com.example.weathergpt_android.core.theme.AppThemeMode
 
 /**
- * Immersive Edge-to-Edge Background matching the user's reference screenshot (Screenshot 2).
- * Eliminates all circular boundary flaws and renders a seamless deep obsidian canvas with
- * a diagonal luminous neon purple/magenta light wave.
+ * ThreeUI Constellation Field Shader Background.
+ * Replaces the previous ribbon streak with the canonical ThreeUI <ConstellationField />
+ * particle network. Features drifting celestial nodes, proximity link lines, and
+ * soft atmospheric glows tailored to the WeatherGPT Obsidian / Neon Purple & Magenta theme.
  */
 @Composable
 fun AmbientGlowBackground(
@@ -39,86 +31,59 @@ fun AmbientGlowBackground(
         AppThemeMode.SYSTEM -> isSystemInDarkTheme()
     }
 
-    val infiniteTransition = rememberInfiniteTransition(label = "ambient_light_anim")
-    val wavePulse by infiniteTransition.animateFloat(
-        initialValue = 0.85f,
-        targetValue = 1.15f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 4000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "wave_pulse"
-    )
-
     val baseColor = if (isDark) Color(0xFF07080B) else Color(0xFFF1F5F9)
-    val neonPurple = if (isDark) Color(0xFF9333EA) else Color(0xFFA855F7)
-    val neonMagenta = if (isDark) Color(0xFFC026D3) else Color(0xFFE879F9)
-    val neonBlue = if (isDark) Color(0xFF3B82F6) else Color(0xFF60A5FA)
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(baseColor)
     ) {
+        // 1. Deep Space Atmospheric Gradient Wash
         Canvas(modifier = Modifier.fillMaxSize()) {
             val width = size.width
             val height = size.height
 
-            // 1. Full Screen Linear Glow Bleed (Top to Bottom edge-to-edge, NO hard circle)
-            drawRect(
-                brush = Brush.verticalGradient(
+            // Soft radial ambient light pool at upper center
+            drawCircle(
+                brush = Brush.radialGradient(
                     colors = listOf(
-                        baseColor,
-                        if (isDark) Color(0x189333EA) else Color(0x10A855F7),
-                        if (isDark) Color(0x25C026D3) else Color(0x15E879F9),
-                        baseColor
+                        if (isDark) Color(0x359333EA) else Color(0x18A855F7),
+                        if (isDark) Color(0x20C026D3) else Color(0x10C026D3),
+                        Color.Transparent
                     ),
-                    startY = height * 0.1f,
-                    endY = height * 0.7f
-                )
+                    center = Offset(width * 0.5f, height * 0.25f),
+                    radius = width * 0.9f
+                ),
+                radius = width * 0.9f,
+                center = Offset(width * 0.5f, height * 0.25f)
             )
 
-            // 2. Diagonal Luminous Light Wave (Matching the radiant streak in Screenshot 2)
-            val wavePath = Path().apply {
-                moveTo(0f, height * 0.44f)
-                cubicTo(
-                    width * 0.35f, height * 0.38f * wavePulse,
-                    width * 0.7f, height * 0.48f,
-                    width, height * 0.34f
-                )
-            }
-
-            // Glow Stroke 1 (Broad Soft Ambient)
-            drawPath(
-                path = wavePath,
-                brush = Brush.linearGradient(
+            // Lower subtle cyan/indigo floor pool
+            drawCircle(
+                brush = Brush.radialGradient(
                     colors = listOf(
-                        neonBlue.copy(alpha = 0.20f * wavePulse),
-                        neonPurple.copy(alpha = 0.35f * wavePulse),
-                        neonMagenta.copy(alpha = 0.28f * wavePulse)
+                        if (isDark) Color(0x2006B6D4) else Color(0x0C38BDF8),
+                        Color.Transparent
                     ),
-                    start = Offset(0f, height * 0.4f),
-                    end = Offset(width, height * 0.35f)
+                    center = Offset(width * 0.65f, height * 0.85f),
+                    radius = width * 0.8f
                 ),
-                style = Stroke(width = width * 0.28f)
-            )
-
-            // Glow Stroke 2 (Vibrant Focused Core)
-            drawPath(
-                path = wavePath,
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        neonBlue.copy(alpha = 0.35f * wavePulse),
-                        neonMagenta.copy(alpha = 0.65f * wavePulse),
-                        neonPurple.copy(alpha = 0.45f * wavePulse)
-                    ),
-                    start = Offset(0f, height * 0.4f),
-                    end = Offset(width, height * 0.35f)
-                ),
-                style = Stroke(width = 42f)
+                radius = width * 0.8f,
+                center = Offset(width * 0.65f, height * 0.85f)
             )
         }
 
+        // 2. ThreeUI <ConstellationField /> Drifting Star & Link Network
+        ConstellationField(
+            isDark = isDark,
+            speed = 1.0f,
+            nodeCount = 42,
+            linkDistanceDp = 145f,
+            strokeWidthDp = 0.85f,
+            opacity = if (isDark) 0.95f else 0.65f
+        )
+
+        // 3. Page / Screen Content Overlay
         content()
     }
 }
