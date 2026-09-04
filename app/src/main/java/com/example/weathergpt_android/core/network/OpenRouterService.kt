@@ -139,6 +139,7 @@ class OpenRouterService(private val context: Context) {
             put("location", locationContext)
             put("weather_context", enrichedContext)
             put("sector_focus", profile.sector.id)
+            put("language", profile.preferredLanguage)
             put("is_voice_mode", isVoiceMode)
             put("history", historyArray)
         }
@@ -212,6 +213,7 @@ class OpenRouterService(private val context: Context) {
             put("location", locationContext)
             put("weather_context", "$weatherContext | Role: ${profile.sector.title}")
             put("sector_focus", profile.sector.id)
+            put("language", profile.preferredLanguage)
             put("is_voice_mode", false)
             put("history", JSONArray())
         }

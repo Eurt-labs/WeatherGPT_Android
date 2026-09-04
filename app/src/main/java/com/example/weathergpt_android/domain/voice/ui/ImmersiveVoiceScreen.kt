@@ -51,6 +51,8 @@ import com.example.weathergpt_android.core.components.VoiceEdgeLighting
 import com.example.weathergpt_android.core.network.OpenRouterService
 import com.example.weathergpt_android.domain.assistant.data.ChatDatabaseHelper
 import com.example.weathergpt_android.domain.assistant.model.ChatMessage
+import com.example.weathergpt_android.domain.auth.data.UserPreferences
+import com.example.weathergpt_android.domain.auth.model.UserProfile
 import com.example.weathergpt_android.domain.location.model.LocationData
 import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
 import kotlinx.coroutines.flow.catch
@@ -80,6 +82,7 @@ fun ImmersiveVoiceScreen(
     val scope = rememberCoroutineScope()
     val openRouterService = remember { OpenRouterService(context) }
     val dbHelper = remember { ChatDatabaseHelper.getInstance(context) }
+    val userProfile = remember { UserPreferences.getProfile(context) }
 
     var conversationState by remember { mutableStateOf(VoiceConversationState.LISTENING) }
     var userTranscript by remember { mutableStateOf("Listening to your voice...") }
@@ -88,12 +91,24 @@ fun ImmersiveVoiceScreen(
     var textToSpeech by remember { mutableStateOf<TextToSpeech?>(null) }
     var isTtsReady by remember { mutableStateOf(false) }
 
-    // Start Listening Helper Function
+    // Start Listening Helper Function with Multilingual Indian Language support
     fun startListening() {
         if (!SpeechRecognizer.isRecognitionAvailable(context)) return
+        val targetLocaleTag = when (userProfile.preferredLanguage.lowercase()) {
+            "hi" -> "hi-IN"
+            "mr" -> "mr-IN"
+            "bn" -> "bn-IN"
+            "ta" -> "ta-IN"
+            "te" -> "te-IN"
+            "gu" -> "gu-IN"
+            else -> "en-IN"
+        }
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, targetLocaleTag)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, targetLocaleTag)
+            putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, false)
+            putExtra("android.speech.extra.EXTRA_ADDITIONAL_LANGUAGES", arrayOf("hi-IN", "en-IN", "mr-IN", "bn-IN", "ta-IN", "te-IN", "gu-IN"))
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
         }
@@ -154,10 +169,14 @@ fun ImmersiveVoiceScreen(
                 estimatedTokens = cleanToSpeak.length / 4
             )
 
-            // Speak response using Aoede Voice profile
+            // Speak response using native Indian voice tuned to the language spoken
             if (cleanToSpeak.isNotBlank()) {
                 conversationState = VoiceConversationState.SPEAKING
-                textToSpeech?.speak(cleanToSpeak, TextToSpeech.QUEUE_FLUSH, null, "WEATHER_VOICE_UTTERANCE")
+                textToSpeech?.let { ttsInstance ->
+                    val detectedLocale = detectVoiceLocale(cleanToSpeak, userProfile.preferredLanguage)
+                    applyNativeIndianVoice(ttsInstance, detectedLocale)
+                    ttsInstance.speak(cleanToSpeak, TextToSpeech.QUEUE_FLUSH, null, "WEATHER_VOICE_UTTERANCE")
+                }
             } else {
                 conversationState = VoiceConversationState.LISTENING
                 startListening()
@@ -208,22 +227,8 @@ fun ImmersiveVoiceScreen(
         tts = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 isTtsReady = true
-                tts?.language = Locale.getDefault()
-
-                // Configure Aoede Voice Profile (Warm, clear, melodic and natural)
-                val targetVoice = tts?.voices?.find { voice ->
-                    !voice.isNetworkConnectionRequired &&
-                    (voice.name.contains("female", ignoreCase = true) ||
-                     voice.name.contains("en-us-x-sfg", ignoreCase = true) ||
-                     voice.name.contains("en-in-x-cfl", ignoreCase = true) ||
-                     voice.name.contains("en-us-x-tpd", ignoreCase = true))
-                } ?: tts?.voices?.firstOrNull { it.locale.language == Locale.getDefault().language }
-
-                if (targetVoice != null) {
-                    tts?.voice = targetVoice
-                }
-                tts?.setPitch(1.08f)
-                tts?.setSpeechRate(1.0f)
+                val initialLocale = detectVoiceLocale("", userProfile.preferredLanguage)
+                applyNativeIndianVoice(tts, initialLocale)
 
                 // Listener for Continuous Conversation Loop:
                 // When TTS finishes speaking, immediately re-arm SpeechRecognizer!
@@ -386,3 +391,82 @@ private fun stripRawJsonArtifacts(text: String): String {
         .replace("data:", "")
         .trimEnd()
 }
+
+/**
+ * Intelligent Script and Language Detector.
+ * Analyzes whether the spoken text contains Indic scripts (Devanagari, Bengali, Tamil, Telugu, Gujarati)
+ * and selects the native regional Locale, falling back to the user's preferred language or Indian English.
+ */
+private fun detectVoiceLocale(text: String, preferredLangCode: String): Locale {
+    var hasDevanagari = false
+    var hasBengali = false
+    var hasTamil = false
+    var hasTelugu = false
+    var hasGujarati = false
+
+    for (ch in text) {
+        when (ch.code) {
+            in 0x0900..0x097F -> hasDevanagari = true
+            in 0x0980..0x09FF -> hasBengali = true
+            in 0x0B80..0x0BFF -> hasTamil = true
+            in 0x0C00..0x0C7F -> hasTelugu = true
+            in 0x0A80..0x0AFF -> hasGujarati = true
+        }
+    }
+
+    return when {
+        hasDevanagari -> if (preferredLangCode.equals("mr", ignoreCase = true)) Locale("mr", "IN") else Locale("hi", "IN")
+        hasBengali -> Locale("bn", "IN")
+        hasTamil -> Locale("ta", "IN")
+        hasTelugu -> Locale("te", "IN")
+        hasGujarati -> Locale("gu", "IN")
+        else -> when (preferredLangCode.lowercase()) {
+            "hi" -> Locale("hi", "IN")
+            "mr" -> Locale("mr", "IN")
+            "bn" -> Locale("bn", "IN")
+            "ta" -> Locale("ta", "IN")
+            "te" -> Locale("te", "IN")
+            "gu" -> Locale("gu", "IN")
+            else -> Locale("en", "IN") // Indian English for natural regional cadence
+        }
+    }
+}
+
+/**
+ * Program the TextToSpeech engine with native high-quality regional voice profiles.
+ * Finds Google TTS voices for Indian languages (e.g. hi-in-x-hie-local, mr-in-x-mrd-local, en-in-x-cfl-local)
+ * and applies warm, natural pitch and human conversational pacing.
+ */
+private fun applyNativeIndianVoice(tts: TextToSpeech?, targetLocale: Locale) {
+    if (tts == null) return
+    try {
+        val status = tts.isLanguageAvailable(targetLocale)
+        if (status >= TextToSpeech.LANG_AVAILABLE) {
+            tts.language = targetLocale
+        }
+
+        val matchingVoices = tts.voices?.filter { voice ->
+            voice.locale.language.equals(targetLocale.language, ignoreCase = true)
+        } ?: emptyList()
+
+        val bestVoice = matchingVoices.find { voice ->
+            !voice.isNetworkConnectionRequired &&
+            (voice.name.contains("local", ignoreCase = true) ||
+             voice.name.contains("female", ignoreCase = true) ||
+             voice.locale.country.equals("IN", ignoreCase = true))
+        } ?: matchingVoices.firstOrNull { voice ->
+            voice.locale.country.equals("IN", ignoreCase = true)
+        } ?: matchingVoices.firstOrNull()
+
+        if (bestVoice != null) {
+            tts.voice = bestVoice
+        }
+
+        // Warm, natural conversational speech rate and pitch
+        tts.setPitch(1.0f)
+        tts.setSpeechRate(0.98f)
+    } catch (_: Exception) {
+        tts.language = targetLocale
+    }
+}
+

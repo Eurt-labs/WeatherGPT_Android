@@ -310,6 +310,11 @@ fun WeatherGPTApp(
                     currentTheme = currentTheme,
                     userProfile = userProfile,
                     onThemeSelected = onThemeChange,
+                    onLanguageSelected = { newLang ->
+                        val updated = userProfile.copy(preferredLanguage = newLang)
+                        userProfile = updated
+                        UserPreferences.saveProfile(context, updated)
+                    },
                     onEditPersona = {
                         showSettingsSheet = false
                         currentScreen = AppScreen.ONBOARDING_SETUP

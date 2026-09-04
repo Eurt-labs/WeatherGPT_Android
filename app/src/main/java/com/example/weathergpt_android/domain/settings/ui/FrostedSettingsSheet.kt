@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,8 +32,10 @@ import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.QueryStats
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.WbSunny
@@ -55,7 +58,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -78,13 +83,14 @@ enum class DiagnosticStatus {
 
 /**
  * Ultra-high contrast Frosted Settings Modal.
- * Cloud-managed Supabase backend architecture, Persona switcher, and Token Stats.
+ * Cloud-managed backend architecture, Persona switcher, Language selector, and Token Stats.
  */
 @Composable
 fun FrostedSettingsSheet(
     currentTheme: AppThemeMode,
     userProfile: UserProfile,
     onThemeSelected: (AppThemeMode) -> Unit,
+    onLanguageSelected: (String) -> Unit = {},
     onEditPersona: () -> Unit,
     onSignOut: () -> Unit,
     onDismiss: () -> Unit,
@@ -110,6 +116,7 @@ fun FrostedSettingsSheet(
     var geminiDetail by remember { mutableStateOf<String?>(null) }
     var weatherDetail by remember { mutableStateOf<String?>(null) }
     var dbDetail by remember { mutableStateOf<String?>(null) }
+    var currentLanguageCode by remember(userProfile.preferredLanguage) { mutableStateOf(userProfile.preferredLanguage) }
 
     LaunchedEffect(Unit) {
         totalTokens = dbHelper.getTotalTokens()
@@ -269,7 +276,89 @@ fun FrostedSettingsSheet(
                 }
             }
 
-            // 2. Appearance Mode Switcher
+            // 2. App & Voice Language Switcher
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "APP & VOICE LANGUAGE",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = subtitleColor,
+                        letterSpacing = 1.sp
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Language,
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Text(
+                            text = "Native Voice Tuning",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = accentColor
+                        )
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    color = FrostedGlassTokens.surface(isDark),
+                    border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val languages = listOf(
+                            Pair("en" to "English", "Native Accent"),
+                            Pair("hi" to "हिन्दी", "Hindi"),
+                            Pair("mr" to "मराठी", "Marathi"),
+                            Pair("bn" to "বাংলা", "Bengali"),
+                            Pair("ta" to "தமிழ்", "Tamil"),
+                            Pair("te" to "తెలుగు", "Telugu"),
+                            Pair("gu" to "ગુજરાતી", "Gujarati")
+                        )
+
+                        for (rowItems in languages.chunked(2)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                for ((pair, english) in rowItems) {
+                                    val (code, native) = pair
+                                    LanguageOptionCard(
+                                        code = code,
+                                        nativeName = native,
+                                        englishName = english,
+                                        isSelected = currentLanguageCode.equals(code, ignoreCase = true),
+                                        onClick = {
+                                            currentLanguageCode = code
+                                            onLanguageSelected(code)
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        isDark = isDark
+                                    )
+                                }
+                                if (rowItems.size == 1) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Appearance Mode Switcher
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "APPEARANCE MODE",
@@ -812,6 +901,77 @@ private fun DiagnosticItemRow(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFEF4444)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LanguageOptionCard(
+    code: String,
+    nativeName: String,
+    englishName: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isDark: Boolean
+) {
+    val neonMagenta = Color(0xFFC026D3)
+    val neonPurple = Color(0xFF9333EA)
+    val activeBorder = Brush.horizontalGradient(listOf(neonPurple, neonMagenta))
+
+    Surface(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = if (isSelected) {
+            if (isDark) Color(0x35C026D3) else Color(0x209333EA)
+        } else {
+            FrostedGlassTokens.surfaceSubtle(isDark)
+        },
+        border = BorderStroke(
+            if (isSelected) 1.5.dp else 1.dp,
+            if (isSelected) activeBorder else SolidColor(FrostedGlassTokens.borderSubtle(isDark))
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    text = nativeName,
+                    fontSize = 13.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                    color = if (isSelected) (if (isDark) Color.White else Color(0xFF0F172A))
+                            else (if (isDark) Color(0xFFE2E8F0) else Color(0xFF334155))
+                )
+                Text(
+                    text = englishName,
+                    fontSize = 10.sp,
+                    color = if (isSelected) neonMagenta else (if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B))
+                )
+            }
+
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(neonMagenta),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Check,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(11.dp)
                     )
                 }
             }

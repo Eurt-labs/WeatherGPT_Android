@@ -112,18 +112,76 @@ class SherpaOnnxEngine(
         }
     }
 
-    private fun applyLanguageToTts(langCode: String) {
-        val locale = when (langCode.lowercase()) {
-            "hi" -> Locale("hi", "IN")
-            "mr" -> Locale("mr", "IN")
-            "bn" -> Locale("bn", "IN")
-            "ta" -> Locale("ta", "IN")
-            "te" -> Locale("te", "IN")
-            else -> Locale.ENGLISH
+    private fun detectVoiceLocale(text: String, fallbackLangCode: String): Locale {
+        var hasDevanagari = false
+        var hasBengali = false
+        var hasTamil = false
+        var hasTelugu = false
+        var hasGujarati = false
+
+        for (ch in text) {
+            when (ch.code) {
+                in 0x0900..0x097F -> hasDevanagari = true
+                in 0x0980..0x09FF -> hasBengali = true
+                in 0x0B80..0x0BFF -> hasTamil = true
+                in 0x0C00..0x0C7F -> hasTelugu = true
+                in 0x0A80..0x0AFF -> hasGujarati = true
+            }
         }
-        localTts?.language = locale
-        localTts?.setSpeechRate(1.0f)
-        localTts?.setPitch(1.05f)
+
+        return when {
+            hasDevanagari -> if (fallbackLangCode.equals("mr", ignoreCase = true)) Locale("mr", "IN") else Locale("hi", "IN")
+            hasBengali -> Locale("bn", "IN")
+            hasTamil -> Locale("ta", "IN")
+            hasTelugu -> Locale("te", "IN")
+            hasGujarati -> Locale("gu", "IN")
+            else -> when (fallbackLangCode.lowercase()) {
+                "hi" -> Locale("hi", "IN")
+                "mr" -> Locale("mr", "IN")
+                "bn" -> Locale("bn", "IN")
+                "ta" -> Locale("ta", "IN")
+                "te" -> Locale("te", "IN")
+                "gu" -> Locale("gu", "IN")
+                else -> Locale("en", "IN")
+            }
+        }
+    }
+
+    private fun applyLanguageToTts(targetLocale: Locale) {
+        val tts = localTts ?: return
+        try {
+            val status = tts.isLanguageAvailable(targetLocale)
+            if (status >= TextToSpeech.LANG_AVAILABLE) {
+                tts.language = targetLocale
+            }
+
+            val matchingVoices = tts.voices?.filter { voice ->
+                voice.locale.language.equals(targetLocale.language, ignoreCase = true)
+            } ?: emptyList()
+
+            val bestVoice = matchingVoices.find { voice ->
+                !voice.isNetworkConnectionRequired &&
+                (voice.name.contains("local", ignoreCase = true) ||
+                 voice.name.contains("female", ignoreCase = true) ||
+                 voice.locale.country.equals("IN", ignoreCase = true))
+            } ?: matchingVoices.firstOrNull { voice ->
+                voice.locale.country.equals("IN", ignoreCase = true)
+            } ?: matchingVoices.firstOrNull()
+
+            if (bestVoice != null) {
+                tts.voice = bestVoice
+            }
+
+            tts.setSpeechRate(0.98f)
+            tts.setPitch(1.0f)
+        } catch (_: Exception) {
+            tts.language = targetLocale
+        }
+    }
+
+    private fun applyLanguageToTts(langCode: String) {
+        val locale = detectVoiceLocale("", langCode)
+        applyLanguageToTts(locale)
     }
 
     fun setLanguage(language: SherpaLanguage) {
@@ -288,7 +346,8 @@ class SherpaOnnxEngine(
         val cleanText = cleanForSpeech(text)
         if (cleanText.isBlank()) return
 
-        languageCode?.let { applyLanguageToTts(it) }
+        val targetLocale = detectVoiceLocale(cleanText, languageCode ?: _currentLanguage.value.code)
+        applyLanguageToTts(targetLocale)
 
         _isSpeaking.value = true
         _currentlySpeakingId.value = utteranceId
