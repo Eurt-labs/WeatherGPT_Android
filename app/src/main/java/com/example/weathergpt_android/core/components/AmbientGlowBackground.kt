@@ -76,7 +76,7 @@ fun AmbientGlowBackground(
         // 2. ThreeUI <ConstellationField /> Drifting Star & Link Network
         ConstellationField(
             isDark = isDark,
-            speed = 0.5f,
+            speed = 0.35f,
             nodeCount = 42,
             linkDistanceDp = 145f,
             strokeWidthDp = 0.85f,

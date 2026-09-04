@@ -79,8 +79,8 @@ fun ConstellationField(
             ConstellationParticle(
                 x = rand.nextFloat(),
                 y = rand.nextFloat(),
-                vx = (rand.nextFloat() - 0.5f) * 0.0075f * speed,
-                vy = (rand.nextFloat() - 0.5f) * 0.0075f * speed,
+                vx = (rand.nextFloat() - 0.5f) * 0.0010f * speed,
+                vy = (rand.nextFloat() - 0.5f) * 0.0010f * speed,
                 radius = rand.nextFloat() * 1.8f + 1.6f,
                 colorIndex = i % palette.size,
                 phase = rand.nextFloat() * 6.28f
@@ -120,7 +120,7 @@ fun ConstellationField(
         initialValue = 0.85f,
         targetValue = 1.15f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 7500, easing = LinearEasing),
+            animation = tween(durationMillis = 12000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "twinkle_pulse"
@@ -167,7 +167,7 @@ fun ConstellationField(
             val px = p.x * width
             val py = p.y * height
             val color = palette[p.colorIndex % palette.size]
-            val nodePulse = (0.75f + sin(currentTime * 1.5f + p.phase) * 0.25f) * pulse
+            val nodePulse = (0.85f + sin(currentTime * 0.5f + p.phase) * 0.15f) * pulse
 
             // Outer ethereal atmospheric halo
             drawCircle(

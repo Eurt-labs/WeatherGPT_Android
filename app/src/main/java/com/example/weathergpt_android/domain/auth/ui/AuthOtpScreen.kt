@@ -58,7 +58,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import com.example.weathergpt_android.core.components.LiquidMetalButton
 import com.example.weathergpt_android.core.components.AmbientGlowBackground
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -91,7 +90,7 @@ fun AuthOtpScreen(
     }
 
     var isPhoneMode by remember { mutableStateOf(false) }
-    var contactInput by remember { mutableStateOf("dhruv@example.com") }
+    var contactInput by remember { mutableStateOf("") }
     var otpInput by remember { mutableStateOf("") }
 
     var isOtpSent by remember { mutableStateOf(false) }
@@ -293,7 +292,17 @@ fun AuthOtpScreen(
                                     ),
                                     cursorBrush = SolidColor(neonMagenta),
                                     singleLine = true,
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth(),
+                                    decorationBox = { innerTextField ->
+                                        if (contactInput.isEmpty()) {
+                                            Text(
+                                                text = if (isPhoneMode) "Phone number or 123456" else "name@example.com or 123456",
+                                                color = textColor.copy(alpha = 0.45f),
+                                                fontSize = 14.sp
+                                            )
+                                        }
+                                        innerTextField()
+                                    }
                                 )
                             }
                         }
@@ -304,6 +313,25 @@ fun AuthOtpScreen(
                                 if (contactInput.isBlank()) {
                                     statusMessage = "Please enter your contact."
                                     isError = true
+                                    return@Button
+                                }
+                                if (contactInput.trim() == "123456") {
+                                    // Testing bypass for 123456 entered in email/contact
+                                    val testProfile = UserProfile(
+                                        userId = "test_user_123456",
+                                        name = "Dhruv",
+                                        contact = "dhruv@weathergpt.local",
+                                        contactType = if (isPhoneMode) "phone" else "email",
+                                        isOnboarded = true
+                                    )
+                                    UserPreferences.saveAuthSession(
+                                        context,
+                                        userId = testProfile.userId,
+                                        token = "test_session_token_123456",
+                                        contact = testProfile.contact,
+                                        contactType = testProfile.contactType
+                                    )
+                                    onAuthSuccess(testProfile, false)
                                     return@Button
                                 }
                                 isLoading = true
@@ -341,30 +369,6 @@ fun AuthOtpScreen(
                                 Text(text = "Send Verification OTP", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             }
                         }
-
-                        // ThreeUI Exact Canonical LiquidMetalButton (Sign up Pill)
-                        LiquidMetalButton(
-                            text = "Sign up",
-                            onClick = {
-                                val guestProfile = UserProfile(
-                                    userId = "guest_" + System.currentTimeMillis(),
-                                    name = "Dhruv",
-                                    contact = "guest@weathergpt.local",
-                                    contactType = "guest",
-                                    isOnboarded = false
-                                )
-                                UserPreferences.saveAuthSession(
-                                    context,
-                                    userId = guestProfile.userId,
-                                    token = "guest_token_" + System.currentTimeMillis(),
-                                    contact = guestProfile.contact,
-                                    contactType = "guest"
-                                )
-                                onAuthSuccess(guestProfile, true)
-                            },
-                            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-                            height = 68.dp
-                        )
                     } else {
                         // Step 2: 6-Digit OTP Code Input
                         Text(
@@ -396,6 +400,25 @@ fun AuthOtpScreen(
                                     onValueChange = {
                                         if (it.length <= 8) {
                                             otpInput = it
+                                            if (it.trim() == "123456") {
+                                                // Testing bypass: direct login when 123456 is entered as pass/code
+                                                val testProfile = UserProfile(
+                                                    userId = "test_user_123456",
+                                                    name = "Dhruv",
+                                                    contact = contactInput.trim().ifBlank { "dhruv@weathergpt.local" },
+                                                    contactType = if (isPhoneMode) "phone" else "email",
+                                                    isOnboarded = true
+                                                )
+                                                UserPreferences.saveAuthSession(
+                                                    context,
+                                                    userId = testProfile.userId,
+                                                    token = "test_session_token_123456",
+                                                    contact = testProfile.contact,
+                                                    contactType = testProfile.contactType
+                                                )
+                                                onAuthSuccess(testProfile, false)
+                                                return@BasicTextField
+                                            }
                                             if (it.length == 6 || it.length == 8) {
                                                 // Auto verify upon entering complete code
                                                 isLoading = true
@@ -449,6 +472,24 @@ fun AuthOtpScreen(
                                 if (otpInput.length < 6) {
                                     statusMessage = "Please enter your verification code."
                                     isError = true
+                                    return@Button
+                                }
+                                if (otpInput.trim() == "123456") {
+                                    val testProfile = UserProfile(
+                                        userId = "test_user_123456",
+                                        name = "Dhruv",
+                                        contact = contactInput.trim().ifBlank { "dhruv@weathergpt.local" },
+                                        contactType = if (isPhoneMode) "phone" else "email",
+                                        isOnboarded = true
+                                    )
+                                    UserPreferences.saveAuthSession(
+                                        context,
+                                        userId = testProfile.userId,
+                                        token = "test_session_token_123456",
+                                        contact = testProfile.contact,
+                                        contactType = testProfile.contactType
+                                    )
+                                    onAuthSuccess(testProfile, false)
                                     return@Button
                                 }
                                 isLoading = true
@@ -536,34 +577,6 @@ fun AuthOtpScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
-                }
-            }
-
-            // Developer Sandbox Mode Hint Pill
-            Surface(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(18.dp)),
-                shape = RoundedCornerShape(18.dp),
-                color = FrostedGlassTokens.surfaceSubtle(isDark),
-                border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Security,
-                        contentDescription = null,
-                        tint = neonMagenta,
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Text(
-                        text = "Supabase Auth • Demo OTP: 123456",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = textColor.copy(alpha = 0.85f)
-                    )
                 }
             }
         }
