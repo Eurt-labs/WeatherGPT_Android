@@ -1,5 +1,12 @@
 package com.example.weathergpt_android.domain.assistant.ui
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -42,9 +49,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -330,58 +339,13 @@ fun UnifiedMainScreen(
                 }
             }
 
-            // Bottom Capsule: Tapping the bar opens Chat; tapping mic opens Voice!
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(64.dp)
-                    .shadow(FrostedGlassTokens.ElevationRaised, RoundedCornerShape(32.dp), ambientColor = FrostedGlassTokens.ShadowColor, spotColor = FrostedGlassTokens.ShadowColor)
-                    .clip(RoundedCornerShape(32.dp))
-                    .clickable(onClick = { onLaunchChatWithPrompt("") }), // Tapping capsule opens Chat window
-                shape = RoundedCornerShape(32.dp),
-                color = FrostedGlassTokens.surfaceRaised(isDark),
-                border = BorderStroke(
-                    1.5.dp,
-                    Brush.horizontalGradient(listOf(neonPurple, neonMagenta, neonCoral))
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 18.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "Tap here to chat with WeatherGPT",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = textColor.copy(alpha = 0.9f),
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    // Glowing Circular Mic Icon: Tapping specifically opens Voice!
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(
-                                Brush.radialGradient(
-                                    listOf(Color(0xFFE879F9), Color(0xFFC026D3), Color(0xFF7C3AED))
-                                )
-                            )
-                            .clickable(onClick = onLaunchVoice),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Mic,
-                            contentDescription = "Start Voice",
-                            tint = Color.White,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-            }
+            // Bottom Capsule: Animated bar opening Chat, animated glowing mic opening Voice!
+            AnimatedChatCapsuleBar(
+                isDark = isDark,
+                textColor = textColor,
+                onLaunchChat = { onLaunchChatWithPrompt("") },
+                onLaunchVoice = onLaunchVoice
+            )
         }
     }
 }
@@ -459,6 +423,180 @@ private fun BentoHubCard(
                     color = subtitleColor,
                     maxLines = 1
                 )
+            }
+        }
+    }
+}
+
+/**
+ * Animated Chat & Voice Capsule Bar with moving liquid neon gradient border,
+ * glowing breathing mic button, and expanding ripple halo.
+ */
+@Composable
+private fun AnimatedChatCapsuleBar(
+    isDark: Boolean,
+    textColor: Color,
+    onLaunchChat: () -> Unit,
+    onLaunchVoice: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "capsule_ambient_anim")
+
+    // 1. Flowing iridescent neon border shimmer
+    val borderCycle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3600, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "border_shimmer"
+    )
+
+    // 2. Gentle mic breathing scale
+    val micScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1300, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "mic_scale"
+    )
+
+    // 3. Mic ripple halo
+    val rippleScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.42f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "mic_ripple"
+    )
+
+    val rippleAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.50f,
+        targetValue = 0.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "mic_ripple_alpha"
+    )
+
+    // 4. Subtle text glow/alpha wave
+    val textAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.80f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "text_alpha"
+    )
+
+    val neonPurple = Color(0xFF9333EA)
+    val neonMagenta = Color(0xFFD946EF)
+    val neonCoral = Color(0xFFF43F5E)
+    val neonCyan = Color(0xFF06B6D4)
+
+    val dynamicBorderBrush = Brush.horizontalGradient(
+        colors = listOf(neonPurple, neonMagenta, neonCoral, neonCyan, neonPurple),
+        startX = -600f + borderCycle * 1200f,
+        endX = 600f + borderCycle * 1200f,
+        tileMode = TileMode.Repeated
+    )
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(64.dp)
+            .shadow(
+                FrostedGlassTokens.ElevationRaised,
+                RoundedCornerShape(32.dp),
+                ambientColor = FrostedGlassTokens.ShadowColor,
+                spotColor = FrostedGlassTokens.ShadowColor
+            )
+            .clip(RoundedCornerShape(32.dp))
+            .clickable(onClick = onLaunchChat),
+        shape = RoundedCornerShape(32.dp),
+        color = FrostedGlassTokens.surfaceRaised(isDark),
+        border = BorderStroke(1.5.dp, dynamicBorderBrush)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.AutoAwesome,
+                    contentDescription = null,
+                    tint = neonMagenta.copy(alpha = textAlpha),
+                    modifier = Modifier.size(16.dp)
+                )
+
+                Text(
+                    text = "Tap here to chat with WeatherGPT",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = textColor.copy(alpha = textAlpha)
+                )
+            }
+
+            // Glowing Animated Circular Mic Icon: Tapping specifically opens Voice!
+            Box(
+                modifier = Modifier.size(52.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // Expanding ripple halo ring behind the mic button
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .scale(rippleScale)
+                        .clip(CircleShape)
+                        .background(Color(0xFFC026D3).copy(alpha = rippleAlpha))
+                )
+
+                // Pulsing Center Radiant Mic Button
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .scale(micScale)
+                        .shadow(
+                            elevation = 10.dp,
+                            shape = CircleShape,
+                            ambientColor = Color(0xFFC026D3),
+                            spotColor = Color(0xFFE879F9)
+                        )
+                        .clip(CircleShape)
+                        .background(
+                            Brush.radialGradient(
+                                listOf(
+                                    Color(0xFFE879F9),
+                                    Color(0xFFC026D3),
+                                    Color(0xFF9333EA),
+                                    Color(0xFFE11D48)
+                                )
+                            )
+                        )
+                        .clickable(onClick = onLaunchVoice),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Mic,
+                        contentDescription = "Start Voice",
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
         }
     }
