@@ -79,8 +79,8 @@ fun ConstellationField(
             ConstellationParticle(
                 x = rand.nextFloat(),
                 y = rand.nextFloat(),
-                vx = (rand.nextFloat() - 0.5f) * 0.045f * speed,
-                vy = (rand.nextFloat() - 0.5f) * 0.045f * speed,
+                vx = (rand.nextFloat() - 0.5f) * 0.0075f * speed,
+                vy = (rand.nextFloat() - 0.5f) * 0.0075f * speed,
                 radius = rand.nextFloat() * 1.8f + 1.6f,
                 colorIndex = i % palette.size,
                 phase = rand.nextFloat() * 6.28f
@@ -114,13 +114,13 @@ fun ConstellationField(
         }
     }
 
-    // Gentle global star twinkle transition
+    // Gentle, calm global star twinkle transition (slow, tranquil breathing)
     val infiniteTransition = rememberInfiniteTransition(label = "constellation_twinkle")
     val pulse by infiniteTransition.animateFloat(
         initialValue = 0.85f,
         targetValue = 1.15f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 3500, easing = LinearEasing),
+            animation = tween(durationMillis = 7500, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "twinkle_pulse"

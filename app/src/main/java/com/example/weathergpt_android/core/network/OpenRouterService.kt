@@ -34,25 +34,75 @@ class OpenRouterService(private val context: Context) {
         .build()
 
     /**
-     * Parses an SSE data payload and extracts only the assistant content token.
-     * Prevents raw JSON strings from leaking into the UI / TTS.
+     * Robust SSE token extractor that handles multiple glued data: frames,
+     * extracts assistant delta content, and strictly rejects raw JSON metadata.
      */
     private fun extractTokenFromSseChunk(data: String): String {
         if (data.isBlank() || data == "[DONE]") return ""
-        return try {
-            val json = JSONObject(data)
-            val choices = json.optJSONArray("choices")
-            if (choices != null && choices.length() > 0) {
-                val first = choices.getJSONObject(0)
-                val delta = first.optJSONObject("delta")
-                delta?.optString("content", "") ?: first.optString("text", "")
-            } else {
-                json.optString("content", json.optString("text", ""))
+
+        val sb = StringBuilder()
+        // Split in case multiple SSE frames were buffered together e.g. "...}data: {..."
+        val segments = data.split("data:").map { it.trim() }.filter { it.isNotEmpty() }
+
+        for (segment in segments) {
+            if (segment == "[DONE]") continue
+
+            var extractedContent: String? = null
+
+            // 1. Try structured JSONObject parsing
+            try {
+                val json = JSONObject(segment)
+                val choices = json.optJSONArray("choices")
+                if (choices != null && choices.length() > 0) {
+                    val first = choices.getJSONObject(0)
+                    val delta = first.optJSONObject("delta")
+                    val content = delta?.optString("content", "") ?: first.optString("text", "")
+                    if (content.isNotEmpty()) {
+                        extractedContent = content
+                    }
+                }
+            } catch (_: Exception) {
+                // 2. Fallback: regex search for "content": "..." within segment
+                val match = Regex("\"content\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").find(segment)
+                if (match != null) {
+                    val unescaped = match.groupValues[1]
+                        .replace("\\n", "\n")
+                        .replace("\\r", "\r")
+                        .replace("\\t", "\t")
+                        .replace("\\\"", "\"")
+                        .replace("\\\\", "\\")
+                    if (unescaped.isNotEmpty()) {
+                        extractedContent = unescaped
+                    }
+                }
             }
-        } catch (e: Exception) {
-            // If it's not JSON, return as plain text
-            data
+
+            if (extractedContent != null) {
+                sb.append(extractedContent)
+            } else {
+                // If this segment is raw JSON metadata (contains id, choices, delta, usage, object),
+                // DISCARD IT. Never leak raw JSON metadata to the user or speech engine!
+                if (!isRawJsonPayload(segment)) {
+                    sb.append(segment)
+                }
+            }
         }
+
+        val result = sb.toString()
+        // Final safety check: if the result itself still looks like raw JSON metadata, discard
+        return if (isRawJsonPayload(result)) "" else result
+    }
+
+    private fun isRawJsonPayload(text: String): Boolean {
+        val trimmed = text.trim()
+        return trimmed.startsWith("{") ||
+               trimmed.startsWith("data:") ||
+               trimmed.contains("\"id\":") ||
+               trimmed.contains("\"choices\":") ||
+               trimmed.contains("\"delta\":") ||
+               trimmed.contains("\"usage\":") ||
+               trimmed.contains("\"object\":") ||
+               trimmed.contains("chat.completion")
     }
 
     /**
@@ -126,13 +176,17 @@ class OpenRouterService(private val context: Context) {
 
             while (reader.readLine().also { line = it } != null) {
                 val currentLine = line ?: continue
-                if (currentLine.startsWith("data:")) {
-                    val rawData = currentLine.removePrefix("data:").trim()
-                    if (rawData == "[DONE]") break
-                    val token = extractTokenFromSseChunk(rawData)
+                if (currentLine.isBlank()) continue
+
+                // Check for SSE data line or inline data segment
+                if (currentLine.contains("data:")) {
+                    val token = extractTokenFromSseChunk(currentLine)
                     if (token.isNotEmpty()) {
                         emit(token)
                     }
+                } else if (!isRawJsonPayload(currentLine)) {
+                    // Plain text stream chunk without data: prefix
+                    emit(currentLine)
                 }
             }
         } catch (e: Exception) {

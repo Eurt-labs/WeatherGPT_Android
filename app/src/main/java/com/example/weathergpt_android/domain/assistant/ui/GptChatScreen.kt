@@ -176,26 +176,50 @@ fun GptChatScreen(
      * Sanitizes tokens so raw JSON SSE chunks never appear in the chat bubble.
      */
     fun sanitizeChunk(raw: String): String {
-        if (!raw.contains("{\"id\":") && !raw.startsWith("data:")) return raw
+        if (!raw.contains("{\"id\":") && !raw.contains("data:") && !raw.contains("\"choices\":") && !raw.contains("\"object\":")) {
+            return raw
+        }
         return try {
-            val lines = raw.lines()
+            val segments = raw.split("data:").map { it.trim() }.filter { it.isNotEmpty() }
             val sb = StringBuilder()
-            for (line in lines) {
-                val clean = line.removePrefix("data:").trim()
-                if (clean.isNotEmpty() && clean != "[DONE]") {
+            for (clean in segments) {
+                if (clean == "[DONE]") continue
+                try {
                     val json = JSONObject(clean)
                     val choices = json.optJSONArray("choices")
                     if (choices != null && choices.length() > 0) {
                         val delta = choices.getJSONObject(0).optJSONObject("delta")
                         val content = delta?.optString("content", "") ?: choices.getJSONObject(0).optString("text", "")
-                        sb.append(content)
+                        if (content.isNotEmpty()) {
+                            sb.append(content)
+                        }
+                    }
+                } catch (_: Exception) {
+                    val match = Regex("\"content\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").find(clean)
+                    if (match != null) {
+                        sb.append(
+                            match.groupValues[1]
+                                .replace("\\n", "\n")
+                                .replace("\\r", "\r")
+                                .replace("\\t", "\t")
+                                .replace("\\\"", "\"")
+                                .replace("\\\\", "\\")
+                        )
                     }
                 }
             }
-            if (sb.isNotEmpty()) sb.toString() else raw
-        } catch (e: Exception) {
-            raw
+            sb.toString()
+        } catch (_: Exception) {
+            "" // NEVER return raw JSON string!
         }
+    }
+
+    fun stripRawJsonArtifacts(text: String): String {
+        return text
+            .replace(Regex("data:\\s*\\{.*?\\}", RegexOption.DOT_MATCHES_ALL), "")
+            .replace(Regex("\\{\"id\":.*?\\}", RegexOption.DOT_MATCHES_ALL), "")
+            .replace("data:", "")
+            .trimEnd()
     }
 
     fun sendMessage(userText: String) {
@@ -252,19 +276,24 @@ fun GptChatScreen(
                 isGenerating = false
             }.collect { token ->
                 val cleanToken = sanitizeChunk(token)
-                accumulatedResponse += cleanToken
-                val index = messages.indexOfFirst { it.id == assistantMessageId }
-                if (index != -1) {
-                    messages[index] = messages[index].copy(text = accumulatedResponse)
-                    listState.scrollToItem(messages.size - 1)
+                if (cleanToken.isNotEmpty()) {
+                    accumulatedResponse += cleanToken
+                    val cleanFull = stripRawJsonArtifacts(accumulatedResponse)
+                    val index = messages.indexOfFirst { it.id == assistantMessageId }
+                    if (index != -1) {
+                        messages[index] = messages[index].copy(text = cleanFull)
+                        listState.scrollToItem(messages.size - 1)
+                    }
                 }
             }
 
             // Save final assistant message to SQLite
-            if (accumulatedResponse.isNotBlank()) {
+            val finalizedText = stripRawJsonArtifacts(accumulatedResponse)
+            if (finalizedText.isNotBlank()) {
                 val index = messages.indexOfFirst { it.id == assistantMessageId }
                 if (index != -1) {
-                    dbHelper.saveMessage(messages[index], accumulatedResponse.length / 4)
+                    messages[index] = messages[index].copy(text = finalizedText)
+                    dbHelper.saveMessage(messages[index], finalizedText.length / 4)
                 }
             }
             isGenerating = false

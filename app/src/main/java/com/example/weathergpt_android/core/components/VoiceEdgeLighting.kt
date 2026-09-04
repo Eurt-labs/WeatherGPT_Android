@@ -1,9 +1,9 @@
 package com.example.weathergpt_android.core.components
 
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -14,18 +14,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 
 /**
- * Ultra-Immersive Animated Edge Lighting with Enhanced Corner Blooms.
- * Tuned for modern curved display bezels (52dp+ corner curvature) with volumetric
- * 4-corner radial ambient pools and fluid neon perimeter sweeps.
+ * Dual-Side Reactive Edge Lighting.
+ * Strictly limited to the Left and Right screen bezels, dynamically reactive to talking.
+ * Completely hides when idle and pulses smoothly when speaking or listening.
  */
 @Composable
 fun VoiceEdgeLighting(
@@ -35,143 +33,103 @@ fun VoiceEdgeLighting(
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "edge_lighting_anim")
 
-    // Dynamic stroke breathing animation
+    // Dynamic voice breathing pulse
     val pulse by infiniteTransition.animateFloat(
-        initialValue = if (isActive) 0.85f else 0.45f,
-        targetValue = if (isActive) 1.35f else 0.90f,
+        initialValue = 0.75f,
+        targetValue = 1.30f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = if (isActive) 750 else 2200, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 650, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "edge_pulse"
+        label = "voice_edge_pulse"
     )
 
-    // Fluid rotation for dynamic rainbow/neon circulation
-    val rotationAngle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = if (isActive) 4500 else 10000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "edge_rotation"
-    )
-
-    // Corner volumetric expansion
-    val cornerBloomSize by infiniteTransition.animateFloat(
-        initialValue = if (isActive) 140f else 90f,
-        targetValue = if (isActive) 210f else 135f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = if (isActive) 900 else 2400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "corner_bloom"
+    // Smooth visibility fade when talking begins / stops (only reactive to talking!)
+    val alphaAnim by animateFloatAsState(
+        targetValue = if (isActive) 1f else 0f,
+        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+        label = "edge_active_alpha"
     )
 
     val neonPurple = Color(0xFF9333EA)
     val neonMagenta = Color(0xFFD946EF)
-    val neonCoral = Color(0xFFFF5722)
     val neonCyan = Color(0xFF06B6D4)
-    val neonElectric = Color(0xFFA855F7)
 
     Box(modifier = modifier.fillMaxSize()) {
         content()
 
-        // Full Screen Edge Glow Border Overlay
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val width = size.width
-            val height = size.height
+        if (alphaAnim > 0.01f) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val width = size.width
+                val height = size.height
 
-            // Modern smartphone corner curve (52.dp translated to device pixels)
-            val cornerRadiusPx = 54.dp.toPx()
-            val strokeWidth = (if (isActive) 10.dp.toPx() else 5.5.dp.toPx()) * pulse
-            val softBloomWidth = strokeWidth * 3.8f
+                // Vertical active range (keeps top status bar and bottom home bar clean)
+                val topPadding = height * 0.07f
+                val bottomPadding = height * 0.07f
+                val activeHeight = height - topPadding - bottomPadding
 
-            val edgeGradient = Brush.sweepGradient(
-                colors = listOf(
-                    neonPurple.copy(alpha = 0.95f * pulse),
-                    neonMagenta.copy(alpha = 0.98f * pulse),
-                    neonCoral.copy(alpha = 0.90f * pulse),
-                    neonCyan.copy(alpha = 0.85f * pulse),
-                    neonElectric.copy(alpha = 0.92f * pulse),
-                    neonPurple.copy(alpha = 0.95f * pulse)
-                ),
-                center = Offset(width * 0.5f, height * 0.5f)
-            )
+                // Dynamic beam width reactive to voice
+                val coreWidth = 7.dp.toPx() * pulse
+                val ambientGlowWidth = 26.dp.toPx() * pulse
 
-            // --- 1. Volumetric 4-Corner Glow Pools (Immersive Corner Accent) ---
-            val cornerGlowAlpha = (if (isActive) 0.65f else 0.35f) * pulse
+                // 1. LEFT SIDE EDGE LIGHTING
+                // Left ambient diffused glow
+                drawRect(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            neonMagenta.copy(alpha = 0.55f * alphaAnim * pulse),
+                            neonPurple.copy(alpha = 0.22f * alphaAnim * pulse),
+                            Color.Transparent
+                        ),
+                        startX = 0f,
+                        endX = ambientGlowWidth
+                    ),
+                    topLeft = Offset(0f, topPadding),
+                    size = Size(ambientGlowWidth, activeHeight)
+                )
+                // Left intense core edge ray
+                drawRect(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            neonMagenta.copy(alpha = 0.95f * alphaAnim),
+                            Color.Transparent
+                        ),
+                        startX = 0f,
+                        endX = coreWidth
+                    ),
+                    topLeft = Offset(0f, topPadding + 20f),
+                    size = Size(coreWidth, activeHeight - 40f)
+                )
 
-            // Top-Left Corner Bloom (Magenta/Purple)
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(neonMagenta.copy(alpha = cornerGlowAlpha), Color.Transparent),
-                    center = Offset(0f, 0f),
-                    radius = cornerBloomSize * 1.8f
-                ),
-                radius = cornerBloomSize * 1.8f,
-                center = Offset(0f, 0f)
-            )
-
-            // Top-Right Corner Bloom (Coral/Purple)
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(neonCoral.copy(alpha = cornerGlowAlpha), Color.Transparent),
-                    center = Offset(width, 0f),
-                    radius = cornerBloomSize * 1.8f
-                ),
-                radius = cornerBloomSize * 1.8f,
-                center = Offset(width, 0f)
-            )
-
-            // Bottom-Left Corner Bloom (Cyan/Electric)
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(neonCyan.copy(alpha = cornerGlowAlpha), Color.Transparent),
-                    center = Offset(0f, height),
-                    radius = cornerBloomSize * 1.9f
-                ),
-                radius = cornerBloomSize * 1.9f,
-                center = Offset(0f, height)
-            )
-
-            // Bottom-Right Corner Bloom (Magenta/Electric)
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(neonPurple.copy(alpha = cornerGlowAlpha), Color.Transparent),
-                    center = Offset(width, height),
-                    radius = cornerBloomSize * 1.9f
-                ),
-                radius = cornerBloomSize * 1.9f,
-                center = Offset(width, height)
-            )
-
-            // --- 2. Ultra-Wide Diffused Atmospheric Glow ---
-            drawRoundRect(
-                brush = edgeGradient,
-                topLeft = Offset(strokeWidth * 0.2f, strokeWidth * 0.2f),
-                size = Size(width - strokeWidth * 0.4f, height - strokeWidth * 0.4f),
-                cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx),
-                style = Stroke(width = softBloomWidth)
-            )
-
-            // --- 3. Mid-Intensity Ambient Ray ---
-            drawRoundRect(
-                brush = edgeGradient,
-                topLeft = Offset(strokeWidth * 0.4f, strokeWidth * 0.4f),
-                size = Size(width - strokeWidth * 0.8f, height - strokeWidth * 0.8f),
-                cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx),
-                style = Stroke(width = strokeWidth * 1.8f)
-            )
-
-            // --- 4. Crisp High-Intensity Core Neon Border ---
-            drawRoundRect(
-                brush = edgeGradient,
-                topLeft = Offset(strokeWidth * 0.5f, strokeWidth * 0.5f),
-                size = Size(width - strokeWidth, height - strokeWidth),
-                cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx),
-                style = Stroke(width = strokeWidth)
-            )
+                // 2. RIGHT SIDE EDGE LIGHTING
+                // Right ambient diffused glow
+                drawRect(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            neonPurple.copy(alpha = 0.22f * alphaAnim * pulse),
+                            neonCyan.copy(alpha = 0.55f * alphaAnim * pulse)
+                        ),
+                        startX = width - ambientGlowWidth,
+                        endX = width
+                    ),
+                    topLeft = Offset(width - ambientGlowWidth, topPadding),
+                    size = Size(ambientGlowWidth, activeHeight)
+                )
+                // Right intense core edge ray
+                drawRect(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            neonCyan.copy(alpha = 0.95f * alphaAnim)
+                        ),
+                        startX = width - coreWidth,
+                        endX = width
+                    ),
+                    topLeft = Offset(width - coreWidth, topPadding + 20f),
+                    size = Size(coreWidth, activeHeight - 40f)
+                )
+            }
         }
     }
 }

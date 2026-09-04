@@ -134,24 +134,34 @@ fun ImmersiveVoiceScreen(
                 conversationState = VoiceConversationState.LISTENING
                 startListening()
             }.collect { token ->
-                fullAnswer += token
-                assistantResponse = fullAnswer
+                val cleanToken = sanitizeVoiceToken(token)
+                if (cleanToken.isNotEmpty()) {
+                    fullAnswer += cleanToken
+                    val displayAnswer = stripRawJsonArtifacts(fullAnswer)
+                    assistantResponse = displayAnswer
+                }
             }
 
+            val cleanToSpeak = stripRawJsonArtifacts(fullAnswer)
             // Save assistant message to database
             dbHelper.saveMessage(
                 ChatMessage(
                     id = UUID.randomUUID().toString(),
-                    text = fullAnswer,
+                    text = cleanToSpeak,
                     isUser = false,
                     timestamp = "Now"
                 ),
-                estimatedTokens = fullAnswer.length / 4
+                estimatedTokens = cleanToSpeak.length / 4
             )
 
-            // Speak response using Puck Voice profile
-            conversationState = VoiceConversationState.SPEAKING
-            textToSpeech?.speak(fullAnswer, TextToSpeech.QUEUE_FLUSH, null, "WEATHER_VOICE_UTTERANCE")
+            // Speak response using Aoede Voice profile
+            if (cleanToSpeak.isNotBlank()) {
+                conversationState = VoiceConversationState.SPEAKING
+                textToSpeech?.speak(cleanToSpeak, TextToSpeech.QUEUE_FLUSH, null, "WEATHER_VOICE_UTTERANCE")
+            } else {
+                conversationState = VoiceConversationState.LISTENING
+                startListening()
+            }
         }
     }
 
@@ -199,9 +209,21 @@ fun ImmersiveVoiceScreen(
             if (status == TextToSpeech.SUCCESS) {
                 isTtsReady = true
                 tts?.language = Locale.getDefault()
-                // Configure natural speech rate and pitch for Puck profile
-                tts?.setPitch(0.95f)
-                tts?.setSpeechRate(1.05f)
+
+                // Configure Aoede Voice Profile (Warm, clear, melodic and natural)
+                val targetVoice = tts?.voices?.find { voice ->
+                    !voice.isNetworkConnectionRequired &&
+                    (voice.name.contains("female", ignoreCase = true) ||
+                     voice.name.contains("en-us-x-sfg", ignoreCase = true) ||
+                     voice.name.contains("en-in-x-cfl", ignoreCase = true) ||
+                     voice.name.contains("en-us-x-tpd", ignoreCase = true))
+                } ?: tts?.voices?.firstOrNull { it.locale.language == Locale.getDefault().language }
+
+                if (targetVoice != null) {
+                    tts?.voice = targetVoice
+                }
+                tts?.setPitch(1.08f)
+                tts?.setSpeechRate(1.0f)
 
                 // Listener for Continuous Conversation Loop:
                 // When TTS finishes speaking, immediately re-arm SpeechRecognizer!
@@ -315,7 +337,7 @@ fun ImmersiveVoiceScreen(
                     text = when (conversationState) {
                         VoiceConversationState.LISTENING -> "Listening..."
                         VoiceConversationState.THINKING -> "Gemini 2.5 Flash is thinking..."
-                        VoiceConversationState.SPEAKING -> "Gemini 2.5 Flash (Puck) is speaking..."
+                        VoiceConversationState.SPEAKING -> "Gemini 2.5 Flash (Aoede) is speaking..."
                     },
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
@@ -340,4 +362,27 @@ fun ImmersiveVoiceScreen(
             }
         }
     }
+}
+
+private fun sanitizeVoiceToken(raw: String): String {
+    if (!raw.contains("{\"id\":") && !raw.contains("data:") && !raw.contains("\"choices\":") && !raw.contains("\"object\":")) {
+        return raw
+    }
+    return try {
+        val match = Regex("\"content\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").find(raw)
+        match?.groupValues?.get(1)
+            ?.replace("\\n", "\n")
+            ?.replace("\\\"", "\"")
+            ?.replace("\\\\", "\\") ?: ""
+    } catch (_: Exception) {
+        ""
+    }
+}
+
+private fun stripRawJsonArtifacts(text: String): String {
+    return text
+        .replace(Regex("data:\\s*\\{.*?\\}", RegexOption.DOT_MATCHES_ALL), "")
+        .replace(Regex("\\{\"id\":.*?\\}", RegexOption.DOT_MATCHES_ALL), "")
+        .replace("data:", "")
+        .trimEnd()
 }
