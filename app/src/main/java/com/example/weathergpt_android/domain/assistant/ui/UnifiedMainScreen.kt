@@ -23,6 +23,7 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.Flight
 import androidx.compose.material.icons.rounded.Grass
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Thunderstorm
@@ -30,6 +31,7 @@ import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import com.example.weathergpt_android.domain.assistant.network.ChatSyncService
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -68,16 +70,28 @@ fun UnifiedMainScreen(
     userProfile: UserProfile,
     onLaunchVoice: () -> Unit,
     onLaunchChatWithPrompt: (String) -> Unit,
+    onOpenPreviousChats: () -> Unit = {},
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val dbHelper = remember { ChatDatabaseHelper.getInstance(context) }
+    val syncService = remember { ChatSyncService(context) }
     var totalHistoryCount by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(Unit) {
-        val messages = dbHelper.getAllMessages()
+    LaunchedEffect(userProfile.userId) {
+        val messages = dbHelper.getAllMessages(userProfile.userId)
         totalHistoryCount = messages.size
+
+        // Background cloud restore if needed
+        if (userProfile.userId.isNotBlank()) {
+            syncService.fetchCloudHistory(userProfile.userId).onSuccess { cloudMsgs ->
+                if (cloudMsgs.isNotEmpty()) {
+                    dbHelper.insertBatchFromCloud(cloudMsgs, userProfile.userId)
+                    totalHistoryCount = dbHelper.getAllMessages(userProfile.userId).size
+                }
+            }
+        }
     }
 
     val isDark = when (currentTheme) {
@@ -118,19 +132,11 @@ fun UnifiedMainScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Top Left Sector Pill
+                // Top Left Sector Pill - Opens Previous Chats
                 Surface(
                     modifier = Modifier
                         .clip(RoundedCornerShape(22.dp))
-                        .clickable(onClick = {
-                            val prompt = when (userProfile.sector) {
-                                UserSector.FARMER -> "Provide comprehensive crop advisory and soil moisture briefing for ${userProfile.crops}."
-                                UserSector.DISASTER_OFFICER -> "Give an emergency weather briefing and flood risk overview."
-                                UserSector.COMMUTER -> "Give me a daily commute weather briefing with rain probability."
-                                UserSector.AVIATION_LOGISTICS -> "Provide wind gusts, visibility, and aviation meteorological report."
-                            }
-                            onLaunchChatWithPrompt(prompt)
-                        }),
+                        .clickable(onClick = onOpenPreviousChats),
                     shape = RoundedCornerShape(22.dp),
                     color = FrostedGlassTokens.surfaceSubtle(isDark),
                     border = BorderStroke(1.dp, Brush.horizontalGradient(listOf(neonPurple, neonMagenta)))
@@ -147,8 +153,8 @@ fun UnifiedMainScreen(
                             color = textColor
                         )
                         Icon(
-                            imageVector = Icons.Rounded.AutoAwesome,
-                            contentDescription = null,
+                            imageVector = Icons.Rounded.History,
+                            contentDescription = "Previous Chats",
                             tint = neonMagenta,
                             modifier = Modifier.size(14.dp)
                         )
@@ -236,10 +242,10 @@ fun UnifiedMainScreen(
                         UserSector.FARMER -> {
                             BentoHubCard(
                                 title = "Kisan AI",
-                                subtitle = if (totalHistoryCount > 0) "Chat History ($totalHistoryCount)" else "View Chat History",
-                                icon = Icons.Rounded.Grass,
+                                subtitle = if (totalHistoryCount > 0) "Previous Chats ($totalHistoryCount)" else "Previous Chats",
+                                icon = Icons.Rounded.History,
                                 iconTint = Color(0xFF10B981),
-                                onClick = { onLaunchChatWithPrompt("") }, // Opens Chat Window to view history
+                                onClick = onOpenPreviousChats,
                                 modifier = Modifier.weight(1f),
                                 isDark = isDark
                             )
@@ -268,10 +274,10 @@ fun UnifiedMainScreen(
 
                             BentoHubCard(
                                 title = "Chat History",
-                                subtitle = if (totalHistoryCount > 0) "History ($totalHistoryCount)" else "Emergency Log",
-                                icon = Icons.Rounded.AutoAwesome,
+                                subtitle = if (totalHistoryCount > 0) "History ($totalHistoryCount)" else "Previous Chats",
+                                icon = Icons.Rounded.History,
                                 iconTint = neonPurple,
-                                onClick = { onLaunchChatWithPrompt("") },
+                                onClick = onOpenPreviousChats,
                                 modifier = Modifier.weight(1f),
                                 isDark = isDark
                             )
@@ -290,10 +296,10 @@ fun UnifiedMainScreen(
 
                             BentoHubCard(
                                 title = "Chat History",
-                                subtitle = if (totalHistoryCount > 0) "History ($totalHistoryCount)" else "View History",
-                                icon = Icons.Rounded.Thunderstorm,
+                                subtitle = if (totalHistoryCount > 0) "History ($totalHistoryCount)" else "Previous Chats",
+                                icon = Icons.Rounded.History,
                                 iconTint = Color(0xFFF59E0B),
-                                onClick = { onLaunchChatWithPrompt("") },
+                                onClick = onOpenPreviousChats,
                                 modifier = Modifier.weight(1f),
                                 isDark = isDark
                             )
@@ -312,10 +318,10 @@ fun UnifiedMainScreen(
 
                             BentoHubCard(
                                 title = "Chat History",
-                                subtitle = if (totalHistoryCount > 0) "History ($totalHistoryCount)" else "Flight Logs",
-                                icon = Icons.Rounded.Thunderstorm,
+                                subtitle = if (totalHistoryCount > 0) "History ($totalHistoryCount)" else "Previous Chats",
+                                icon = Icons.Rounded.History,
                                 iconTint = Color(0xFFEF4444),
-                                onClick = { onLaunchChatWithPrompt("") },
+                                onClick = onOpenPreviousChats,
                                 modifier = Modifier.weight(1f),
                                 isDark = isDark
                             )

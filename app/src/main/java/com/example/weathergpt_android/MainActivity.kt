@@ -41,6 +41,7 @@ import com.example.weathergpt_android.core.theme.AppThemeMode
 import com.example.weathergpt_android.core.theme.ThemePreferences
 import com.example.weathergpt_android.core.theme.WeatherGPTTheme
 import com.example.weathergpt_android.domain.assistant.ui.GptChatScreen
+import com.example.weathergpt_android.domain.assistant.ui.PreviousChatsSheet
 import com.example.weathergpt_android.domain.assistant.ui.UnifiedMainScreen
 import com.example.weathergpt_android.domain.auth.data.UserPreferences
 import com.example.weathergpt_android.domain.auth.model.UserProfile
@@ -110,7 +111,9 @@ fun WeatherGPTApp(
 
     var currentScreen by remember { mutableStateOf(initialScreen) }
     var activeChatPrompt by remember { mutableStateOf<String?>(null) }
+    var activeChatSessionId by remember { mutableStateOf("default") }
     var showSettingsSheet by remember { mutableStateOf(false) }
+    var showPreviousChatsSheet by remember { mutableStateOf(false) }
 
     fun refreshLiveWeather(loc: LocationData) {
         scope.launch {
@@ -121,7 +124,15 @@ fun WeatherGPTApp(
     }
 
     // Android System Back Button Handling
-    BackHandler(enabled = currentScreen != AppScreen.MAIN_HUB && currentScreen != AppScreen.AUTH_OTP) {
+    BackHandler(enabled = showPreviousChatsSheet || showSettingsSheet || (currentScreen != AppScreen.MAIN_HUB && currentScreen != AppScreen.AUTH_OTP)) {
+        if (showPreviousChatsSheet) {
+            showPreviousChatsSheet = false
+            return@BackHandler
+        }
+        if (showSettingsSheet) {
+            showSettingsSheet = false
+            return@BackHandler
+        }
         when (currentScreen) {
             AppScreen.ACTIVE_CHAT -> currentScreen = AppScreen.MAIN_HUB
             AppScreen.VOICE_AI -> currentScreen = AppScreen.MAIN_HUB
@@ -210,8 +221,10 @@ fun WeatherGPTApp(
                     onLaunchVoice = { currentScreen = AppScreen.VOICE_AI },
                     onLaunchChatWithPrompt = { prompt ->
                         activeChatPrompt = prompt
+                        activeChatSessionId = "default"
                         currentScreen = AppScreen.ACTIVE_CHAT
                     },
+                    onOpenPreviousChats = { showPreviousChatsSheet = true },
                     onOpenSettings = { showSettingsSheet = true }
                 )
 
@@ -226,9 +239,50 @@ fun WeatherGPTApp(
                     locationData = locationData,
                     liveWeatherData = liveWeatherData,
                     initialPrompt = activeChatPrompt,
+                    activeSessionId = activeChatSessionId,
                     onBack = { currentScreen = AppScreen.MAIN_HUB },
+                    onOpenPreviousChats = { showPreviousChatsSheet = true },
                     onOpenSettings = { showSettingsSheet = true },
                     onLaunchVoice = { currentScreen = AppScreen.VOICE_AI }
+                )
+            }
+        }
+
+        // Frosted Glass Previous Chats Sheet Dialog / Overlay
+        AnimatedVisibility(
+            visible = showPreviousChatsSheet,
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xB0000000))
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .clickable { showPreviousChatsSheet = false },
+                contentAlignment = Alignment.Center
+            ) {
+                PreviousChatsSheet(
+                    modifier = Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { /* absorb clicks on the sheet */ },
+                    currentTheme = currentTheme,
+                    userProfile = userProfile,
+                    onSelectSession = { sessionId ->
+                        activeChatSessionId = sessionId
+                        activeChatPrompt = null
+                        showPreviousChatsSheet = false
+                        currentScreen = AppScreen.ACTIVE_CHAT
+                    },
+                    onStartNewChat = { newSessionId ->
+                        activeChatSessionId = newSessionId
+                        activeChatPrompt = null
+                        showPreviousChatsSheet = false
+                        currentScreen = AppScreen.ACTIVE_CHAT
+                    },
+                    onDismiss = { showPreviousChatsSheet = false }
                 )
             }
         }

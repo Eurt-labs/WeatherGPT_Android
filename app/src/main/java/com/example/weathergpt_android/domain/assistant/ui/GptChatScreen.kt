@@ -37,6 +37,7 @@ import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.CircularProgressIndicator
@@ -72,6 +73,7 @@ import com.example.weathergpt_android.core.theme.AppThemeMode
 import com.example.weathergpt_android.core.theme.FrostedGlassTokens
 import com.example.weathergpt_android.domain.assistant.data.ChatDatabaseHelper
 import com.example.weathergpt_android.domain.assistant.model.ChatMessage
+import com.example.weathergpt_android.domain.assistant.network.ChatSyncService
 import com.example.weathergpt_android.domain.auth.data.UserPreferences
 import com.example.weathergpt_android.domain.auth.model.UserSector
 import com.example.weathergpt_android.domain.location.model.LocationData
@@ -95,7 +97,9 @@ fun GptChatScreen(
     locationData: LocationData = LocationData.DEFAULT,
     liveWeatherData: LiveWeatherData = LiveWeatherData.DEFAULT,
     initialPrompt: String? = null,
+    activeSessionId: String = "default",
     onBack: () -> Unit,
+    onOpenPreviousChats: () -> Unit = {},
     onOpenSettings: () -> Unit,
     onLaunchVoice: () -> Unit,
     modifier: Modifier = Modifier
@@ -103,6 +107,7 @@ fun GptChatScreen(
     val context = LocalContext.current
     val openRouterService = remember { OpenRouterService(context) }
     val dbHelper = remember { ChatDatabaseHelper.getInstance(context) }
+    val syncService = remember { ChatSyncService(context) }
     val userProfile = remember { UserPreferences.getProfile(context) }
     val scope = rememberCoroutineScope()
 
@@ -147,12 +152,25 @@ fun GptChatScreen(
 
     val messages = remember { mutableStateListOf<ChatMessage>() }
 
-    // Load persisted chat history from SQLite on launch
-    LaunchedEffect(Unit) {
-        val savedHistory = dbHelper.getAllMessages()
+    // Load persisted chat history from SQLite / Cloud on launch
+    LaunchedEffect(activeSessionId, userProfile.userId) {
+        val savedHistory = dbHelper.getAllMessages(userProfile.userId, if (activeSessionId != "default") activeSessionId else null)
+        messages.clear()
         if (savedHistory.isNotEmpty()) {
             messages.addAll(savedHistory)
-        } else {
+        } else if (userProfile.userId.isNotBlank()) {
+            // Check cloud if local is empty (e.g. after reinstall)
+            val cloudRes = syncService.fetchCloudHistory(userProfile.userId)
+            cloudRes.onSuccess { cloudMsgs ->
+                if (cloudMsgs.isNotEmpty()) {
+                    dbHelper.insertBatchFromCloud(cloudMsgs, userProfile.userId)
+                    val restored = dbHelper.getAllMessages(userProfile.userId, if (activeSessionId != "default") activeSessionId else null)
+                    messages.addAll(restored)
+                }
+            }
+        }
+
+        if (messages.isEmpty()) {
             val greeting = when (userProfile.sector) {
                 UserSector.FARMER -> "नमस्ते ${userProfile.name}! I am WeatherGPT Kisan AI.\n\nCurrently in ${locationData.cityName}, temperature is ${liveWeatherData.temperature} with ${liveWeatherData.condition}. Soil moisture is ${liveWeatherData.soilMoisture}. Ask about irrigation, sowing, or weather advisories for ${userProfile.crops}!"
                 UserSector.DISASTER_OFFICER -> "Hello Officer ${userProfile.name}. WeatherGPT Disaster Command active.\n\nCurrent Flood Risk is ${liveWeatherData.floodRiskLevel}. River discharge & storm alert models standing by for ${userProfile.monitoredRegion}."
@@ -163,11 +181,13 @@ fun GptChatScreen(
                 id = "welcome_msg",
                 text = greeting,
                 isUser = false,
-                timestamp = "Just now"
+                timestamp = "Just now",
+                userId = userProfile.userId,
+                sessionId = activeSessionId
             )
             messages.add(welcomeMsg)
             scope.launch {
-                dbHelper.saveMessage(welcomeMsg, 0)
+                dbHelper.saveMessage(welcomeMsg, 0, userId = userProfile.userId, sessionId = activeSessionId)
             }
         }
     }
@@ -229,11 +249,17 @@ fun GptChatScreen(
             id = UUID.randomUUID().toString(),
             text = userText.trim(),
             isUser = true,
-            timestamp = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
+            timestamp = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date()),
+            userId = userProfile.userId,
+            sessionId = activeSessionId,
+            createdAt = System.currentTimeMillis()
         )
         messages.add(userMessage)
         scope.launch {
-            dbHelper.saveMessage(userMessage, userMessage.text.length / 4)
+            dbHelper.saveMessage(userMessage, userMessage.text.length / 4, userId = userProfile.userId, sessionId = activeSessionId)
+            if (userProfile.userId.isNotBlank()) {
+                syncService.syncMessagesToCloud(userProfile.userId, listOf(userMessage))
+            }
         }
 
         val assistantMessageId = UUID.randomUUID().toString()
@@ -241,7 +267,10 @@ fun GptChatScreen(
             id = assistantMessageId,
             text = "",
             isUser = false,
-            timestamp = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
+            timestamp = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date()),
+            userId = userProfile.userId,
+            sessionId = activeSessionId,
+            createdAt = System.currentTimeMillis()
         )
         messages.add(assistantMessage)
         isGenerating = true
@@ -287,13 +316,22 @@ fun GptChatScreen(
                 }
             }
 
-            // Save final assistant message to SQLite
+            // Save final assistant message to SQLite & Cloud
             val finalizedText = stripRawJsonArtifacts(accumulatedResponse)
             if (finalizedText.isNotBlank()) {
                 val index = messages.indexOfFirst { it.id == assistantMessageId }
                 if (index != -1) {
-                    messages[index] = messages[index].copy(text = finalizedText)
-                    dbHelper.saveMessage(messages[index], finalizedText.length / 4)
+                    val finalMsg = messages[index].copy(
+                        text = finalizedText,
+                        userId = userProfile.userId,
+                        sessionId = activeSessionId,
+                        createdAt = System.currentTimeMillis()
+                    )
+                    messages[index] = finalMsg
+                    dbHelper.saveMessage(finalMsg, finalizedText.length / 4, userId = userProfile.userId, sessionId = activeSessionId)
+                    if (userProfile.userId.isNotBlank()) {
+                        syncService.syncMessagesToCloud(userProfile.userId, listOf(finalMsg))
+                    }
                 }
             }
             isGenerating = false
@@ -360,19 +398,33 @@ fun GptChatScreen(
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Previous Chats / History Button
+                    FrostedIconButton(
+                        icon = Icons.Rounded.History,
+                        onClick = onOpenPreviousChats,
+                        size = 40.dp,
+                        iconSize = 19.dp,
+                        isDark = isDark
+                    )
+
                     // Clear History Button
                     FrostedIconButton(
                         icon = Icons.Rounded.DeleteOutline,
                         onClick = {
                             scope.launch {
-                                dbHelper.clearHistory()
+                                dbHelper.clearHistory(userProfile.userId)
+                                if (userProfile.userId.isNotBlank()) {
+                                    syncService.clearCloudHistory(userProfile.userId)
+                                }
                             }
                             messages.clear()
                             val reset = ChatMessage(
                                 id = "cleared",
                                 text = "Conversation history cleared. Ask me anything about the weather!",
                                 isUser = false,
-                                timestamp = "Just now"
+                                timestamp = "Just now",
+                                userId = userProfile.userId,
+                                sessionId = activeSessionId
                             )
                             messages.add(reset)
                         },

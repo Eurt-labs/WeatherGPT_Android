@@ -5,5 +5,16 @@ data class ChatMessage(
     val text: String,
     val isUser: Boolean,
     val timestamp: String,
-    val weatherHighlight: String? = null
+    val weatherHighlight: String? = null,
+    val userId: String = "",
+    val sessionId: String = "default",
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+data class ChatSessionSummary(
+    val sessionId: String,
+    val title: String,
+    val snippet: String,
+    val lastTimestamp: String,
+    val messageCount: Int
 )
