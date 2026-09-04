@@ -9,6 +9,7 @@ import android.media.AudioRecord
 import android.media.AudioTrack
 import android.media.MediaRecorder
 import android.speech.tts.TextToSpeech
+import android.speech.tts.Voice
 import android.speech.tts.UtteranceProgressListener
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
@@ -159,11 +160,44 @@ class SherpaOnnxEngine(
                 voice.locale.language.equals(targetLocale.language, ignoreCase = true)
             } ?: emptyList()
 
-            val bestVoice = matchingVoices.find { voice ->
-                !voice.isNetworkConnectionRequired &&
-                (voice.name.contains("local", ignoreCase = true) ||
-                 voice.name.contains("female", ignoreCase = true) ||
-                 voice.locale.country.equals("IN", ignoreCase = true))
+            // Known high-fidelity Google female neural voices for Indian languages
+            val knownFemaleSignatures = listOf(
+                "x-hie", "x-hid", "x-hia", "x-hif", // Hindi female neural
+                "x-cfl", "x-ene", "x-end", "x-ena", // Indian English female
+                "x-mrd", "x-mra",                   // Marathi female
+                "x-bnd", "x-bna",                   // Bengali female
+                "x-tad", "x-taa",                   // Tamil female
+                "x-ted", "x-tea",                   // Telugu female
+                "x-gud", "x-gua",                   // Gujarati female
+                "x-pad", "x-paa"                    // Punjabi female
+            )
+
+            val bestVoice = matchingVoices.maxByOrNull { voice ->
+                var score = 0
+                val vName = voice.name.lowercase(Locale.ROOT)
+
+                // 1. Strongly prioritize proven female neural profiles
+                if (knownFemaleSignatures.any { vName.contains(it) }) score += 80
+                if (vName.contains("female") || vName.contains("woman") || vName.contains("fem")) score += 50
+
+                // 2. Strongly penalize male profiles so male voices are never selected
+                if (vName.contains("male") || vName.contains("man") ||
+                    vName.contains("x-hic") || vName.contains("x-enc") || vName.contains("x-mrc") ||
+                    vName.contains("x-bnc") || vName.contains("x-tac") || vName.contains("x-tec") ||
+                    vName.contains("x-guc") || vName.contains("x-pac")) {
+                    score -= 100
+                }
+
+                // 3. Indian country accent priority (especially for English)
+                if (voice.locale.country.equals("IN", ignoreCase = true)) score += 30
+
+                // 4. Prefer local on-device voice (no network latency)
+                if (!voice.isNetworkConnectionRequired) score += 20
+
+                // 5. Higher quality level
+                if (voice.quality >= Voice.QUALITY_HIGH) score += 15
+
+                score
             } ?: matchingVoices.firstOrNull { voice ->
                 voice.locale.country.equals("IN", ignoreCase = true)
             } ?: matchingVoices.firstOrNull()
@@ -172,8 +206,12 @@ class SherpaOnnxEngine(
                 tts.voice = bestVoice
             }
 
-            tts.setSpeechRate(0.98f)
-            tts.setPitch(1.0f)
+            // Indian female voice cadence & natural inflection tuning:
+            // Slightly raised pitch (1.10f - 1.12f) ensures clear, warm female formant.
+            // Pacing (0.95f for Indian languages, 0.98f for English) provides fluent, native articulation.
+            val isIndianRegional = targetLocale.language != "en"
+            tts.setPitch(if (isIndianRegional) 1.12f else 1.08f)
+            tts.setSpeechRate(if (isIndianRegional) 0.95f else 0.98f)
         } catch (_: Exception) {
             tts.language = targetLocale
         }
@@ -313,7 +351,7 @@ class SherpaOnnxEngine(
      * Cleans Markdown formatting, URLs, symbols and raw JSON tags for natural speech readout.
      */
     fun cleanForSpeech(raw: String): String {
-        return raw
+        var text = raw
             // Strip code blocks and inline code
             .replace(Regex("```[\\s\\S]*?```"), "")
             .replace(Regex("`[^`]*`"), "")
@@ -327,6 +365,29 @@ class SherpaOnnxEngine(
             // Strip list bullets and numbering
             .replace(Regex("^[\\s]*[-+*][\\s]+", RegexOption.MULTILINE), "")
             .replace(Regex("^[\\s]*\\d+\\.[\\s]+", RegexOption.MULTILINE), "")
+
+        val isDevanagari = text.any { it.code in 0x0900..0x097F }
+
+        // Expand meteorological symbols for smooth, natural speech pronunciation
+        text = if (isDevanagari) {
+            text.replace("°C", " डिग्री सेल्सियस")
+                .replace("°", " डिग्री")
+                .replace("km/h", " किलोमीटर प्रति घंटा")
+                .replace("mm/day", " मिलीमीटर प्रतिदिन")
+                .replace("mm/h", " मिलीमीटर प्रति घंटा")
+                .replace("mm", " मिलीमीटर")
+                .replace("%", " प्रतिशत")
+        } else {
+            text.replace("°C", " degrees Celsius")
+                .replace("°", " degrees")
+                .replace("km/h", " kilometers per hour")
+                .replace("mm/day", " millimeters per day")
+                .replace("mm/h", " millimeters per hour")
+                .replace("mm", " millimeters")
+                .replace("%", " percent")
+        }
+
+        return text
             // Collapse redundant whitespace
             .replace(Regex("\\n{2,}"), ". ")
             .replace("\n", " ")

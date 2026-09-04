@@ -7,6 +7,7 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
+import android.speech.tts.Voice
 import android.speech.tts.UtteranceProgressListener
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -206,7 +207,8 @@ fun ImmersiveVoiceScreen(
                     textToSpeech?.let { ttsInstance ->
                         val detectedLocale = detectVoiceLocale(cleanToSpeak, userProfile.preferredLanguage)
                         applyNativeIndianVoice(ttsInstance, detectedLocale)
-                        ttsInstance.speak(cleanToSpeak, TextToSpeech.QUEUE_FLUSH, null, "WEATHER_VOICE_UTTERANCE")
+                        val spokenText = prepareVoiceTextForSpeech(cleanToSpeak)
+                        ttsInstance.speak(spokenText, TextToSpeech.QUEUE_FLUSH, null, "WEATHER_VOICE_UTTERANCE")
                     }
                 }
             } else {
@@ -506,9 +508,9 @@ private fun detectVoiceLocale(text: String, preferredLangCode: String): Locale {
 }
 
 /**
- * Program the TextToSpeech engine with native high-quality regional voice profiles.
- * Finds Google TTS voices for Indian languages (e.g. hi-in-x-hie-local, mr-in-x-mrd-local, en-in-x-cfl-local)
- * and applies warm, natural pitch and human conversational pacing.
+ * Program the TextToSpeech engine with native high-quality regional female voice profiles.
+ * Finds Google TTS female neural voices for Indian languages (e.g. hi-in-x-hie-local, mr-in-x-mrd-local, en-in-x-cfl-local)
+ * and applies warm, sweet female pitch and native human conversational pacing.
  */
 private fun applyNativeIndianVoice(tts: TextToSpeech?, targetLocale: Locale) {
     if (tts == null) return
@@ -522,11 +524,44 @@ private fun applyNativeIndianVoice(tts: TextToSpeech?, targetLocale: Locale) {
             voice.locale.language.equals(targetLocale.language, ignoreCase = true)
         } ?: emptyList()
 
-        val bestVoice = matchingVoices.find { voice ->
-            !voice.isNetworkConnectionRequired &&
-            (voice.name.contains("local", ignoreCase = true) ||
-             voice.name.contains("female", ignoreCase = true) ||
-             voice.locale.country.equals("IN", ignoreCase = true))
+        // Known high-fidelity Google female neural voices for Indian languages
+        val knownFemaleSignatures = listOf(
+            "x-hie", "x-hid", "x-hia", "x-hif", // Hindi female neural
+            "x-cfl", "x-ene", "x-end", "x-ena", // Indian English female
+            "x-mrd", "x-mra",                   // Marathi female
+            "x-bnd", "x-bna",                   // Bengali female
+            "x-tad", "x-taa",                   // Tamil female
+            "x-ted", "x-tea",                   // Telugu female
+            "x-gud", "x-gua",                   // Gujarati female
+            "x-pad", "x-paa"                    // Punjabi female
+        )
+
+        val bestVoice = matchingVoices.maxByOrNull { voice ->
+            var score = 0
+            val vName = voice.name.lowercase(Locale.ROOT)
+
+            // 1. Strongly prioritize proven female neural profiles
+            if (knownFemaleSignatures.any { vName.contains(it) }) score += 80
+            if (vName.contains("female") || vName.contains("woman") || vName.contains("fem")) score += 50
+
+            // 2. Strongly penalize male profiles so male voices are never selected
+            if (vName.contains("male") || vName.contains("man") ||
+                vName.contains("x-hic") || vName.contains("x-enc") || vName.contains("x-mrc") ||
+                vName.contains("x-bnc") || vName.contains("x-tac") || vName.contains("x-tec") ||
+                vName.contains("x-guc") || vName.contains("x-pac")) {
+                score -= 100
+            }
+
+            // 3. Indian country accent priority (especially for English)
+            if (voice.locale.country.equals("IN", ignoreCase = true)) score += 30
+
+            // 4. Prefer local on-device voice (no network latency)
+            if (!voice.isNetworkConnectionRequired) score += 20
+
+            // 5. Higher quality level
+            if (voice.quality >= Voice.QUALITY_HIGH) score += 15
+
+            score
         } ?: matchingVoices.firstOrNull { voice ->
             voice.locale.country.equals("IN", ignoreCase = true)
         } ?: matchingVoices.firstOrNull()
@@ -535,11 +570,49 @@ private fun applyNativeIndianVoice(tts: TextToSpeech?, targetLocale: Locale) {
             tts.voice = bestVoice
         }
 
-        // Warm, natural conversational speech rate and pitch
-        tts.setPitch(1.0f)
-        tts.setSpeechRate(0.98f)
+        // Indian female voice cadence & natural inflection tuning:
+        // Slightly raised pitch (1.10f - 1.12f) ensures clear, warm female formant.
+        // Pacing (0.95f for Indian languages, 0.98f for English) provides fluent, native articulation.
+        val isIndianRegional = targetLocale.language != "en"
+        tts.setPitch(if (isIndianRegional) 1.12f else 1.08f)
+        tts.setSpeechRate(if (isIndianRegional) 0.95f else 0.98f)
     } catch (_: Exception) {
         tts.language = targetLocale
     }
+}
+
+/**
+ * Expands meteorological units and cleans markdown so text-to-speech speaks fluent, natural sentences.
+ */
+private fun prepareVoiceTextForSpeech(raw: String): String {
+    var text = raw
+        .replace(Regex("[*_~#`]"), "")
+        .replace(Regex("data:\\s*\\{.*?\\}", RegexOption.DOT_MATCHES_ALL), "")
+        .replace("data:", "")
+
+    val isDevanagari = text.any { it.code in 0x0900..0x097F }
+
+    text = if (isDevanagari) {
+        text.replace("°C", " डिग्री सेल्सियस")
+            .replace("°", " डिग्री")
+            .replace("km/h", " किलोमीटर प्रति घंटा")
+            .replace("mm/day", " मिलीमीटर प्रतिदिन")
+            .replace("mm/h", " मिलीमीटर प्रति घंटा")
+            .replace("mm", " मिलीमीटर")
+            .replace("%", " प्रतिशत")
+    } else {
+        text.replace("°C", " degrees Celsius")
+            .replace("°", " degrees")
+            .replace("km/h", " kilometers per hour")
+            .replace("mm/day", " millimeters per day")
+            .replace("mm/h", " millimeters per hour")
+            .replace("mm", " millimeters")
+            .replace("%", " percent")
+    }
+
+    return text
+        .replace(Regex("\\n{2,}"), ". ")
+        .replace("\n", " ")
+        .trim()
 }
 
