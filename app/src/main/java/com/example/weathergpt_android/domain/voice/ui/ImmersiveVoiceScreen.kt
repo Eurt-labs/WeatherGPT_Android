@@ -56,7 +56,9 @@ import com.example.weathergpt_android.domain.auth.data.UserPreferences
 import com.example.weathergpt_android.domain.auth.model.UserProfile
 import com.example.weathergpt_android.domain.location.model.LocationData
 import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.Locale
 import java.util.UUID
@@ -92,6 +94,27 @@ fun ImmersiveVoiceScreen(
     var textToSpeech by remember { mutableStateOf<TextToSpeech?>(null) }
     var isTtsReady by remember { mutableStateOf(false) }
     var speechEnergy by remember { mutableFloatStateOf(0f) }
+    var conversationProgress by remember { mutableFloatStateOf(0.10f) }
+
+    // Linear Edge Light: dynamically expands from center bezel outwards as conversation goes
+    LaunchedEffect(conversationState) {
+        while (isActive) {
+            delay(150)
+            when (conversationState) {
+                VoiceConversationState.LISTENING -> {
+                    if (speechEnergy > 0.08f) {
+                        conversationProgress = (conversationProgress + 0.012f).coerceAtMost(1f)
+                    }
+                }
+                VoiceConversationState.THINKING -> {
+                    conversationProgress = (conversationProgress + 0.005f).coerceAtMost(1f)
+                }
+                VoiceConversationState.SPEAKING -> {
+                    conversationProgress = (conversationProgress + 0.009f).coerceAtMost(1f)
+                }
+            }
+        }
+    }
 
     // Start Listening Helper Function with Multilingual Indian Language support
     fun startListening() {
@@ -123,6 +146,7 @@ fun ImmersiveVoiceScreen(
         if (query.isBlank()) return
         conversationState = VoiceConversationState.THINKING
         assistantResponse = ""
+        conversationProgress = (conversationProgress + 0.12f).coerceAtMost(1f)
 
         // Save user message to database
         scope.launch {
@@ -223,6 +247,8 @@ fun ImmersiveVoiceScreen(
                 val partial = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
                 if (!partial.isNullOrBlank()) {
                     userTranscript = partial
+                    val wordCount = partial.split(" ").filter { it.isNotBlank() }.size
+                    conversationProgress = (conversationProgress + wordCount * 0.003f).coerceAtMost(1f)
                 }
             }
 
@@ -275,8 +301,13 @@ fun ImmersiveVoiceScreen(
 
     // Voice Edge Lighting Wrapper (Screen 3)
     VoiceEdgeLighting(
-        isActive = conversationState == VoiceConversationState.LISTENING || conversationState == VoiceConversationState.SPEAKING,
-        speechEnergy = if (conversationState == VoiceConversationState.SPEAKING) 0.65f else speechEnergy
+        isActive = true,
+        speechEnergy = when (conversationState) {
+            VoiceConversationState.SPEAKING -> 0.65f
+            VoiceConversationState.THINKING -> 0.22f
+            VoiceConversationState.LISTENING -> speechEnergy
+        },
+        conversationProgress = conversationProgress
     ) {
         Column(
             modifier = modifier
