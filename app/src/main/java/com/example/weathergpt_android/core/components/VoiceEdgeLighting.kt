@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -21,39 +22,55 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 /**
- * Dual-Side Reactive Edge Lighting.
- * Strictly limited to the Left and Right screen bezels, dynamically reactive to talking.
- * Completely hides when idle and pulses smoothly when speaking or listening.
+ * Linearly Expandable Dual-Side Reactive Edge Lighting.
+ *
+ * Distinctive Mechanics:
+ * - Originates strictly near the vertical CENTER of the left and right bezels.
+ * - Expands linearly up and down along the screen edges as conversation progresses.
+ * - Stays strictly linear and hugs the bezel borders (NOT radial, NOT expanding horizontally).
+ * - Smoothly collapses back to the center origin point when conversation stops.
  */
 @Composable
 fun VoiceEdgeLighting(
     modifier: Modifier = Modifier,
     isActive: Boolean = false,
+    speechEnergy: Float = 0f,
     content: @Composable BoxScope.() -> Unit
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "edge_lighting_anim")
-
-    // Dynamic voice breathing pulse
-    val pulse by infiniteTransition.animateFloat(
-        initialValue = 0.75f,
-        targetValue = 1.30f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 650, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
+    // 1. Linear Expansion Progression:
+    // When active, the beam linearly elongates vertically from center outwards along the bezel
+    val linearExpansion by animateFloatAsState(
+        targetValue = if (isActive) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = if (isActive) 1800 else 320,
+            easing = FastOutSlowInEasing
         ),
-        label = "voice_edge_pulse"
+        label = "edge_linear_expansion"
     )
 
-    // Smooth visibility fade when talking begins / stops (only reactive to talking!)
+    // Smooth visibility fade
     val alphaAnim by animateFloatAsState(
         targetValue = if (isActive) 1f else 0f,
-        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
         label = "edge_active_alpha"
+    )
+
+    // Gentle conversational wave modulation (breathing effect along the linear beam)
+    val infiniteTransition = rememberInfiniteTransition(label = "edge_lighting_wave")
+    val waveModulation by infiniteTransition.animateFloat(
+        initialValue = 0.92f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 750, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "voice_edge_wave_pulse"
     )
 
     val neonPurple = Color(0xFF9333EA)
     val neonMagenta = Color(0xFFD946EF)
     val neonCyan = Color(0xFF06B6D4)
+    val neonSky = Color(0xFF38BDF8)
 
     Box(modifier = modifier.fillMaxSize()) {
         content()
@@ -62,72 +79,105 @@ fun VoiceEdgeLighting(
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val width = size.width
                 val height = size.height
+                val centerY = height * 0.5f
 
-                // Vertical active range (keeps top status bar and bottom home bar clean)
-                val topPadding = height * 0.07f
-                val bottomPadding = height * 0.07f
-                val activeHeight = height - topPadding - bottomPadding
+                // Maximum vertical half-span (keeps system status and navigation bars clean)
+                val maxHalfHeight = height * 0.40f
+                // Initial compact origin length near center (originating point)
+                val minHalfHeight = 28.dp.toPx()
 
-                // Dynamic beam width reactive to voice
-                val coreWidth = 7.dp.toPx() * pulse
-                val ambientGlowWidth = 26.dp.toPx() * pulse
+                // Calculate current half-height expanding linearly as conversation continues
+                val reactiveBoost = (speechEnergy.coerceIn(0f, 1f) * 0.15f)
+                val currentExpansion = (linearExpansion * (0.85f + reactiveBoost) * waveModulation).coerceIn(0f, 1f)
+                val currentHalfHeight = minHalfHeight + (maxHalfHeight - minHalfHeight) * currentExpansion
 
-                // 1. LEFT SIDE EDGE LIGHTING
-                // Left ambient diffused glow
-                drawRect(
+                val topY = (centerY - currentHalfHeight).coerceAtLeast(height * 0.08f)
+                val bottomY = (centerY + currentHalfHeight).coerceAtMost(height * 0.92f)
+                val beamHeight = bottomY - topY
+
+                // Slender bezel-hugging widths (strictly linear, NOT expanding horizontally across screen)
+                val coreLineWidth = 3.5.dp.toPx()
+                val subtleGlowWidth = 10.dp.toPx()
+                val cornerRadius = CornerRadius(coreLineWidth / 2f, coreLineWidth / 2f)
+
+                // =========================================================================
+                // 1. LEFT EDGE: Originating near center, expanding linearly up & down
+                // =========================================================================
+                val leftLinearBrush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        neonPurple.copy(alpha = 0.35f * alphaAnim),
+                        neonMagenta.copy(alpha = 0.85f * alphaAnim),
+                        Color.White.copy(alpha = 0.95f * alphaAnim), // Brilliant center origin spark
+                        neonMagenta.copy(alpha = 0.85f * alphaAnim),
+                        neonPurple.copy(alpha = 0.35f * alphaAnim),
+                        Color.Transparent
+                    ),
+                    startY = topY,
+                    endY = bottomY
+                )
+
+                // Subtle bezel glow
+                drawRoundRect(
                     brush = Brush.horizontalGradient(
                         colors = listOf(
-                            neonMagenta.copy(alpha = 0.55f * alphaAnim * pulse),
-                            neonPurple.copy(alpha = 0.22f * alphaAnim * pulse),
+                            neonMagenta.copy(alpha = 0.32f * alphaAnim),
                             Color.Transparent
                         ),
                         startX = 0f,
-                        endX = ambientGlowWidth
+                        endX = subtleGlowWidth
                     ),
-                    topLeft = Offset(0f, topPadding),
-                    size = Size(ambientGlowWidth, activeHeight)
-                )
-                // Left intense core edge ray
-                drawRect(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            neonMagenta.copy(alpha = 0.95f * alphaAnim),
-                            Color.Transparent
-                        ),
-                        startX = 0f,
-                        endX = coreWidth
-                    ),
-                    topLeft = Offset(0f, topPadding + 20f),
-                    size = Size(coreWidth, activeHeight - 40f)
+                    topLeft = Offset(0f, topY),
+                    size = Size(subtleGlowWidth, beamHeight),
+                    cornerRadius = CornerRadius(subtleGlowWidth / 2f, subtleGlowWidth / 2f)
                 )
 
-                // 2. RIGHT SIDE EDGE LIGHTING
-                // Right ambient diffused glow
-                drawRect(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            neonPurple.copy(alpha = 0.22f * alphaAnim * pulse),
-                            neonCyan.copy(alpha = 0.55f * alphaAnim * pulse)
-                        ),
-                        startX = width - ambientGlowWidth,
-                        endX = width
-                    ),
-                    topLeft = Offset(width - ambientGlowWidth, topPadding),
-                    size = Size(ambientGlowWidth, activeHeight)
+                // Core linear beam
+                drawRoundRect(
+                    brush = leftLinearBrush,
+                    topLeft = Offset(0f, topY),
+                    size = Size(coreLineWidth, beamHeight),
+                    cornerRadius = cornerRadius
                 )
-                // Right intense core edge ray
-                drawRect(
+
+                // =========================================================================
+                // 2. RIGHT EDGE: Originating near center, expanding linearly up & down
+                // =========================================================================
+                val rightLinearBrush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        neonCyan.copy(alpha = 0.35f * alphaAnim),
+                        neonSky.copy(alpha = 0.85f * alphaAnim),
+                        Color.White.copy(alpha = 0.95f * alphaAnim), // Brilliant center origin spark
+                        neonSky.copy(alpha = 0.85f * alphaAnim),
+                        neonCyan.copy(alpha = 0.35f * alphaAnim),
+                        Color.Transparent
+                    ),
+                    startY = topY,
+                    endY = bottomY
+                )
+
+                // Subtle bezel glow
+                drawRoundRect(
                     brush = Brush.horizontalGradient(
                         colors = listOf(
                             Color.Transparent,
-                            neonCyan.copy(alpha = 0.95f * alphaAnim)
+                            neonSky.copy(alpha = 0.32f * alphaAnim)
                         ),
-                        startX = width - coreWidth,
+                        startX = width - subtleGlowWidth,
                         endX = width
                     ),
-                    topLeft = Offset(width - coreWidth, topPadding + 20f),
-                    size = Size(coreWidth, activeHeight - 40f)
+                    topLeft = Offset(width - subtleGlowWidth, topY),
+                    size = Size(subtleGlowWidth, beamHeight),
+                    cornerRadius = CornerRadius(subtleGlowWidth / 2f, subtleGlowWidth / 2f)
+                )
+
+                // Core linear beam
+                drawRoundRect(
+                    brush = rightLinearBrush,
+                    topLeft = Offset(width - coreLineWidth, topY),
+                    size = Size(coreLineWidth, beamHeight),
+                    cornerRadius = cornerRadius
                 )
             }
         }

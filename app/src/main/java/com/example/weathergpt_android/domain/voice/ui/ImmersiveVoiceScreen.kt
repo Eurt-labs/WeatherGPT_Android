@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -90,6 +91,7 @@ fun ImmersiveVoiceScreen(
     var speechRecognizer by remember { mutableStateOf<SpeechRecognizer?>(null) }
     var textToSpeech by remember { mutableStateOf<TextToSpeech?>(null) }
     var isTtsReady by remember { mutableStateOf(false) }
+    var speechEnergy by remember { mutableFloatStateOf(0f) }
 
     // Start Listening Helper Function with Multilingual Indian Language support
     fun startListening() {
@@ -192,7 +194,11 @@ fun ImmersiveVoiceScreen(
         recognizer.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {}
             override fun onBeginningOfSpeech() {}
-            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onRmsChanged(rmsdB: Float) {
+                if (conversationState == VoiceConversationState.LISTENING) {
+                    speechEnergy = ((rmsdB + 2f) / 10f).coerceIn(0f, 1f)
+                }
+            }
             override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() {}
             override fun onError(error: Int) {
@@ -269,7 +275,8 @@ fun ImmersiveVoiceScreen(
 
     // Voice Edge Lighting Wrapper (Screen 3)
     VoiceEdgeLighting(
-        isActive = conversationState == VoiceConversationState.LISTENING || conversationState == VoiceConversationState.SPEAKING
+        isActive = conversationState == VoiceConversationState.LISTENING || conversationState == VoiceConversationState.SPEAKING,
+        speechEnergy = if (conversationState == VoiceConversationState.SPEAKING) 0.65f else speechEnergy
     ) {
         Column(
             modifier = modifier
