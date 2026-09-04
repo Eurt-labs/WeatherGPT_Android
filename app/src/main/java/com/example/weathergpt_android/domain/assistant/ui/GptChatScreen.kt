@@ -1,9 +1,10 @@
 package com.example.weathergpt_android.domain.assistant.ui
 
-import android.speech.tts.TextToSpeech
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -34,12 +35,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Send
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -53,6 +56,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.weathergpt_android.domain.voice.sherpa.engine.SherpaOnnxEngine
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -127,26 +132,15 @@ fun GptChatScreen(
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
-    // TextToSpeech for Voice Readout
-    var tts by remember { mutableStateOf<TextToSpeech?>(null) }
+    // Sherpa On-Device Voice Engine for 100% Offline Dictation (0 Tokens Used)
+    val sherpaEngine = remember { SherpaOnnxEngine(context, scope) }
+    val isSherpaSpeaking by sherpaEngine.isSpeaking.collectAsStateWithLifecycle()
+    val speakingMessageId by sherpaEngine.currentlySpeakingId.collectAsStateWithLifecycle()
+
     DisposableEffect(Unit) {
-        val ttsEngine = TextToSpeech(context) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                val locale = when (userProfile.preferredLanguage.lowercase()) {
-                    "hi" -> Locale("hi", "IN")
-                    "mr" -> Locale("mr", "IN")
-                    "bn" -> Locale("bn", "IN")
-                    "ta" -> Locale("ta", "IN")
-                    "te" -> Locale("te", "IN")
-                    else -> Locale.ENGLISH
-                }
-                tts?.language = locale
-            }
-        }
-        tts = ttsEngine
         onDispose {
-            ttsEngine.stop()
-            ttsEngine.shutdown()
+            sherpaEngine.stopSpeaking()
+            sherpaEngine.release()
         }
     }
 
@@ -454,11 +448,21 @@ fun GptChatScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 items(messages, key = { it.id }) { msg ->
+                    val isThisMsgSpeaking = speakingMessageId == msg.id
                     ChatBubbleItem(
                         message = msg,
                         isDark = isDark,
-                        onSpeak = {
-                            tts?.speak(msg.text, TextToSpeech.QUEUE_FLUSH, null, msg.id)
+                        isSpeaking = isThisMsgSpeaking,
+                        onToggleSpeak = {
+                            if (isThisMsgSpeaking) {
+                                sherpaEngine.stopSpeaking()
+                            } else {
+                                sherpaEngine.speakMessage(
+                                    utteranceId = msg.id,
+                                    text = msg.text,
+                                    languageCode = userProfile.preferredLanguage
+                                )
+                            }
                         }
                     )
                 }
@@ -515,6 +519,93 @@ fun GptChatScreen(
                                 color = if (isDark) Color.White.copy(alpha = 0.85f) else Color(0xFF334155),
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
                             )
+                        }
+                    }
+                }
+            }
+
+            // Sticky Sherpa Dictation Player Bar with Stop Control
+            AnimatedVisibility(
+                visible = isSherpaSpeaking,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    color = FrostedGlassTokens.surfaceRaised(isDark),
+                    border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f)),
+                    shadowElevation = 6.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0x30C026D3)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.GraphicEq,
+                                    contentDescription = null,
+                                    tint = neonMagenta,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "🌾 Sherpa On-Device Voice",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = textColor
+                                )
+                                Text(
+                                    text = "Dictating locally · 0 API Tokens used",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF10B981)
+                                )
+                            }
+                        }
+
+                        // Immediate Stop Pill Button
+                        Surface(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .clickable { sherpaEngine.stopSpeaking() },
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color(0xFFEF4444)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Stop,
+                                    contentDescription = "Stop",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "STOP",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
                         }
                     }
                 }
@@ -633,7 +724,8 @@ fun GptChatScreen(
 private fun ChatBubbleItem(
     message: ChatMessage,
     isDark: Boolean,
-    onSpeak: () -> Unit
+    isSpeaking: Boolean = false,
+    onToggleSpeak: () -> Unit = {}
 ) {
     val isUser = message.isUser
     val alignment = if (isUser) Alignment.End else Alignment.Start
@@ -678,8 +770,14 @@ private fun ChatBubbleItem(
                 shape = RoundedCornerShape(4.dp, 22.dp, 22.dp, 22.dp),
                 color = FrostedGlassTokens.surface(isDark),
                 border = BorderStroke(
-                    1.dp,
-                    if (isDark) Brush.horizontalGradient(listOf(Color(0x50C026D3), Color(0x209333EA))) else Brush.horizontalGradient(listOf(Color(0x30C026D3), Color(0x209333EA)))
+                    1.2.dp,
+                    if (isSpeaking) {
+                        SolidColor(Color(0xFFEF4444).copy(alpha = 0.8f))
+                    } else if (isDark) {
+                        Brush.horizontalGradient(listOf(Color(0x50C026D3), Color(0x209333EA)))
+                    } else {
+                        Brush.horizontalGradient(listOf(Color(0x30C026D3), Color(0x209333EA)))
+                    }
                 )
             ) {
                 Column(
@@ -717,21 +815,36 @@ private fun ChatBubbleItem(
                             )
                         }
 
-                        // Read aloud speaker button
-                        Box(
+                        // Sherpa On-Device Voice Readout & Stop Button (0 Tokens)
+                        Surface(
                             modifier = Modifier
-                                .size(26.dp)
-                                .clip(CircleShape)
-                                .background(FrostedGlassTokens.surfaceSubtle(isDark))
-                                .clickable(onClick = onSpeak),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.GraphicEq,
-                                contentDescription = "Read Aloud",
-                                tint = if (isDark) Color.White.copy(alpha = 0.7f) else Color(0xFF64748B),
-                                modifier = Modifier.size(14.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable(onClick = onToggleSpeak),
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSpeaking) Color(0x30EF4444) else FrostedGlassTokens.surfaceSubtle(isDark),
+                            border = BorderStroke(
+                                1.dp,
+                                if (isSpeaking) Color(0xFFEF4444).copy(alpha = 0.8f) else FrostedGlassTokens.borderSubtle(isDark)
                             )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isSpeaking) Icons.Rounded.Stop else Icons.AutoMirrored.Rounded.VolumeUp,
+                                    contentDescription = if (isSpeaking) "Stop Dictation" else "Dictate with Sherpa (0 Tokens)",
+                                    tint = if (isSpeaking) Color(0xFFEF4444) else (if (isDark) Color.White.copy(alpha = 0.8f) else Color(0xFF64748B)),
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Text(
+                                    text = if (isSpeaking) "Stop" else "Sherpa",
+                                    fontSize = 10.sp,
+                                    fontWeight = if (isSpeaking) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSpeaking) Color(0xFFFF5252) else (if (isDark) Color.White.copy(alpha = 0.8f) else Color(0xFF64748B))
+                                )
+                            }
                         }
                     }
 
@@ -741,6 +854,30 @@ private fun ChatBubbleItem(
                         fontSize = 14.sp,
                         lineHeight = 22.sp
                     )
+
+                    // Active speech dictation indicator pill
+                    if (isSpeaking) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            modifier = Modifier
+                                .background(Color(0x2010B981), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.GraphicEq,
+                                contentDescription = null,
+                                tint = Color(0xFF10B981),
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Text(
+                                text = "Sherpa Dictating · 0 Tokens",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF10B981)
+                            )
+                        }
+                    }
 
                     Text(
                         text = message.timestamp,
