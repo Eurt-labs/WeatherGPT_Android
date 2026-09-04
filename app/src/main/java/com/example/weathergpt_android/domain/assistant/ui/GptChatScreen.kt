@@ -57,6 +57,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.weathergpt_android.core.components.VoiceWaveAnimation
 import com.example.weathergpt_android.domain.voice.sherpa.engine.SherpaOnnxEngine
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -524,93 +525,6 @@ fun GptChatScreen(
                 }
             }
 
-            // Sticky Sherpa Dictation Player Bar with Stop Control
-            AnimatedVisibility(
-                visible = isSherpaSpeaking,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    shape = RoundedCornerShape(18.dp),
-                    color = FrostedGlassTokens.surfaceRaised(isDark),
-                    border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f)),
-                    shadowElevation = 6.dp
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0x30C026D3)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.GraphicEq,
-                                    contentDescription = null,
-                                    tint = neonMagenta,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "🌾 On-Device Voice Intelligence",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = textColor
-                                )
-                                Text(
-                                    text = "Dictating locally · 0 API Tokens used",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF10B981)
-                                )
-                            }
-                        }
-
-                        // Immediate Stop Pill Button
-                        Surface(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .clickable { sherpaEngine.stopSpeaking() },
-                            shape = RoundedCornerShape(20.dp),
-                            color = Color(0xFFEF4444)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Stop,
-                                    contentDescription = "Stop",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = "STOP",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
             // Bottom Obsidian Frosted Input Bar
             Surface(
                 modifier = Modifier
@@ -772,7 +686,7 @@ private fun ChatBubbleItem(
                 border = BorderStroke(
                     1.2.dp,
                     if (isSpeaking) {
-                        SolidColor(Color(0xFFEF4444).copy(alpha = 0.8f))
+                        Brush.horizontalGradient(listOf(Color(0xFF06B6D4), Color(0xFFD946EF)))
                     } else if (isDark) {
                         Brush.horizontalGradient(listOf(Color(0x50C026D3), Color(0x209333EA)))
                     } else {
@@ -855,28 +769,12 @@ private fun ChatBubbleItem(
                         lineHeight = 22.sp
                     )
 
-                    // Active speech dictation indicator pill
+                    // Dynamic animated audio wave (tap to stop)
                     if (isSpeaking) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp),
-                            modifier = Modifier
-                                .background(Color(0x2010B981), RoundedCornerShape(6.dp))
-                                .padding(horizontal = 8.dp, vertical = 3.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.GraphicEq,
-                                contentDescription = null,
-                                tint = Color(0xFF10B981),
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Text(
-                                text = "Voice Dictating · 0 Tokens",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF10B981)
-                            )
-                        }
+                        VoiceWaveAnimation(
+                            isDark = isDark,
+                            onStopClick = onToggleSpeak
+                        )
                     }
 
                     Text(
