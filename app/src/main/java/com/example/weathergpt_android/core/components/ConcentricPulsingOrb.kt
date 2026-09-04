@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.MicOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -29,12 +30,13 @@ import androidx.compose.ui.unit.dp
 
 /**
  * Concentric Pulsing Orb matching the bottom microphone button in Screenshot 3.
- * Features radiating ripple rings and radiant magenta/coral center.
+ * Features radiating ripple rings and radiant magenta/coral center, with interactive muted state.
  */
 @Composable
 fun ConcentricPulsingOrb(
     modifier: Modifier = Modifier,
     isActive: Boolean = true,
+    isMuted: Boolean = false,
     onClick: () -> Unit = {},
     size: Dp = 86.dp
 ) {
@@ -44,17 +46,17 @@ fun ConcentricPulsingOrb(
         initialValue = 1f,
         targetValue = 1.70f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = if (isActive) 1200 else 2400, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = if (isActive && !isMuted) 1200 else 2400, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "ripple1"
     )
 
     val ripple1Alpha by infiniteTransition.animateFloat(
-        initialValue = 0.45f,
+        initialValue = if (!isMuted) 0.45f else 0.0f,
         targetValue = 0.0f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = if (isActive) 1200 else 2400, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = if (isActive && !isMuted) 1200 else 2400, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "ripple1_alpha"
@@ -64,58 +66,73 @@ fun ConcentricPulsingOrb(
         initialValue = 1f,
         targetValue = 1.40f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = if (isActive) 1200 else 2400, delayMillis = 350, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = if (isActive && !isMuted) 1200 else 2400, delayMillis = 350, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "ripple2"
     )
 
     val ripple2Alpha by infiniteTransition.animateFloat(
-        initialValue = 0.55f,
+        initialValue = if (!isMuted) 0.55f else 0.0f,
         targetValue = 0.0f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = if (isActive) 1200 else 2400, delayMillis = 350, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = if (isActive && !isMuted) 1200 else 2400, delayMillis = 350, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "ripple2_alpha"
     )
 
-    val centerButtonGradient = Brush.radialGradient(
-        colors = listOf(
-            Color(0xFFE879F9),
-            Color(0xFFC026D3),
-            Color(0xFF9333EA),
-            Color(0xFFE11D48)
+    val centerButtonGradient = if (isMuted) {
+        Brush.radialGradient(
+            colors = listOf(
+                Color(0xFFF87171),
+                Color(0xFFEF4444),
+                Color(0xFFB91C1C),
+                Color(0xFF7F1D1D)
+            )
         )
-    )
+    } else {
+        Brush.radialGradient(
+            colors = listOf(
+                Color(0xFFE879F9),
+                Color(0xFFC026D3),
+                Color(0xFF9333EA),
+                Color(0xFFE11D48)
+            )
+        )
+    }
+
+    val shadowColor = if (isMuted) Color(0xFFEF4444) else Color(0xFFC026D3)
 
     Box(
         modifier = modifier.size(size * 1.8f),
         contentAlignment = Alignment.Center
     ) {
         // Outer Expanding Ripple 1
-        Box(
-            modifier = Modifier
-                .size(size)
-                .scale(ripple1Scale)
-                .clip(CircleShape)
-                .background(Color(0xFF9333EA).copy(alpha = ripple1Alpha))
-        )
+        if (!isMuted) {
+            Box(
+                modifier = Modifier
+                    .size(size)
+                    .scale(ripple1Scale)
+                    .clip(CircleShape)
+                    .background(Color(0xFF9333EA).copy(alpha = ripple1Alpha))
+            )
 
-        // Middle Expanding Ripple 2
-        Box(
-            modifier = Modifier
-                .size(size)
-                .scale(ripple2Scale)
-                .clip(CircleShape)
-                .background(Color(0xFFC026D3).copy(alpha = ripple2Alpha))
-        )
+            // Middle Expanding Ripple 2
+            Box(
+                modifier = Modifier
+                    .size(size)
+                    .scale(ripple2Scale)
+                    .clip(CircleShape)
+                    .background(Color(0xFFC026D3).copy(alpha = ripple2Alpha))
+            )
+        }
 
         // Center Radiant Glowing Button
         Surface(
             modifier = Modifier
                 .size(size)
-                .shadow(24.dp, CircleShape, ambientColor = Color(0xFFC026D3), spotColor = Color(0xFFC026D3))
+                .shadow(24.dp, CircleShape, ambientColor = shadowColor, spotColor = shadowColor)
                 .clip(CircleShape)
                 .clickable(onClick = onClick),
             shape = CircleShape,
@@ -128,8 +145,8 @@ fun ConcentricPulsingOrb(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.Mic,
-                    contentDescription = "Microphone",
+                    imageVector = if (isMuted) Icons.Rounded.MicOff else Icons.Rounded.Mic,
+                    contentDescription = if (isMuted) "Unmute Microphone" else "Mute Microphone",
                     tint = Color.White,
                     modifier = Modifier.size(size * 0.44f)
                 )

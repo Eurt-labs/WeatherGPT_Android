@@ -66,7 +66,8 @@ import java.util.UUID
 enum class VoiceConversationState {
     LISTENING,
     THINKING,
-    SPEAKING
+    SPEAKING,
+    MUTED
 }
 
 /**
@@ -111,6 +112,9 @@ fun ImmersiveVoiceScreen(
                 }
                 VoiceConversationState.SPEAKING -> {
                     conversationProgress = (conversationProgress + 0.009f).coerceAtMost(1f)
+                }
+                VoiceConversationState.MUTED -> {
+                    // Suspended while muted
                 }
             }
         }
@@ -197,15 +201,19 @@ fun ImmersiveVoiceScreen(
 
             // Speak response using native Indian voice tuned to the language spoken
             if (cleanToSpeak.isNotBlank()) {
-                conversationState = VoiceConversationState.SPEAKING
-                textToSpeech?.let { ttsInstance ->
-                    val detectedLocale = detectVoiceLocale(cleanToSpeak, userProfile.preferredLanguage)
-                    applyNativeIndianVoice(ttsInstance, detectedLocale)
-                    ttsInstance.speak(cleanToSpeak, TextToSpeech.QUEUE_FLUSH, null, "WEATHER_VOICE_UTTERANCE")
+                if (conversationState != VoiceConversationState.MUTED) {
+                    conversationState = VoiceConversationState.SPEAKING
+                    textToSpeech?.let { ttsInstance ->
+                        val detectedLocale = detectVoiceLocale(cleanToSpeak, userProfile.preferredLanguage)
+                        applyNativeIndianVoice(ttsInstance, detectedLocale)
+                        ttsInstance.speak(cleanToSpeak, TextToSpeech.QUEUE_FLUSH, null, "WEATHER_VOICE_UTTERANCE")
+                    }
                 }
             } else {
-                conversationState = VoiceConversationState.LISTENING
-                startListening()
+                if (conversationState != VoiceConversationState.MUTED) {
+                    conversationState = VoiceConversationState.LISTENING
+                    startListening()
+                }
             }
         }
     }
@@ -272,16 +280,20 @@ fun ImmersiveVoiceScreen(
                     override fun onDone(utteranceId: String?) {
                         // CRITICAL FIX: Automatically return to LISTENING so the user can speak again!
                         scope.launch {
-                            userTranscript = "Listening..."
-                            conversationState = VoiceConversationState.LISTENING
-                            startListening()
+                            if (conversationState != VoiceConversationState.MUTED) {
+                                userTranscript = "Listening..."
+                                conversationState = VoiceConversationState.LISTENING
+                                startListening()
+                            }
                         }
                     }
 
                     override fun onError(utteranceId: String?) {
                         scope.launch {
-                            conversationState = VoiceConversationState.LISTENING
-                            startListening()
+                            if (conversationState != VoiceConversationState.MUTED) {
+                                conversationState = VoiceConversationState.LISTENING
+                                startListening()
+                            }
                         }
                     }
                 })
@@ -301,11 +313,12 @@ fun ImmersiveVoiceScreen(
 
     // Voice Edge Lighting Wrapper (Screen 3)
     VoiceEdgeLighting(
-        isActive = true,
+        isActive = conversationState != VoiceConversationState.MUTED,
         speechEnergy = when (conversationState) {
             VoiceConversationState.SPEAKING -> 0.65f
             VoiceConversationState.THINKING -> 0.22f
             VoiceConversationState.LISTENING -> speechEnergy
+            VoiceConversationState.MUTED -> 0f
         },
         conversationProgress = conversationProgress
     ) {
@@ -362,6 +375,7 @@ fun ImmersiveVoiceScreen(
                         VoiceConversationState.LISTENING -> userTranscript
                         VoiceConversationState.THINKING -> "Thinking with Voice AI..."
                         VoiceConversationState.SPEAKING -> assistantResponse
+                        VoiceConversationState.MUTED -> if (assistantResponse.isNotBlank()) assistantResponse else "Microphone muted. Tap the button below to resume."
                     },
                     fontSize = 22.sp,
                     lineHeight = 32.sp,
@@ -370,7 +384,7 @@ fun ImmersiveVoiceScreen(
                 )
             }
 
-            // State Label ("Listening...", "Speaking...")
+            // State Label ("Listening...", "Speaking...", "Muted")
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -381,21 +395,42 @@ fun ImmersiveVoiceScreen(
                         VoiceConversationState.LISTENING -> "Listening..."
                         VoiceConversationState.THINKING -> "Voice AI is thinking..."
                         VoiceConversationState.SPEAKING -> "Voice AI is speaking..."
+                        VoiceConversationState.MUTED -> "Microphone Muted · Tap to speak"
                     },
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color.White.copy(alpha = 0.55f)
+                    color = if (conversationState == VoiceConversationState.MUTED) Color(0xFFF87171) else Color.White.copy(alpha = 0.55f)
                 )
 
-                // Concentric Pulsing Mic Orb
+                // Concentric Pulsing Mic Orb with Pause on Speak & Mute on Click
                 ConcentricPulsingOrb(
                     isActive = conversationState == VoiceConversationState.LISTENING || conversationState == VoiceConversationState.SPEAKING,
+                    isMuted = conversationState == VoiceConversationState.MUTED,
                     onClick = {
-                        if (conversationState == VoiceConversationState.SPEAKING) {
-                            textToSpeech?.stop()
-                            startListening()
-                        } else {
-                            startListening()
+                        when (conversationState) {
+                            VoiceConversationState.SPEAKING -> {
+                                // Pause speech immediately and mute
+                                textToSpeech?.stop()
+                                speechRecognizer?.stopListening()
+                                speechEnergy = 0f
+                                conversationState = VoiceConversationState.MUTED
+                            }
+                            VoiceConversationState.LISTENING -> {
+                                // Mute microphone
+                                speechRecognizer?.stopListening()
+                                speechEnergy = 0f
+                                conversationState = VoiceConversationState.MUTED
+                            }
+                            VoiceConversationState.THINKING -> {
+                                speechRecognizer?.stopListening()
+                                speechEnergy = 0f
+                                conversationState = VoiceConversationState.MUTED
+                            }
+                            VoiceConversationState.MUTED -> {
+                                // Unmute and resume listening
+                                userTranscript = "Listening to your voice..."
+                                startListening()
+                            }
                         }
                     },
                     size = 84.dp
