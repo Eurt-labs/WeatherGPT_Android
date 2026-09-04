@@ -242,7 +242,7 @@ fun WeatherGPTApp(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0x80000000))
+                    .background(Color(0xB0000000))
                     .statusBarsPadding()
                     .navigationBarsPadding()
                     .clickable { showSettingsSheet = false },

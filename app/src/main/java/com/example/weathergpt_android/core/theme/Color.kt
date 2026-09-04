@@ -84,19 +84,26 @@ enum class AppThemeMode(
 // 3. Centralized Frosted Glass Design Tokens
 // ==========================================
 object FrostedGlassTokens {
-    // Translucent surfaces for Dark Theme (~15% to 22% opacity with obsidian tint)
-    val DarkSurface = Color(0x22120B24)
-    val DarkSurfaceRaised = Color(0x32160E2E)
-    val DarkSurfaceSubtle = Color(0x18FFFFFF)
+    // Translucent Frosted Glass Surfaces for Dark Theme:
+    // DarkSurface: Frosted Obsidian glass (~83% opacity) for cards on ambient background
+    // Allows background ambient glow to softly permeate, but diffuses and prevents see-through transparency
+    val DarkSurface = Color(0xD4130C28)
 
-    // Translucent surfaces for Light Theme (milky glass ~45% to 60% opacity)
-    val LightSurface = Color(0x75FFFFFF)
-    val LightSurfaceRaised = Color(0x90FFFFFF)
-    val LightSurfaceSubtle = Color(0x50FFFFFF)
+    // DarkSurfaceRaised: Deep Frosted Obsidian glass (~96% opacity) for modal sheets, dialogs, floating bottom bars
+    // Crucial for modals: prevents background text from overlapping or bleeding through
+    val DarkSurfaceRaised = Color(0xF5100922)
+
+    // DarkSurfaceSubtle: Frosted glass sheen (~14% specular white) for chips, pills, and inputs inside cards/sheets
+    val DarkSurfaceSubtle = Color(0x24FFFFFF)
+
+    // Translucent Frosted Glass Surfaces for Light Theme (milky glass):
+    val LightSurface = Color(0xEBFFFFFF)       // ~92% milky frosted glass
+    val LightSurfaceRaised = Color(0xF8FFFFFF) // ~97% milky frosted glass for sheets
+    val LightSurfaceSubtle = Color(0x50F1F5F9)
 
     // Specular Edge Borders (top-lit glass sheen)
-    val DarkBorder = Color(0x35FFFFFF)
-    val DarkBorderSubtle = Color(0x20FFFFFF)
+    val DarkBorder = Color(0x38FFFFFF)
+    val DarkBorderSubtle = Color(0x22FFFFFF)
     val LightBorder = Color(0x80FFFFFF)
     val LightBorderSubtle = Color(0x45CBD5E1)
 
@@ -105,8 +112,8 @@ object FrostedGlassTokens {
     val LightAccentBorder = Color(0x409333EA)
 
     // Ambient Soft Shadows for Glass Elevation
-    val ShadowColor = Color(0x30000000)
-    val ShadowSubtle = Color(0x18000000)
+    val ShadowColor = Color(0x50000000)
+    val ShadowSubtle = Color(0x25000000)
 
     // Elevation tokens for glass surfaces
     val ElevationDefault = 12.dp
