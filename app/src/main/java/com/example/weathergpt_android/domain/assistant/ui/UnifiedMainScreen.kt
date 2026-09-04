@@ -9,6 +9,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.Flight
 import androidx.compose.material.icons.rounded.Grass
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Thunderstorm
@@ -39,6 +41,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import com.example.weathergpt_android.domain.assistant.network.ChatSyncService
+import com.example.weathergpt_android.domain.location.model.LocationData
+import java.util.Calendar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -77,6 +81,7 @@ fun UnifiedMainScreen(
     currentTheme: AppThemeMode,
     liveWeatherData: LiveWeatherData,
     userProfile: UserProfile,
+    locationData: LocationData = LocationData.DEFAULT,
     onLaunchVoice: () -> Unit,
     onLaunchChatWithPrompt: (String) -> Unit,
     onOpenPreviousChats: () -> Unit = {},
@@ -116,11 +121,32 @@ fun UnifiedMainScreen(
     val neonMagenta = Color(0xFFC026D3)
     val neonCoral = Color(0xFFFF5722)
 
-    val dynamicSubtitle = when (userProfile.sector) {
-        UserSector.FARMER -> "🌾 Kisan AI Active • Tailored for ${userProfile.crops} & soil moisture"
-        UserSector.DISASTER_OFFICER -> "🚨 Disaster Radar Active • River discharge & flash flood monitoring"
-        UserSector.COMMUTER -> "🏙️ Commuter AI Active • Rain windows, AQI & transit advisory"
-        UserSector.AVIATION_LOGISTICS -> "✈️ Flight & Logistics Active • Wind gusts, visibility & cloud ceilings"
+    val hour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
+    val timeGreeting = when (hour) {
+        in 5..11 -> "Good morning"
+        in 12..16 -> "Good afternoon"
+        in 17..21 -> "Good evening"
+        else -> "Hello"
+    }
+    val displayName = userProfile.name.ifBlank { "there" }
+
+    val displayLocation = when {
+        locationData.cityName.isNotBlank() && locationData.region.isNotBlank() ->
+            "${locationData.cityName}, ${locationData.region}"
+        locationData.cityName.isNotBlank() -> locationData.cityName
+        userProfile.monitoredRegion.isNotBlank() -> userProfile.monitoredRegion
+        else -> "Live Location"
+    }
+
+    val naturalHumanSubtitle = when (userProfile.sector) {
+        UserSector.FARMER ->
+            "Taking care of your ${userProfile.crops} today. Keeping a close watch on rain & soil moisture."
+        UserSector.AVIATION_LOGISTICS ->
+            "Monitoring flight ceilings and crosswinds today. Keeping your cargo & travel routes safe."
+        UserSector.DISASTER_OFFICER ->
+            "Emergency radar surveillance active. Tracking local river discharge and precipitation."
+        UserSector.COMMUTER ->
+            "Clear commute advisory active. Keeping you ahead of weather shifts and air quality."
     }
 
     AmbientGlowBackground(
@@ -135,39 +161,32 @@ fun UnifiedMainScreen(
                 .padding(horizontal = 22.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Top Row: Glowing Live Sector Pill & Avatar/Settings Icon
+            // Top Row: History Icon Button & Avatar/Settings Icon
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Top Left Sector Pill - Opens Previous Chats
-                Surface(
+                // Top Left: Clean History Icon Button (Nothing more!)
+                Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(22.dp))
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(FrostedGlassTokens.surfaceSubtle(isDark))
+                        .border(
+                            1.dp,
+                            Brush.linearGradient(listOf(neonPurple.copy(alpha = 0.5f), neonMagenta.copy(alpha = 0.5f))),
+                            CircleShape
+                        )
                         .clickable(onClick = onOpenPreviousChats),
-                    shape = RoundedCornerShape(22.dp),
-                    color = FrostedGlassTokens.surfaceSubtle(isDark),
-                    border = BorderStroke(1.dp, Brush.horizontalGradient(listOf(neonPurple, neonMagenta)))
+                    contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(
-                            text = userProfile.sector.tag,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = textColor
-                        )
-                        Icon(
-                            imageVector = Icons.Rounded.History,
-                            contentDescription = "Previous Chats",
-                            tint = neonMagenta,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Rounded.History,
+                        contentDescription = "Chat History",
+                        tint = textColor,
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
 
                 // Top Right Avatar with Neon Ring
@@ -191,20 +210,42 @@ fun UnifiedMainScreen(
                 }
             }
 
-            // Personalized Greeting Headline
+            // Personalized Greeting Headline & Location
             Column(
-                modifier = Modifier.padding(top = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                modifier = Modifier.padding(top = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "$timeGreeting, $displayName",
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textColor,
+                        letterSpacing = (-0.5).sp
+                    )
+
+                    // Attractive Location & Weather Status Line
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.LocationOn,
+                            contentDescription = null,
+                            tint = Color(0xFFFF5722),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "$displayLocation • ${liveWeatherData.temperature} ${liveWeatherData.condition}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = neonMagenta
+                        )
+                    }
+                }
+
                 Text(
-                    text = "Hi ${userProfile.name},",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = textColor,
-                    letterSpacing = (-0.5).sp
-                )
-                Text(
-                    text = dynamicSubtitle,
+                    text = naturalHumanSubtitle,
                     fontSize = 13.sp,
                     lineHeight = 19.sp,
                     color = subtitleColor

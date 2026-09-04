@@ -218,6 +218,7 @@ fun WeatherGPTApp(
                     currentTheme = currentTheme,
                     liveWeatherData = liveWeatherData,
                     userProfile = userProfile,
+                    locationData = locationData,
                     onLaunchVoice = { currentScreen = AppScreen.VOICE_AI },
                     onLaunchChatWithPrompt = { prompt ->
                         activeChatPrompt = prompt
