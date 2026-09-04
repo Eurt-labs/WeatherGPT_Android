@@ -33,10 +33,10 @@ class OpenMeteoRepository {
         withContext(Dispatchers.IO) {
             val forecastUrl =
                 "https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude" +
-                "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,visibility" +
-                "&hourly=temperature_2m,weather_code,precipitation_probability,soil_moisture_0_to_1cm,soil_temperature_0cm" +
-                "&daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max,precipitation_sum" +
-                "&past_days=3&timezone=auto"
+                "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation,rain,showers,visibility,dew_point_2m,surface_pressure" +
+                "&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,weather_code,precipitation_probability,precipitation,rain,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,soil_temperature_0cm,evapotranspiration,wind_gusts_10m,cloud_cover,visibility,surface_pressure" +
+                "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,precipitation_hours,wind_gusts_10m_max,wind_direction_10m_dominant,uv_index_max,et0_fao_evapotranspiration" +
+                "&past_days=3&forecast_days=7&timezone=auto"
             val airQualityUrl =
                 "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=$latitude&longitude=$longitude&current=us_aqi,pm2_5,pm10"
 
@@ -54,9 +54,17 @@ class OpenMeteoRepository {
                 val current = json.getJSONObject("current")
                 val tempVal = current.getDouble("temperature_2m").roundToInt()
                 val tempStr = "$tempVal°"
+                val apparentVal = current.optDouble("apparent_temperature", tempVal.toDouble()).roundToInt()
+                val apparentStr = "$apparentVal°"
                 val humidityStr = "${current.getInt("relative_humidity_2m")}%"
                 val windSpeedVal = current.getDouble("wind_speed_10m").roundToInt()
                 val windSpeedStr = "$windSpeedVal km/h"
+                val windGustsVal = current.optDouble("wind_gusts_10m", windSpeedVal * 1.5).roundToInt()
+                val windGustsStr = "$windGustsVal km/h"
+                val dewPointVal = current.optDouble("dew_point_2m", 22.0).roundToInt()
+                val dewPointStr = "$dewPointVal°C"
+                val surfacePressureVal = current.optDouble("surface_pressure", 1010.0).roundToInt()
+                val surfacePressureStr = "$surfacePressureVal hPa"
                 val weatherCode = current.getInt("weather_code")
                 val conditionStr = decodeWmoWeatherCode(weatherCode)
 
@@ -64,9 +72,10 @@ class OpenMeteoRepository {
                 val visMeters = current.optDouble("visibility", 10000.0)
                 val visKmStr = "${"%.1f".format(visMeters / 1000.0)} km"
 
-                // Parse Daily High / Low & 7-Day List
+                // Parse Daily High / Low, 7-Day List & Evapotranspiration
                 var highLowStr = "H: ${tempVal + 2}°  L: ${tempVal - 4}°"
                 var uvStr = "7 (High)"
+                var et0Str = "4.5 mm/day"
                 val dailyList = mutableListOf<DayForecast>()
                 val daily = json.optJSONObject("daily")
                 var pastRainSum = 0.0
@@ -78,6 +87,7 @@ class OpenMeteoRepository {
                     val timeList = daily.optJSONArray("time")
                     val uvList = daily.optJSONArray("uv_index_max")
                     val rainList = daily.optJSONArray("precipitation_sum")
+                    val et0List = daily.optJSONArray("et0_fao_evapotranspiration")
 
                     val todayIdx = if ((maxList?.length() ?: 0) > 3) 3 else 0
 
@@ -124,20 +134,32 @@ class OpenMeteoRepository {
                             else -> "$uvVal (Very High)"
                         }
                     }
+
+                    if (et0List != null && et0List.length() > todayIdx) {
+                        val etVal = et0List.optDouble(todayIdx, 4.5)
+                        et0Str = "${"%.1f".format(etVal)} mm/day"
+                    }
                 }
 
-                // Parse Hourly Forecast & Soil Moisture
+                // Parse Hourly Forecast, Dense Precipitation & Multi-Depth Soil Moisture
                 val hourlyList = mutableListOf<HourlyForecast>()
                 val hourly = json.optJSONObject("hourly")
                 var currentSoilMoisture = 0.33
+                var currentRootSoilMoisture = 0.35
                 var currentSoilTemp = 28
+                var rainNext24hVal = 0.0
+                var rainNext48hVal = 0.0
+                var peakTimingStr = "No severe rain spells expected."
 
                 if (hourly != null) {
                     val hTimes = hourly.optJSONArray("time")
                     val hTemps = hourly.optJSONArray("temperature_2m")
                     val hCodes = hourly.optJSONArray("weather_code")
-                    val hMoist = hourly.optJSONArray("soil_moisture_0_to_1cm")
+                    val hMoistSurface = hourly.optJSONArray("soil_moisture_0_to_1cm")
+                    val hMoistRoot = hourly.optJSONArray("soil_moisture_3_to_9cm")
                     val hSoilT = hourly.optJSONArray("soil_temperature_0cm")
+                    val hPrecip = hourly.optJSONArray("precipitation")
+                    val hProb = hourly.optJSONArray("precipitation_probability")
 
                     hourlyList.add(
                         HourlyForecast(
@@ -150,11 +172,45 @@ class OpenMeteoRepository {
 
                     val nowHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
                     val baseIdx = 3 * 24 + nowHour // Account for past_days=3 offset
-                    if (hMoist != null && hMoist.length() > baseIdx) {
-                        currentSoilMoisture = hMoist.optDouble(baseIdx, 0.33)
+                    if (hMoistSurface != null && hMoistSurface.length() > baseIdx) {
+                        currentSoilMoisture = hMoistSurface.optDouble(baseIdx, 0.33)
+                    }
+                    if (hMoistRoot != null && hMoistRoot.length() > baseIdx) {
+                        currentRootSoilMoisture = hMoistRoot.optDouble(baseIdx, 0.35)
                     }
                     if (hSoilT != null && hSoilT.length() > baseIdx) {
                         currentSoilTemp = hSoilT.optDouble(baseIdx, 28.0).roundToInt()
+                    }
+
+                    // Compute upcoming 24h and 48h rain sums
+                    if (hPrecip != null) {
+                        val end24 = min(baseIdx + 24, hPrecip.length())
+                        for (idx in baseIdx until end24) {
+                            rainNext24hVal += hPrecip.optDouble(idx, 0.0)
+                        }
+                        val end48 = min(baseIdx + 48, hPrecip.length())
+                        for (idx in baseIdx until end48) {
+                            rainNext48hVal += hPrecip.optDouble(idx, 0.0)
+                        }
+                    }
+
+                    // Peak precipitation probability & timing window
+                    if (hProb != null && hProb.length() > baseIdx) {
+                        var maxProbVal = 0
+                        var peakOffset = 0
+                        val endScan = min(baseIdx + 24, hProb.length())
+                        for (idx in baseIdx until endScan) {
+                            val p = hProb.optInt(idx, 0)
+                            if (p > maxProbVal) {
+                                maxProbVal = p
+                                peakOffset = idx - baseIdx
+                            }
+                        }
+                        if (maxProbVal >= 35) {
+                            val peakHour = (nowHour + peakOffset) % 24
+                            val peakHourStr = formatHourLabel(peakHour)
+                            peakTimingStr = "Strongest spells likely around $peakHourStr ($maxProbVal% chance)."
+                        }
                     }
 
                     if (hTimes != null && hTemps != null && hCodes != null) {
@@ -201,10 +257,19 @@ class OpenMeteoRepository {
                     // Fallback
                 }
 
-                val irrigStr = if (currentSoilMoisture > 0.28) {
-                    "Adequate soil moisture. No irrigation needed today."
-                } else {
-                    "Low soil moisture detected. Controlled irrigation advised."
+                val waterloggingRiskStr = when {
+                    rainNext48hVal > 40.0 || (rainNext24hVal > 20.0 && currentSoilMoisture > 0.32) -> "High Waterlogging Risk"
+                    rainNext24hVal > 10.0 -> "Moderate Waterlogging Risk"
+                    else -> "Low Risk"
+                }
+
+                val irrigStr = when {
+                    rainNext24hVal > 15.0 || currentSoilMoisture > 0.36 ->
+                        "Heavy rainfall or saturated soil detected. Suspend irrigation and clear field drainage channels."
+                    currentSoilMoisture > 0.28 ->
+                        "Adequate soil moisture present. Irrigation not required today."
+                    else ->
+                        "Low root-zone moisture detected. Controlled morning irrigation advised."
                 }
 
                 val resolved = LiveWeatherData(
@@ -219,10 +284,20 @@ class OpenMeteoRepository {
                     hourlyList = hourlyList,
                     dailyList = dailyList,
                     soilMoisture = "${"%.3f".format(currentSoilMoisture)} m³/m³",
+                    rootZoneSoilMoisture = "${"%.3f".format(currentRootSoilMoisture)} m³/m³",
                     soilTemperature = "$currentSoilTemp°C",
                     irrigationAdvice = irrigStr,
+                    evapotranspiration = et0Str,
+                    waterloggingRisk = waterloggingRiskStr,
                     visibilityKm = visKmStr,
-                    pastRainfallTrend = "${"%.1f".format(pastRainSum)} mm in past 3 days"
+                    pastRainfallTrend = "${"%.1f".format(pastRainSum)} mm in past 3 days",
+                    apparentTemperature = apparentStr,
+                    dewPoint = dewPointStr,
+                    surfacePressure = surfacePressureStr,
+                    windGusts = windGustsStr,
+                    rainNext24h = "${"%.1f".format(rainNext24hVal)} mm",
+                    rainNext48h = "${"%.1f".format(rainNext48hVal)} mm",
+                    peakRainTiming = peakTimingStr
                 )
 
                 Result.success(resolved)

@@ -280,7 +280,7 @@ fun GptChatScreen(
                 .takeLast(6)
                 .map { (if (it.isUser) "user" else "assistant") to it.text }
 
-            val weatherContext = "${liveWeatherData.temperature}, ${liveWeatherData.condition}, Humidity ${liveWeatherData.humidity}, Wind ${liveWeatherData.windSpeed}, AQI ${liveWeatherData.aqi}, Soil ${liveWeatherData.soilMoisture}, Flood ${liveWeatherData.floodRiskLevel}"
+            val weatherContext = liveWeatherData.toDenseMeteorologicalContext()
 
             var accumulatedResponse = ""
 

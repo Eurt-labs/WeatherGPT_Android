@@ -38,7 +38,7 @@ class SherpaVoicePipeline(
     ) {
         onTranscriptionUpdate(userPrompt)
 
-        val weatherContextSummary = "${liveWeatherData.temperature}, ${liveWeatherData.condition}, ${liveWeatherData.highLow}, Wind: ${liveWeatherData.windSpeed}, Humidity: ${liveWeatherData.humidity}, AQI: ${liveWeatherData.aqi}"
+        val weatherContextSummary = liveWeatherData.toDenseMeteorologicalContext()
 
         scope.launch {
             var fullText = ""

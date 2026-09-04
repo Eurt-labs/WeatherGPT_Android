@@ -165,7 +165,7 @@ fun ImmersiveVoiceScreen(
             )
         }
 
-        val weatherContext = "${liveWeatherData.temperature}, ${liveWeatherData.condition}, Humidity ${liveWeatherData.humidity}, Wind ${liveWeatherData.windSpeed}, AQI ${liveWeatherData.aqi}"
+        val weatherContext = liveWeatherData.toDenseMeteorologicalContext()
 
         scope.launch {
             var fullAnswer = ""

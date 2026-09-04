@@ -129,9 +129,9 @@ class OpenRouterService(private val context: Context) {
         }
 
         val enrichedContext = if (profile.sector == UserSector.FARMER) {
-            "$weatherContext | Farmer Crops: ${profile.crops} | Land: ${profile.landArea} | Language: ${profile.preferredLanguage}"
+            "$weatherContext\nUser Profile: Sector: Farmer | Primary Crops: ${profile.crops} | Land Area: ${profile.landArea} | Language: ${profile.preferredLanguage}"
         } else {
-            "$weatherContext | User Role: ${profile.sector.title} | Region: ${profile.monitoredRegion} | Language: ${profile.preferredLanguage}"
+            "$weatherContext\nUser Profile: Sector: ${profile.sector.title} | Region: ${profile.monitoredRegion} | Language: ${profile.preferredLanguage}"
         }
 
         val jsonBody = JSONObject().apply {
