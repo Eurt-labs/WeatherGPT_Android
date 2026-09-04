@@ -330,10 +330,10 @@ fun FrostedSettingsSheet(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        // Diagnostic Row 1: Gemini AI
+                        // Diagnostic Row 1: AI Engine
                         DiagnosticItemRow(
-                            title = "Gemini 2.5 Flash AI",
-                            subtitle = geminiDetail ?: "Cloud LLM & Reasoning Engine",
+                            title = "AI Intelligence Engine",
+                            subtitle = geminiDetail ?: "Cloud Reasoning Engine",
                             icon = Icons.Rounded.AutoAwesome,
                             status = geminiStatus,
                             accentColor = accentColor,
@@ -344,7 +344,7 @@ fun FrostedSettingsSheet(
                         // Diagnostic Row 2: Live Weather
                         DiagnosticItemRow(
                             title = "Live Weather Service",
-                            subtitle = weatherDetail ?: "Open-Meteo Meteorological Feed",
+                            subtitle = weatherDetail ?: "Real-Time Atmospheric Feed",
                             icon = Icons.Rounded.WbSunny,
                             status = weatherStatus,
                             accentColor = Color(0xFFF59E0B),
@@ -352,10 +352,10 @@ fun FrostedSettingsSheet(
                             subtitleColor = subtitleColor
                         )
 
-                        // Diagnostic Row 3: Local SQLite Database
+                        // Diagnostic Row 3: Local Database
                         DiagnosticItemRow(
-                            title = "Local SQLite Database",
-                            subtitle = dbDetail ?: "$totalTokens tokens cached locally",
+                            title = "Device Offline Storage",
+                            subtitle = dbDetail ?: "$totalTokens items stored locally",
                             icon = Icons.Rounded.Storage,
                             status = dbStatus,
                             accentColor = Color(0xFF10B981),
@@ -395,7 +395,7 @@ fun FrostedSettingsSheet(
                                                 modifier = Modifier.size(18.dp)
                                             )
                                             Text(
-                                                text = "All Systems Operational (Gemini, Weather, Database) ✓",
+                                                text = "All Systems Operational (AI, Weather, Storage) ✓",
                                                 fontSize = 12.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = Color(0xFF10B981)
@@ -404,9 +404,9 @@ fun FrostedSettingsSheet(
                                     }
                                 } else {
                                     val failedList = mutableListOf<String>()
-                                    if (geminiStatus == DiagnosticStatus.FAILED) failedList.add("Gemini AI (${geminiDetail ?: "Failed"})")
+                                    if (geminiStatus == DiagnosticStatus.FAILED) failedList.add("AI Intelligence (${geminiDetail ?: "Failed"})")
                                     if (weatherStatus == DiagnosticStatus.FAILED) failedList.add("Weather (${weatherDetail ?: "Failed"})")
-                                    if (dbStatus == DiagnosticStatus.FAILED) failedList.add("Database (${dbDetail ?: "Failed"})")
+                                    if (dbStatus == DiagnosticStatus.FAILED) failedList.add("Storage (${dbDetail ?: "Failed"})")
 
                                     Surface(
                                         color = Color(0x25EF4444),
@@ -485,12 +485,12 @@ fun FrostedSettingsSheet(
                                         weatherDetail = e.localizedMessage ?: "Network error"
                                     }
 
-                                    // 3. Gemini AI Check
+                                    // 3. AI Intelligence Check
                                     try {
                                         val geminiRes = openRouterService.generateChatCompletion("Ping test: confirm connection")
                                         if (geminiRes.isSuccess) {
                                             geminiStatus = DiagnosticStatus.SUCCESS
-                                            geminiDetail = "Gemini 2.5 Flash Online"
+                                            geminiDetail = "AI Core Online"
                                         } else {
                                             geminiStatus = DiagnosticStatus.FAILED
                                             geminiDetail = geminiRes.exceptionOrNull()?.localizedMessage ?: "AI Service unavailable"

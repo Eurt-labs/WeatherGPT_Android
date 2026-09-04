@@ -47,7 +47,7 @@ class OpenMeteoRepository {
                 val body = response.body?.string() ?: ""
 
                 if (!response.isSuccessful) {
-                    return@withContext Result.failure(Exception("Open-Meteo HTTP ${response.code}: $body"))
+                    return@withContext Result.failure(Exception("Weather service error (${response.code})"))
                 }
 
                 val json = JSONObject(body)

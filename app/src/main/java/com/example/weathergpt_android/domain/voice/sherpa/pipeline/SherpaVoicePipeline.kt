@@ -50,7 +50,7 @@ class SherpaVoicePipeline(
                 weatherContext = weatherContextSummary,
                 isVoiceMode = true
             ).catch { e ->
-                onError(e.message ?: "OpenRouter streaming failed")
+                onError(e.message ?: "AI voice streaming failed")
             }.collect { token ->
                 fullText += token
                 sentenceBuffer.append(token)

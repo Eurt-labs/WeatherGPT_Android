@@ -385,7 +385,7 @@ fun GptChatScreen(
                         )
                     }
                     Text(
-                        text = "Gemini 2.5 Flash • ${locationData.cityName}",
+                        text = "Weather Intelligence • ${locationData.cityName}",
                         fontSize = 11.sp,
                         color = subtitleColor
                     )
@@ -566,7 +566,7 @@ fun GptChatScreen(
                             }
                             Column {
                                 Text(
-                                    text = "🌾 Sherpa On-Device Voice",
+                                    text = "🌾 On-Device Voice Intelligence",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = textColor
@@ -657,7 +657,7 @@ fun GptChatScreen(
                     ) {
                         if (inputText.isEmpty()) {
                             Text(
-                                text = "Ask Gemini 2.5 Flash in ${userProfile.preferredLanguage.uppercase()}...",
+                                text = "Ask Weather AI in ${userProfile.preferredLanguage.uppercase()}...",
                                 color = subtitleColor,
                                 fontSize = 14.sp
                             )
@@ -808,14 +808,14 @@ private fun ChatBubbleItem(
                                 )
                             }
                             Text(
-                                text = "Gemini 2.5 Flash",
+                                text = "WeatherGPT AI",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = neonMagenta
                             )
                         }
 
-                        // Sherpa On-Device Voice Readout & Stop Button (0 Tokens)
+                        // On-Device Voice Readout & Stop Button (0 Tokens)
                         Surface(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
@@ -834,12 +834,12 @@ private fun ChatBubbleItem(
                             ) {
                                 Icon(
                                     imageVector = if (isSpeaking) Icons.Rounded.Stop else Icons.AutoMirrored.Rounded.VolumeUp,
-                                    contentDescription = if (isSpeaking) "Stop Dictation" else "Dictate with Sherpa (0 Tokens)",
+                                    contentDescription = if (isSpeaking) "Stop Dictation" else "Listen Aloud (0 Tokens)",
                                     tint = if (isSpeaking) Color(0xFFEF4444) else (if (isDark) Color.White.copy(alpha = 0.8f) else Color(0xFF64748B)),
                                     modifier = Modifier.size(13.dp)
                                 )
                                 Text(
-                                    text = if (isSpeaking) "Stop" else "Sherpa",
+                                    text = if (isSpeaking) "Stop" else "Listen",
                                     fontSize = 10.sp,
                                     fontWeight = if (isSpeaking) FontWeight.Bold else FontWeight.Medium,
                                     color = if (isSpeaking) Color(0xFFFF5252) else (if (isDark) Color.White.copy(alpha = 0.8f) else Color(0xFF64748B))
@@ -871,7 +871,7 @@ private fun ChatBubbleItem(
                                 modifier = Modifier.size(12.dp)
                             )
                             Text(
-                                text = "Sherpa Dictating · 0 Tokens",
+                                text = "Voice Dictating · 0 Tokens",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Color(0xFF10B981)

@@ -17,3 +17,4 @@ app/release/
 local.properties
 secrets.properties
 backend/
+.kotlin/

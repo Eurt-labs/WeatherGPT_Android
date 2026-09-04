@@ -317,7 +317,7 @@ fun ImmersiveVoiceScreen(
                 Text(
                     text = when (conversationState) {
                         VoiceConversationState.LISTENING -> userTranscript
-                        VoiceConversationState.THINKING -> "Thinking with Gemini 2.5 Flash..."
+                        VoiceConversationState.THINKING -> "Thinking with Voice AI..."
                         VoiceConversationState.SPEAKING -> assistantResponse
                     },
                     fontSize = 22.sp,
@@ -336,8 +336,8 @@ fun ImmersiveVoiceScreen(
                 Text(
                     text = when (conversationState) {
                         VoiceConversationState.LISTENING -> "Listening..."
-                        VoiceConversationState.THINKING -> "Gemini 2.5 Flash is thinking..."
-                        VoiceConversationState.SPEAKING -> "Gemini 2.5 Flash (Aoede) is speaking..."
+                        VoiceConversationState.THINKING -> "Voice AI is thinking..."
+                        VoiceConversationState.SPEAKING -> "Voice AI is speaking..."
                     },
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,

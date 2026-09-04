@@ -61,8 +61,8 @@ class AuthApiService(private val context: Context) {
             if (!response.isSuccessful) {
                 return@withContext Result.failure(Exception("Error ${response.code}: $body"))
             }
-            val resJson = JSONObject(body)
-            Result.success(resJson.optString("message", "OTP sent successfully"))
+            val cleanMsg = if (channel == "phone") "OTP sent on phone" else "OTP sent on email"
+            Result.success(cleanMsg)
         } catch (e: Exception) {
             Result.failure(e)
         }

@@ -224,7 +224,7 @@ fun UnifiedMainScreen(
 
                     BentoHubCard(
                         title = "Voice AI",
-                        subtitle = "Instant Gemini Puck",
+                        subtitle = "Instant Voice AI",
                         icon = Icons.Rounded.Mic,
                         iconTint = neonMagenta,
                         onClick = onLaunchVoice,

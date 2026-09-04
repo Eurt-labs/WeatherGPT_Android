@@ -345,7 +345,7 @@ fun AuthOtpScreen(
                                     res.onSuccess { msg ->
                                         isOtpSent = true
                                         timerCountdown = 60
-                                        statusMessage = msg
+                                        statusMessage = if (isPhoneMode) "OTP sent on phone" else "OTP sent on email"
                                         isError = false
                                     }.onFailure { err ->
                                         statusMessage = err.message
@@ -559,8 +559,15 @@ fun AuthOtpScreen(
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.clickable(enabled = timerCountdown == 0) {
                                     scope.launch {
-                                        authService.sendOtp(contactInput.trim(), if (isPhoneMode) "phone" else "email")
+                                        val res = authService.sendOtp(contactInput.trim(), if (isPhoneMode) "phone" else "email")
                                         timerCountdown = 60
+                                        res.onSuccess {
+                                            statusMessage = if (isPhoneMode) "OTP sent on phone" else "OTP sent on email"
+                                            isError = false
+                                        }.onFailure { err ->
+                                            statusMessage = err.message
+                                            isError = true
+                                        }
                                     }
                                 }
                             )
