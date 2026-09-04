@@ -1,6 +1,7 @@
 package com.example.weathergpt_android.core.theme
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 
 // ==========================================
 // 1. Material 3 Clean Light Theme Palette
@@ -78,3 +79,45 @@ enum class AppThemeMode(
         isDark = true
     )
 }
+
+// ==========================================
+// 3. Centralized Frosted Glass Design Tokens
+// ==========================================
+object FrostedGlassTokens {
+    // Translucent surfaces for Dark Theme (~15% to 22% opacity with obsidian tint)
+    val DarkSurface = Color(0x22120B24)
+    val DarkSurfaceRaised = Color(0x32160E2E)
+    val DarkSurfaceSubtle = Color(0x18FFFFFF)
+
+    // Translucent surfaces for Light Theme (milky glass ~45% to 60% opacity)
+    val LightSurface = Color(0x75FFFFFF)
+    val LightSurfaceRaised = Color(0x90FFFFFF)
+    val LightSurfaceSubtle = Color(0x50FFFFFF)
+
+    // Specular Edge Borders (top-lit glass sheen)
+    val DarkBorder = Color(0x35FFFFFF)
+    val DarkBorderSubtle = Color(0x20FFFFFF)
+    val LightBorder = Color(0x80FFFFFF)
+    val LightBorderSubtle = Color(0x45CBD5E1)
+
+    // Accent Gradient Borders
+    val DarkAccentBorder = Color(0x55C026D3)
+    val LightAccentBorder = Color(0x409333EA)
+
+    // Ambient Soft Shadows for Glass Elevation
+    val ShadowColor = Color(0x30000000)
+    val ShadowSubtle = Color(0x18000000)
+
+    // Elevation tokens for glass surfaces
+    val ElevationDefault = 12.dp
+    val ElevationRaised = 22.dp
+    val ElevationSubtle = 4.dp
+
+    // Helper functions for reactive theming
+    fun surface(isDark: Boolean) = if (isDark) DarkSurface else LightSurface
+    fun surfaceRaised(isDark: Boolean) = if (isDark) DarkSurfaceRaised else LightSurfaceRaised
+    fun surfaceSubtle(isDark: Boolean) = if (isDark) DarkSurfaceSubtle else LightSurfaceSubtle
+    fun border(isDark: Boolean) = if (isDark) DarkBorder else LightBorder
+    fun borderSubtle(isDark: Boolean) = if (isDark) DarkBorderSubtle else LightBorderSubtle
+}
+

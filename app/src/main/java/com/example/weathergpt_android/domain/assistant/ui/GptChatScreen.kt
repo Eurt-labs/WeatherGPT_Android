@@ -69,6 +69,7 @@ import com.example.weathergpt_android.core.components.AmbientGlowBackground
 import com.example.weathergpt_android.core.components.FrostedIconButton
 import com.example.weathergpt_android.core.network.OpenRouterService
 import com.example.weathergpt_android.core.theme.AppThemeMode
+import com.example.weathergpt_android.core.theme.FrostedGlassTokens
 import com.example.weathergpt_android.domain.assistant.data.ChatDatabaseHelper
 import com.example.weathergpt_android.domain.assistant.model.ChatMessage
 import com.example.weathergpt_android.domain.auth.data.UserPreferences
@@ -423,8 +424,8 @@ fun GptChatScreen(
                                 .clip(RoundedCornerShape(16.dp))
                                 .clickable { sendMessage(prompt) },
                             shape = RoundedCornerShape(16.dp),
-                            color = if (isDark) Color(0x351E1035) else Color(0xFFF1F5F9),
-                            border = BorderStroke(1.dp, if (isDark) Color(0x40C026D3) else Color(0xFFE2E8F0))
+                            color = FrostedGlassTokens.surfaceSubtle(isDark),
+                            border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
                         ) {
                             Text(
                                 text = prompt,
@@ -443,9 +444,9 @@ fun GptChatScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(60.dp)
-                    .shadow(16.dp, RoundedCornerShape(30.dp), ambientColor = Color(0x40000000), spotColor = Color(0x40000000)),
+                    .shadow(FrostedGlassTokens.ElevationRaised, RoundedCornerShape(30.dp), ambientColor = FrostedGlassTokens.ShadowColor, spotColor = FrostedGlassTokens.ShadowColor),
                 shape = RoundedCornerShape(30.dp),
-                color = if (isDark) Color(0x55120824) else Color(0xEEFFFFFF),
+                color = FrostedGlassTokens.surfaceRaised(isDark),
                 border = BorderStroke(
                     1.2.dp,
                     Brush.horizontalGradient(listOf(neonPurple.copy(alpha = 0.6f), neonMagenta.copy(alpha = 0.6f), neonCoral.copy(alpha = 0.4f)))
@@ -463,7 +464,7 @@ fun GptChatScreen(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(if (isDark) Color(0x25C026D3) else Color(0x15C026D3))
+                            .background(FrostedGlassTokens.surfaceSubtle(isDark))
                             .clickable(onClick = onLaunchVoice),
                         contentAlignment = Alignment.Center
                     ) {
@@ -592,9 +593,9 @@ private fun ChatBubbleItem(
             Surface(
                 modifier = Modifier
                     .widthIn(max = 330.dp)
-                    .shadow(12.dp, RoundedCornerShape(4.dp, 22.dp, 22.dp, 22.dp), ambientColor = Color(0x30000000), spotColor = Color(0x30000000)),
+                    .shadow(FrostedGlassTokens.ElevationDefault, RoundedCornerShape(4.dp, 22.dp, 22.dp, 22.dp), ambientColor = FrostedGlassTokens.ShadowColor, spotColor = FrostedGlassTokens.ShadowColor),
                 shape = RoundedCornerShape(4.dp, 22.dp, 22.dp, 22.dp),
-                color = if (isDark) Color(0x30180F2C) else Color(0xF0FFFFFF),
+                color = FrostedGlassTokens.surface(isDark),
                 border = BorderStroke(
                     1.dp,
                     if (isDark) Brush.horizontalGradient(listOf(Color(0x50C026D3), Color(0x209333EA))) else Brush.horizontalGradient(listOf(Color(0x30C026D3), Color(0x209333EA)))
@@ -640,7 +641,7 @@ private fun ChatBubbleItem(
                             modifier = Modifier
                                 .size(26.dp)
                                 .clip(CircleShape)
-                                .background(if (isDark) Color(0x20FFFFFF) else Color(0x40E2E8F0))
+                                .background(FrostedGlassTokens.surfaceSubtle(isDark))
                                 .clickable(onClick = onSpeak),
                             contentAlignment = Alignment.Center
                         ) {

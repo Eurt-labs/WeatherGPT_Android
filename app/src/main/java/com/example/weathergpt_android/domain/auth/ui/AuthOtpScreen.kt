@@ -59,10 +59,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import com.example.weathergpt_android.core.components.LiquidMetalButton
+import com.example.weathergpt_android.core.components.AmbientGlowBackground
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.weathergpt_android.core.components.AmbientGlowBackground
 import com.example.weathergpt_android.core.theme.AppThemeMode
+import com.example.weathergpt_android.core.theme.FrostedGlassTokens
 import com.example.weathergpt_android.domain.auth.data.UserPreferences
 import com.example.weathergpt_android.domain.auth.model.UserProfile
 import com.example.weathergpt_android.domain.auth.network.AuthApiService
@@ -170,10 +171,10 @@ fun AuthOtpScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shadow(28.dp, RoundedCornerShape(26.dp), ambientColor = Color(0x60000000), spotColor = Color(0x60000000)),
+                    .shadow(FrostedGlassTokens.ElevationRaised, RoundedCornerShape(26.dp), ambientColor = FrostedGlassTokens.ShadowColor, spotColor = FrostedGlassTokens.ShadowColor),
                 shape = RoundedCornerShape(26.dp),
-                color = if (isDark) Color(0xF212131F) else Color(0xFAFFFFFF),
-                border = BorderStroke(1.2.dp, if (isDark) Color(0x35FFFFFF) else Color(0x70CBD5E1))
+                color = FrostedGlassTokens.surfaceRaised(isDark),
+                border = BorderStroke(1.2.dp, FrostedGlassTokens.border(isDark))
             ) {
                 Column(
                     modifier = Modifier
@@ -194,7 +195,7 @@ fun AuthOtpScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(14.dp))
-                                .background(if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9))
+                                .background(FrostedGlassTokens.surfaceSubtle(isDark))
                                 .padding(4.dp),
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
@@ -265,8 +266,8 @@ fun AuthOtpScreen(
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
-                            color = if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9),
-                            border = BorderStroke(1.dp, if (isDark) Color(0x35FFFFFF) else Color(0x60CBD5E1))
+                            color = FrostedGlassTokens.surface(isDark),
+                            border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
@@ -376,8 +377,8 @@ fun AuthOtpScreen(
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
-                            color = if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9),
-                            border = BorderStroke(1.dp, if (isDark) Color(0x35FFFFFF) else Color(0x60CBD5E1))
+                            color = FrostedGlassTokens.surface(isDark),
+                            border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
@@ -543,8 +544,8 @@ fun AuthOtpScreen(
                 modifier = Modifier
                     .clip(RoundedCornerShape(18.dp)),
                 shape = RoundedCornerShape(18.dp),
-                color = if (isDark) Color(0x301E1035) else Color(0xFFEDE9FE),
-                border = BorderStroke(1.dp, Brush.horizontalGradient(listOf(neonPurple, neonMagenta)))
+                color = FrostedGlassTokens.surfaceSubtle(isDark),
+                border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),

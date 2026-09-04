@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.weathergpt_android.core.components.AmbientGlowBackground
 import com.example.weathergpt_android.core.theme.AppThemeMode
+import com.example.weathergpt_android.core.theme.FrostedGlassTokens
 import com.example.weathergpt_android.domain.auth.data.UserPreferences
 import com.example.weathergpt_android.domain.auth.model.UserProfile
 import com.example.weathergpt_android.domain.auth.model.UserSector
@@ -312,8 +313,8 @@ fun PersonalizedOnboardingScreen(
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(18.dp),
-                                color = if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9),
-                                border = BorderStroke(1.dp, if (isDark) Color(0x35FFFFFF) else Color(0x60CBD5E1))
+                                color = FrostedGlassTokens.surface(isDark),
+                                border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -373,8 +374,8 @@ fun PersonalizedOnboardingScreen(
                                     Surface(
                                         modifier = Modifier.fillMaxWidth(),
                                         shape = RoundedCornerShape(18.dp),
-                                        color = if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9),
-                                        border = BorderStroke(1.dp, if (isDark) Color(0x35FFFFFF) else Color(0x60CBD5E1))
+                                        color = FrostedGlassTokens.surface(isDark),
+                                        border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
                                     ) {
                                         Row(
                                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -407,8 +408,8 @@ fun PersonalizedOnboardingScreen(
                                     Surface(
                                         modifier = Modifier.fillMaxWidth(),
                                         shape = RoundedCornerShape(18.dp),
-                                        color = if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9),
-                                        border = BorderStroke(1.dp, if (isDark) Color(0x35FFFFFF) else Color(0x60CBD5E1))
+                                        color = FrostedGlassTokens.surface(isDark),
+                                        border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
                                     ) {
                                         Row(
                                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -455,7 +456,7 @@ fun PersonalizedOnboardingScreen(
                         modifier = Modifier
                             .size(50.dp)
                             .clip(CircleShape)
-                            .background(if (isDark) Color(0x20FFFFFF) else Color(0xFFE2E8F0))
+                            .background(FrostedGlassTokens.surfaceSubtle(isDark))
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.ArrowBack,
@@ -541,10 +542,10 @@ private fun LanguageSelectCard(
     val bg = if (isSelected) {
         if (isDark) Color(0x35C026D3) else Color(0x20C026D3)
     } else {
-        if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9)
+        FrostedGlassTokens.surfaceSubtle(isDark)
     }
 
-    val border = if (isSelected) Color(0xFFC026D3) else Color.Transparent
+    val border = if (isSelected) Color(0xFFC026D3) else FrostedGlassTokens.borderSubtle(isDark)
 
     Surface(
         modifier = Modifier
@@ -570,7 +571,7 @@ private fun LanguageSelectCard(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
-                        .background(if (isSelected) Color(0xFFC026D3) else if (isDark) Color(0x20FFFFFF) else Color(0xFFE2E8F0)),
+                        .background(if (isSelected) Color(0xFFC026D3) else FrostedGlassTokens.surfaceSubtle(isDark)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -644,10 +645,10 @@ private fun SectorSelectCard(
     val bg = if (isSelected) {
         if (isDark) Color(0x359333EA) else Color(0x209333EA)
     } else {
-        if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9)
+        FrostedGlassTokens.surfaceSubtle(isDark)
     }
 
-    val border = if (isSelected) Color(0xFF9333EA) else Color.Transparent
+    val border = if (isSelected) Color(0xFF9333EA) else FrostedGlassTokens.borderSubtle(isDark)
 
     Surface(
         modifier = Modifier
@@ -669,7 +670,7 @@ private fun SectorSelectCard(
                 modifier = Modifier
                     .size(46.dp)
                     .clip(CircleShape)
-                    .background(if (isSelected) Color(0xFF9333EA) else if (isDark) Color(0x25FFFFFF) else Color(0xFFE2E8F0)),
+                    .background(if (isSelected) Color(0xFF9333EA) else FrostedGlassTokens.surfaceSubtle(isDark)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -721,7 +722,7 @@ private fun CropChip(
     onClick: () -> Unit,
     isDark: Boolean
 ) {
-    val bg = if (isSelected) Color(0xFF10B981) else if (isDark) Color(0xFF1B1D2C) else Color(0xFFE2E8F0)
+    val bg = if (isSelected) Color(0xFF10B981) else FrostedGlassTokens.surfaceSubtle(isDark)
     val textColor = if (isSelected) Color.White else if (isDark) Color.White else Color(0xFF1E293B)
 
     Surface(
@@ -729,7 +730,8 @@ private fun CropChip(
             .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
-        color = bg
+        color = bg,
+        border = BorderStroke(1.dp, if (isSelected) Color(0xFF10B981) else FrostedGlassTokens.borderSubtle(isDark))
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),

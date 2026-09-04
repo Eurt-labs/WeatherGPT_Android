@@ -66,6 +66,7 @@ import com.example.weathergpt_android.core.theme.AppThemeMode
 import com.example.weathergpt_android.domain.assistant.data.ChatDatabaseHelper
 import com.example.weathergpt_android.domain.auth.data.UserPreferences
 import com.example.weathergpt_android.domain.auth.model.UserProfile
+import com.example.weathergpt_android.core.theme.FrostedGlassTokens
 import kotlinx.coroutines.launch
 
 enum class DiagnosticStatus {
@@ -114,8 +115,8 @@ fun FrostedSettingsSheet(
         totalTokens = dbHelper.getTotalTokens()
     }
 
-    val cardBackground = if (isDark) Color(0xF212131F) else Color(0xFAF8FAFC)
-    val cardBorder = if (isDark) Color(0x38FFFFFF) else Color(0x80CBD5E1)
+    val cardBackground = FrostedGlassTokens.surfaceRaised(isDark)
+    val cardBorder = FrostedGlassTokens.border(isDark)
     val textColor = if (isDark) Color(0xFFFFFFFF) else Color(0xFF0F172A)
     val subtitleColor = if (isDark) Color(0xFFB4B9C8) else Color(0xFF475569)
     val accentColor = if (isDark) Color(0xFFC026D3) else Color(0xFF9333EA)
@@ -124,7 +125,7 @@ fun FrostedSettingsSheet(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
-            .shadow(28.dp, RoundedCornerShape(28.dp), ambientColor = Color(0x50000000), spotColor = Color(0x50000000)),
+            .shadow(28.dp, RoundedCornerShape(28.dp), ambientColor = FrostedGlassTokens.ShadowColor, spotColor = FrostedGlassTokens.ShadowColor),
         shape = RoundedCornerShape(28.dp),
         color = cardBackground,
         border = BorderStroke(1.2.dp, cardBorder)
@@ -200,8 +201,8 @@ fun FrostedSettingsSheet(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(18.dp),
-                    color = if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9),
-                    border = BorderStroke(1.dp, if (isDark) Color(0x30FFFFFF) else Color(0x50CBD5E1))
+                    color = FrostedGlassTokens.surface(isDark),
+                    border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
                 ) {
                     Column(
                         modifier = Modifier.padding(14.dp),
@@ -322,8 +323,8 @@ fun FrostedSettingsSheet(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(18.dp),
-                    color = if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9),
-                    border = BorderStroke(1.dp, if (isDark) Color(0x30FFFFFF) else Color(0x50CBD5E1))
+                    color = FrostedGlassTokens.surface(isDark),
+                    border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
@@ -553,8 +554,8 @@ fun FrostedSettingsSheet(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    color = if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9),
-                    border = BorderStroke(1.dp, if (isDark) Color(0x30FFFFFF) else Color(0x50CBD5E1))
+                    color = FrostedGlassTokens.surface(isDark),
+                    border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
                 ) {
                     Row(
                         modifier = Modifier
@@ -666,8 +667,8 @@ private fun ThemeOptionButton(
 ) {
     val activeBg = if (isDark) Color(0xFFC026D3).copy(alpha = 0.35f) else Color(0xFF9333EA).copy(alpha = 0.20f)
     val activeBorder = if (isDark) Color(0xFFE879F9) else Color(0xFF9333EA)
-    val inactiveBg = if (isDark) Color(0xFF1B1D2C) else Color(0xFFF1F5F9)
-    val inactiveBorder = if (isDark) Color(0x30FFFFFF) else Color(0x50CBD5E1)
+    val inactiveBg = FrostedGlassTokens.surfaceSubtle(isDark)
+    val inactiveBorder = FrostedGlassTokens.borderSubtle(isDark)
 
     Surface(
         modifier = modifier

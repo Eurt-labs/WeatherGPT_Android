@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.weathergpt_android.core.components.AmbientGlowBackground
 import com.example.weathergpt_android.core.theme.AppThemeMode
+import com.example.weathergpt_android.core.theme.FrostedGlassTokens
 import com.example.weathergpt_android.domain.assistant.data.ChatDatabaseHelper
 import com.example.weathergpt_android.domain.auth.model.UserProfile
 import com.example.weathergpt_android.domain.auth.model.UserSector
@@ -131,7 +132,7 @@ fun UnifiedMainScreen(
                             onLaunchChatWithPrompt(prompt)
                         }),
                     shape = RoundedCornerShape(22.dp),
-                    color = if (isDark) Color(0x301E1035) else Color(0xFFEDE9FE),
+                    color = FrostedGlassTokens.surfaceSubtle(isDark),
                     border = BorderStroke(1.dp, Brush.horizontalGradient(listOf(neonPurple, neonMagenta)))
                 ) {
                     Row(
@@ -328,10 +329,11 @@ fun UnifiedMainScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(64.dp)
+                    .shadow(FrostedGlassTokens.ElevationRaised, RoundedCornerShape(32.dp), ambientColor = FrostedGlassTokens.ShadowColor, spotColor = FrostedGlassTokens.ShadowColor)
                     .clip(RoundedCornerShape(32.dp))
                     .clickable(onClick = { onLaunchChatWithPrompt("") }), // Tapping capsule opens Chat window
                 shape = RoundedCornerShape(32.dp),
-                color = if (isDark) Color(0x35160A2A) else Color(0xE0FFFFFF),
+                color = FrostedGlassTokens.surfaceRaised(isDark),
                 border = BorderStroke(
                     1.5.dp,
                     Brush.horizontalGradient(listOf(neonPurple, neonMagenta, neonCoral))
@@ -388,15 +390,15 @@ private fun BentoHubCard(
     modifier: Modifier = Modifier,
     isDark: Boolean
 ) {
-    val cardBg = if (isDark) Color(0x22181824) else Color(0x80FFFFFF)
-    val cardBorder = if (isDark) Color(0x28FFFFFF) else Color(0x60FFFFFF)
+    val cardBg = FrostedGlassTokens.surface(isDark)
+    val cardBorder = FrostedGlassTokens.border(isDark)
     val textColor = if (isDark) Color.White else Color(0xFF0F172A)
     val subtitleColor = if (isDark) Color.White.copy(alpha = 0.60f) else Color(0xFF64748B)
 
     Surface(
         modifier = modifier
             .aspectRatio(1.10f)
-            .shadow(12.dp, RoundedCornerShape(22.dp), ambientColor = Color(0x20000000), spotColor = Color(0x20000000))
+            .shadow(FrostedGlassTokens.ElevationDefault, RoundedCornerShape(22.dp), ambientColor = FrostedGlassTokens.ShadowColor, spotColor = FrostedGlassTokens.ShadowColor)
             .clip(RoundedCornerShape(22.dp))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(22.dp),

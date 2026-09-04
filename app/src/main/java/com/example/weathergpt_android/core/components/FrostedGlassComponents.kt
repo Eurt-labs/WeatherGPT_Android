@@ -48,6 +48,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import com.example.weathergpt_android.core.theme.FrostedGlassTokens
+
 /**
  * Frosted Glass Card with translucent surface and subtle specular border.
  */
@@ -67,9 +69,9 @@ fun FrostedGlassCard(
         label = "glass_press_scale"
     )
 
-    val surfaceColor = if (isDark) Color(0x18FFFFFF) else Color(0x75FFFFFF)
-    val borderColor = if (isDark) Color(0x28FFFFFF) else Color(0x60FFFFFF)
-    val shadowColor = if (isDark) Color(0x20000000) else Color(0x10000000)
+    val surfaceColor = FrostedGlassTokens.surface(isDark)
+    val borderColor = FrostedGlassTokens.border(isDark)
+    val shadowColor = FrostedGlassTokens.ShadowColor
 
     Surface(
         modifier = modifier
@@ -112,8 +114,8 @@ fun FrostedGlassChip(
     isDark: Boolean = isSystemInDarkTheme(),
     icon: ImageVector? = null
 ) {
-    val surfaceColor = if (isDark) Color(0x1AFFFFFF) else Color(0x80FFFFFF)
-    val borderColor = if (isDark) Color(0x28FFFFFF) else Color(0x70FFFFFF)
+    val surfaceColor = FrostedGlassTokens.surfaceSubtle(isDark)
+    val borderColor = FrostedGlassTokens.borderSubtle(isDark)
     val textColor = if (isDark) Color.White.copy(alpha = 0.9f) else Color(0xFF0F172A)
 
     Surface(
@@ -160,8 +162,8 @@ fun FrostedIconButton(
     isDark: Boolean = isSystemInDarkTheme(),
     tint: Color? = null
 ) {
-    val surfaceColor = if (isDark) Color(0x20FFFFFF) else Color(0x85FFFFFF)
-    val borderColor = if (isDark) Color(0x2EFFFFFF) else Color(0x75FFFFFF)
+    val surfaceColor = FrostedGlassTokens.surfaceSubtle(isDark)
+    val borderColor = FrostedGlassTokens.border(isDark)
     val iconTint = tint ?: if (isDark) Color.White else Color(0xFF0F172A)
 
     Box(
@@ -204,8 +206,8 @@ fun FrostedBottomInputBar(
     placeholderText: String = "Ask me anything...",
     isDark: Boolean = isSystemInDarkTheme()
 ) {
-    val barColor = if (isDark) Color(0x24FFFFFF) else Color(0x95FFFFFF)
-    val borderColor = if (isDark) Color(0x32FFFFFF) else Color(0x75FFFFFF)
+    val barColor = FrostedGlassTokens.surfaceRaised(isDark)
+    val borderColor = FrostedGlassTokens.border(isDark)
     val textColor = if (isDark) Color.White else Color(0xFF0F172A)
     val hintColor = if (isDark) Color.White.copy(alpha = 0.55f) else Color(0xFF64748B)
     val iconColor = if (isDark) Color.White.copy(alpha = 0.85f) else Color(0xFF1E293B)
@@ -214,7 +216,7 @@ fun FrostedBottomInputBar(
         modifier = modifier
             .fillMaxWidth()
             .height(58.dp)
-            .shadow(16.dp, RoundedCornerShape(32.dp), ambientColor = Color(0x30000000), spotColor = Color(0x30000000)),
+            .shadow(16.dp, RoundedCornerShape(32.dp), ambientColor = FrostedGlassTokens.ShadowColor, spotColor = FrostedGlassTokens.ShadowColor),
         shape = RoundedCornerShape(32.dp),
         color = barColor,
         border = BorderStroke(1.dp, borderColor)
