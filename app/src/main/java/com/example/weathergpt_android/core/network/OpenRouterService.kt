@@ -19,30 +19,24 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.util.concurrent.TimeUnit
 
-class OpenRouterQuotaException(message: String) : Exception(message)
-
 /**
- * Cloud Backend AI Service & Multi-Provider Engine.
+ * Cloud Backend AI Service powered exclusively by FastAPI on Render.
  * 
- * Supports:
- * 1. Cloud Backend (FastAPI on Render) with automatic HMAC security signatures.
- * 2. Direct Google Gemini API (Free tier from Google AI Studio).
- * 3. Direct OpenRouter API (custom user keys & models).
- * 4. Intelligent Local Meteorological Advisory Fallback (activates on credit depletion or offline).
+ * Direct endpoint: https://weathergpt-backend-m5kk.onrender.com/api/ai/chat-stream
+ * Dynamic HMAC-SHA256 authenticated. All fallbacks removed per specification.
  */
 class OpenRouterService(private val context: Context) {
     private val client = OkHttpClient.Builder()
         .connectionPool(ConnectionPool(8, 5, TimeUnit.MINUTES))
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(45, TimeUnit.SECONDS)
-        .writeTimeout(15, TimeUnit.SECONDS)
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(20, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
         .build()
 
     /**
      * Robust SSE token extractor supporting OpenAI/OpenRouter choices format
-     * AND Google Gemini candidates format, while strictly rejecting raw JSON
-     * and HTTP 402 error artifacts.
+     * and Google Gemini candidates format from the Render FastAPI stream.
      */
     private fun extractTokenFromSseChunk(data: String): String {
         if (data.isBlank() || data == "[DONE]") return ""
@@ -52,11 +46,6 @@ class OpenRouterService(private val context: Context) {
 
         for (segment in segments) {
             if (segment == "[DONE]") continue
-
-            // Discard raw error strings from stream
-            if (segment.contains("Error HTTP 402") || segment.contains("HTTP 402") || segment.contains("insufficient credits", ignoreCase = true)) {
-                continue
-            }
 
             var extractedContent: String? = null
 
@@ -107,7 +96,6 @@ class OpenRouterService(private val context: Context) {
             if (extractedContent != null) {
                 sb.append(extractedContent)
             } else {
-                // If this segment is raw JSON metadata, DISCARD IT
                 if (!isRawJsonPayload(segment)) {
                     sb.append(segment)
                 }
@@ -131,110 +119,6 @@ class OpenRouterService(private val context: Context) {
                trimmed.contains("chat.completion")
     }
 
-    /**
-     * Synthesizes an intelligent, context-aware rule-based meteorological advisory
-     * directly from live atmospheric measurements in memory.
-     * Invoked when cloud AI credits are exhausted (HTTP 402) or offline.
-     */
-    fun generateLocalMeteorologicalAdvisory(
-        locationContext: String,
-        weatherContext: String,
-        userMessage: String,
-        sector: UserSector,
-        language: String,
-        isVoiceMode: Boolean,
-        customNotice: String? = null
-    ): String {
-        val tempMatch = Regex("Live Atmosphere:\\s*([^|(]+)").find(weatherContext)
-        val conditionMatch = Regex("\\(([^,]+),").find(weatherContext)
-        val feelsLikeMatch = Regex("Feels\\s*([^)]+)").find(weatherContext)
-        val humidityMatch = Regex("Humidity:\\s*([^|]+)").find(weatherContext)
-        val windMatch = Regex("Wind:\\s*([^|(]+)").find(weatherContext)
-        val aqiMatch = Regex("Air Quality:\\s*([^|.]+)").find(weatherContext)
-        val rainMatch = Regex("Next 24h Rain:\\s*([^|]+)").find(weatherContext)
-        val irrigationMatch = Regex("Irrigation Advisory:\\s*([^\\n]+)").find(weatherContext)
-        val soilMoistureMatch = Regex("Surface Moisture:\\s*([^|]+)").find(weatherContext)
-
-        val temp = tempMatch?.groupValues?.get(1)?.trim() ?: "Current Temp"
-        val condition = conditionMatch?.groupValues?.get(1)?.trim() ?: "Clear/Cloudy"
-        val feelsLike = feelsLikeMatch?.groupValues?.get(1)?.trim() ?: temp
-        val humidity = humidityMatch?.groupValues?.get(1)?.trim() ?: "Normal"
-        val wind = windMatch?.groupValues?.get(1)?.trim() ?: "Gentle Breeze"
-        val aqi = aqiMatch?.groupValues?.get(1)?.trim() ?: "Moderate"
-        val rain24h = rainMatch?.groupValues?.get(1)?.trim() ?: "0.0 mm"
-        val irrigation = irrigationMatch?.groupValues?.get(1)?.trim() ?: "Adequate soil moisture"
-        val soilMoisture = soilMoistureMatch?.groupValues?.get(1)?.trim() ?: "Normal"
-
-        val isRainLikely = rain24h.contains(Regex("[1-9]")) || weatherContext.contains("rain", ignoreCase = true)
-        val isHindi = language.equals("hi", ignoreCase = true)
-
-        if (isVoiceMode) {
-            return if (isHindi) {
-                val rainNotice = if (isRainLikely) "अगले चौबीस घंटों में बारिश की संभावना है।" else "अगले चौबीस घंटों में भारी बारिश की संभावना नहीं है।"
-                "$locationContext में वर्तमान तापमान $temp और मौसम $condition है। हवा $wind और नमी $humidity है। $rainNotice"
-            } else {
-                val rainNotice = if (isRainLikely) "Rain is expected in the next 24 hours." else "No significant rain is expected in the next 24 hours."
-                "Live weather report for $locationContext: It is $temp and $condition, with humidity at $humidity and wind at $wind. $rainNotice"
-            }
-        }
-
-        // Chat Markdown Response
-        return if (isHindi) {
-            buildString {
-                append("🌤️ **WeatherGPT मौसम परामर्श**\n")
-                append("स्थान: **$locationContext** (लाइव मौसम रिपोर्ट)\n\n")
-                if (!customNotice.isNullOrBlank()) {
-                    append("ℹ️ *$customNotice*\n\n")
-                }
-                append("🌡️ **तापमान व स्थिति**: $temp ($condition), महसूस $feelsLike\n")
-                append("💧 **नमी**: $humidity | 💨 **हवा**: $wind | 🍃 **वायु गुणवत्ता (AQI)**: $aqi\n")
-                append("🌧️ **वर्षा पूर्वानुमान**: अगले 24 घंटे में $rain24h\n\n")
-                if (sector == UserSector.FARMER) {
-                    append("🌾 **कृषि व सिंचाई मार्गदर्शन**:\n")
-                    append("• मिट्टी की नमी: $soilMoisture — $irrigation।\n")
-                    append("• छिड़काव परामर्श: हवा की गति ($wind) के अनुसार शांत घंटों में छिड़काव करें।\n\n")
-                } else {
-                    append("📋 **दैनिक परामर्श**:\n")
-                    if (isRainLikely) {
-                        append("• बारिश की संभावना को देखते हुए छाता साथ रखें और सुरक्षित यात्रा करें।\n")
-                    } else {
-                        append("• दिनभर मौसम सामान्य रहने की संभावना है। पर्याप्त पानी पिएं।\n")
-                    }
-                    append("• वायु गुणवत्ता ($aqi) के अनुसार बाहरी गतिविधियों का ध्यान रखें।\n\n")
-                }
-                append("💡 *सुझाव: सेटिंग्स (⚙️) में जाकर Google AI Studio की मुफ़्त Gemini API कुंजी जोड़ें ताकि निरंतर AI संवाद सक्रिय रह सके।*")
-            }
-        } else {
-            buildString {
-                append("🌤️ **WeatherGPT Meteorological Advisory**\n")
-                append("Real-time telemetry analysis for **$locationContext**:\n\n")
-                if (!customNotice.isNullOrBlank()) {
-                    append("ℹ️ *$customNotice*\n\n")
-                }
-                append("🌡️ **Atmospheric Conditions**: $temp ($condition), Feels like $feelsLike\n")
-                append("💧 **Humidity**: $humidity | 💨 **Wind**: $wind | 🍃 **Air Quality**: $aqi\n")
-                append("🌧️ **Precipitation Outlook**: Next 24h Rain: $rain24h\n\n")
-                if (sector == UserSector.FARMER) {
-                    append("🌾 **Agricultural & Field Advisory**:\n")
-                    append("• **Soil Moisture**: $soilMoisture — $irrigation.\n")
-                    append("• **Spraying Advisory**: Wind speed at $wind — proceed with foliar spraying during calm morning hours.\n\n")
-                } else {
-                    append("📋 **Daily Operations & Commute Advisory**:\n")
-                    if (isRainLikely) {
-                        append("• Precipitation indicated in the 24-hour window. Carry rain protection and allow extra commute time.\n")
-                    } else {
-                        append("• Stable conditions expected throughout the day. Ensure adequate hydration.\n")
-                    }
-                    append("• Air Quality index is $aqi. Plan outdoor exertion accordingly.\n\n")
-                }
-                append("💡 *Tip: Connect your free Google Gemini API key in Settings (⚙️) for continuous conversational AI dialogue.*")
-            }
-        }
-    }
-
-    /**
-     * Detail mode keywords.
-     */
     private val detailKeywords = listOf(
         "in detail", "detail", "elaborate", "explain more", "more details",
         "tell me more", "deep dive", "full analysis", "detailed",
@@ -247,215 +131,8 @@ class OpenRouterService(private val context: Context) {
     }
 
     /**
-     * Streams SSE from direct Google Gemini API (free tier).
-     * Includes multi-model fallback across Gemini 3.6, 2.5, and 2.0.
-     */
-    private fun streamGeminiDirect(
-        apiKey: String,
-        userMessage: String,
-        locationContext: String,
-        enrichedContext: String,
-        history: List<Pair<String, String>>,
-        model: String = AiPreferences.DEFAULT_GEMINI_MODEL
-    ): Flow<String> = flow {
-        val cleanApiKey = apiKey.trim()
-        val preferredModel = if (model.isBlank()) AiPreferences.DEFAULT_GEMINI_MODEL else model
-        val modelsToTry = listOf(preferredModel, "gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.0-flash").distinct()
-
-        val promptBuilder = StringBuilder()
-        promptBuilder.append("System Instructions: You are WeatherGPT, an expert meteorologist and domain assistant for $locationContext. Weather context:\n$enrichedContext\n\n")
-        for ((role, text) in history.takeLast(4)) {
-            promptBuilder.append("${role.uppercase()}: $text\n")
-        }
-        promptBuilder.append("USER: $userMessage\nASSISTANT:")
-
-        val jsonBody = JSONObject().apply {
-            val contentsArray = JSONArray().apply {
-                put(JSONObject().apply {
-                    put("role", "user")
-                    put("parts", JSONArray().apply {
-                        put(JSONObject().apply {
-                            put("text", promptBuilder.toString())
-                        })
-                    })
-                })
-            }
-            put("contents", contentsArray)
-            put("generationConfig", JSONObject().apply {
-                put("temperature", 0.4)
-                put("maxOutputTokens", 800)
-            })
-        }
-
-        var streamSuccessful = false
-        for (targetModel in modelsToTry) {
-            val url = "https://generativelanguage.googleapis.com/v1beta/models/$targetModel:streamGenerateContent?alt=sse&key=$cleanApiKey"
-            val request = Request.Builder()
-                .url(url)
-                .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
-                .addHeader("Content-Type", "application/json")
-                .addHeader("Accept", "text/event-stream")
-                .build()
-
-            try {
-                val response = client.newCall(request).execute()
-                if (!response.isSuccessful) {
-                    if (response.code == 404 && targetModel != modelsToTry.last()) {
-                        response.close()
-                        continue
-                    }
-                    emit("Google Gemini API notice (HTTP ${response.code}). Please verify your free Google AI Studio key.")
-                    return@flow
-                }
-
-                val body = response.body ?: continue
-                val reader = BufferedReader(InputStreamReader(body.byteStream(), Charsets.UTF_8))
-                var line: String?
-                while (reader.readLine().also { line = it } != null) {
-                    val currentLine = line ?: continue
-                    if (currentLine.isBlank()) continue
-                    if (currentLine.contains("data:")) {
-                        val token = extractTokenFromSseChunk(currentLine)
-                        if (token.isNotEmpty()) {
-                            streamSuccessful = true
-                            emit(token)
-                        }
-                    }
-                }
-                if (streamSuccessful) break
-            } catch (e: Exception) {
-                if (targetModel == modelsToTry.last()) {
-                    emit("Gemini direct connection error: ${e.message}")
-                }
-            }
-        }
-    }.flowOn(Dispatchers.IO)
-
-    /**
-     * Streams SSE from direct OpenRouter API.
-     * Throws OpenRouterQuotaException on 402 to trigger seamless automatic fallback.
-     */
-    private fun streamOpenRouterDirect(
-        apiKey: String,
-        userMessage: String,
-        locationContext: String,
-        enrichedContext: String,
-        history: List<Pair<String, String>>,
-        model: String = AiPreferences.DEFAULT_OPENROUTER_MODEL
-    ): Flow<String> = flow {
-        val cleanApiKey = apiKey.trim().removePrefix("Bearer ").trim()
-        val cleanModel = if (model.isBlank()) AiPreferences.DEFAULT_OPENROUTER_MODEL else model
-        val url = "https://openrouter.ai/api/v1/chat/completions"
-
-        val messagesArray = JSONArray().apply {
-            put(JSONObject().apply {
-                put("role", "system")
-                put("content", "You are WeatherGPT, an expert meteorologist powered by Google Gemini 3.6 Flash for $locationContext. Weather context:\n$enrichedContext")
-            })
-            for ((role, text) in history.takeLast(4)) {
-                put(JSONObject().apply {
-                    put("role", role)
-                    put("content", text)
-                })
-            }
-            put(JSONObject().apply {
-                put("role", "user")
-                put("content", userMessage)
-            })
-        }
-
-        val jsonBody = JSONObject().apply {
-            put("model", cleanModel)
-            put("messages", messagesArray)
-            put("stream", true)
-            put("temperature", 0.4)
-            put("max_tokens", 800)
-            put("provider", JSONObject().apply {
-                put("order", JSONArray().apply {
-                    put("google-ai-studio")
-                })
-                put("ignore", JSONArray().apply {
-                    put("google-vertex")
-                })
-                put("allow_fallbacks", false)
-            })
-        }
-
-        val request = Request.Builder()
-            .url(url)
-            .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
-            .addHeader("Authorization", "Bearer $cleanApiKey")
-            .addHeader("Content-Type", "application/json")
-            .addHeader("Accept", "text/event-stream")
-            .addHeader("HTTP-Referer", "https://weathergpt.ai")
-            .addHeader("X-Title", "WeatherGPT Android")
-            .build()
-
-        val response = client.newCall(request).execute()
-        if (!response.isSuccessful) {
-            val errBody = response.body?.string() ?: ""
-            var errMsg = "HTTP ${response.code}"
-            try {
-                val errJson = JSONObject(errBody)
-                val errorObj = errJson.optJSONObject("error")
-                if (errorObj != null) {
-                    errMsg = errorObj.optString("message", errMsg)
-                }
-            } catch (_: Exception) {
-                if (errBody.isNotBlank()) errMsg = errBody
-            }
-
-            if (response.code == 402) {
-                throw OpenRouterQuotaException("OpenRouter 402: Insufficient credits for $cleanModel ($errMsg)")
-            } else if (response.code == 401) {
-                emit("OpenRouter Authentication Error (HTTP 401): $errMsg. Please check your OpenRouter API key in local.properties or Settings.")
-            } else {
-                emit("OpenRouter notice (HTTP ${response.code}): $errMsg")
-            }
-            return@flow
-        }
-
-        val body = response.body
-        if (body == null) {
-            emit("Empty response from OpenRouter.")
-            return@flow
-        }
-
-        val reader = BufferedReader(InputStreamReader(body.byteStream(), Charsets.UTF_8))
-        var line: String?
-        while (reader.readLine().also { line = it } != null) {
-            val currentLine = line ?: continue
-            if (currentLine.isBlank()) continue
-
-            if (currentLine.contains("\"error\":")) {
-                try {
-                    val rawData = currentLine.removePrefix("data:").trim()
-                    val errJson = JSONObject(rawData)
-                    val errObj = errJson.optJSONObject("error")
-                    val msg = errObj?.optString("message") ?: "OpenRouter stream error"
-                    val code = errObj?.optInt("code", 0) ?: 0
-                    if (code == 402 || msg.contains("credits", ignoreCase = true)) {
-                        throw OpenRouterQuotaException("OpenRouter 402: $msg")
-                    }
-                    emit("OpenRouter notice: $msg")
-                    return@flow
-                } catch (e: OpenRouterQuotaException) {
-                    throw e
-                } catch (_: Exception) {}
-            }
-
-            if (currentLine.contains("data:")) {
-                val token = extractTokenFromSseChunk(currentLine)
-                if (token.isNotEmpty()) {
-                    emit(token)
-                }
-            }
-        }
-    }.flowOn(Dispatchers.IO)
-
-    /**
-     * Real-time Server-Sent Events (SSE) streaming flow.
-     * Routes queries through the selected provider or defaults to Cloud Backend with zero-downtime auto-fallback.
+     * Real-time Server-Sent Events (SSE) streaming flow directly from FastAPI on Render.
+     * All local and secondary fallbacks removed: strictly routes through Render.
      */
     fun streamChatCompletion(
         userMessage: String,
@@ -464,119 +141,13 @@ class OpenRouterService(private val context: Context) {
         history: List<Pair<String, String>> = emptyList(),
         isVoiceMode: Boolean = false
     ): Flow<String> = flow {
-        val providerMode = AiPreferences.getProviderMode(context)
-        val geminiKey = AiPreferences.getGeminiApiKey(context)
-        val openRouterKey = AiPreferences.getOpenRouterApiKey(context)
         val profile = UserPreferences.getProfile(context)
-
         val enrichedContext = if (profile.sector == UserSector.FARMER) {
             "$weatherContext\nUser Profile: Sector: Farmer | Primary Crops: ${profile.crops} | Land Area: ${profile.landArea} | Language: ${profile.preferredLanguage}"
         } else {
             "$weatherContext\nUser Profile: Sector: ${profile.sector.title} | Region: ${profile.monitoredRegion} | Language: ${profile.preferredLanguage}"
         }
 
-        // 1. Direct Gemini Provider selected
-        if (providerMode == AiProviderMode.GEMINI_DIRECT && geminiKey.isNotBlank()) {
-            var emittedGemini = false
-            try {
-                streamGeminiDirect(
-                    apiKey = geminiKey,
-                    userMessage = userMessage,
-                    locationContext = locationContext,
-                    enrichedContext = enrichedContext,
-                    history = history,
-                    model = AiPreferences.getGeminiModel(context)
-                ).collect {
-                    emittedGemini = true
-                    emit(it)
-                }
-            } catch (_: Exception) {
-                // If Gemini direct fails, seamlessly fall through to local advisory
-            }
-            if (emittedGemini) return@flow
-        }
-
-        // 2. Direct OpenRouter Provider selected
-        if (providerMode == AiProviderMode.OPENROUTER_DIRECT && openRouterKey.isNotBlank()) {
-            // Auto-detect if user entered an AIzaSy (Google AI Studio) key in OpenRouter slot
-            if (openRouterKey.startsWith("AIzaSy")) {
-                var emittedAutoGemini = false
-                try {
-                    streamGeminiDirect(
-                        apiKey = openRouterKey,
-                        userMessage = userMessage,
-                        locationContext = locationContext,
-                        enrichedContext = enrichedContext,
-                        history = history,
-                        model = AiPreferences.getGeminiModel(context)
-                    ).collect {
-                        emittedAutoGemini = true
-                        emit(it)
-                    }
-                } catch (_: Exception) {}
-                if (emittedAutoGemini) return@flow
-            }
-
-            var emittedOpenRouter = false
-            var openRouterFailedWithQuota = false
-            try {
-                streamOpenRouterDirect(
-                    apiKey = openRouterKey,
-                    userMessage = userMessage,
-                    locationContext = locationContext,
-                    enrichedContext = enrichedContext,
-                    history = history,
-                    model = AiPreferences.getOpenRouterModel(context)
-                ).collect { chunk ->
-                    emittedOpenRouter = true
-                    emit(chunk)
-                }
-            } catch (e: Exception) {
-                if (e is OpenRouterQuotaException || e.message?.contains("402") == true) {
-                    openRouterFailedWithQuota = true
-                } else {
-                    emit("OpenRouter Notice: ${e.localizedMessage ?: e.message}")
-                }
-            }
-
-            if (emittedOpenRouter && !openRouterFailedWithQuota) {
-                return@flow
-            }
-
-            // If OpenRouter has 0 balance (402), try auto-fallback to Gemini Direct if key is saved
-            if (geminiKey.isNotBlank()) {
-                var emittedGeminiFallback = false
-                try {
-                    streamGeminiDirect(
-                        apiKey = geminiKey,
-                        userMessage = userMessage,
-                        locationContext = locationContext,
-                        enrichedContext = enrichedContext,
-                        history = history,
-                        model = AiPreferences.getGeminiModel(context)
-                    ).collect {
-                        emittedGeminiFallback = true
-                        emit(it)
-                    }
-                } catch (_: Exception) {}
-                if (emittedGeminiFallback) return@flow
-            }
-
-            // Otherwise, synthesize intelligent local meteorological advisory (zero 402 error shown)
-            val advisory = generateLocalMeteorologicalAdvisory(
-                locationContext = locationContext,
-                weatherContext = weatherContext,
-                userMessage = userMessage,
-                sector = profile.sector,
-                language = profile.preferredLanguage,
-                isVoiceMode = isVoiceMode,
-                customNotice = if (openRouterFailedWithQuota) "OpenRouter balance is $0.00. Using live meteorological telemetry." else null
-            )
-            emit(advisory)
-            return@flow
-        }
-
-        // 3. Default Cloud Backend (Render) with Auto-Fallback
         val endpoint = "/api/ai/chat-stream"
         val backendUrl = "${BackendConfig.BASE_URL}$endpoint"
         val isDetailMode = isDetailRequest(userMessage)
@@ -616,18 +187,14 @@ class OpenRouterService(private val context: Context) {
 
         val request = requestBuilder.build()
 
-        var quotaExhausted = false
-        var emittedAnyToken = false
-
         for (attempt in 0..1) {
             try {
                 val response = client.newCall(request).execute()
 
-                // HTTP 402 Payment Required intercepted
                 if (response.code == 402) {
-                    quotaExhausted = true
+                    emit("⚠️ Render Backend Notice (HTTP 402): OpenRouter quota depleted on Render server. Please update OPENROUTER_API_KEY in the Render dashboard.")
                     response.close()
-                    break
+                    return@flow
                 }
 
                 if (!response.isSuccessful) {
@@ -636,26 +203,29 @@ class OpenRouterService(private val context: Context) {
                         Thread.sleep(2000)
                         continue
                     }
+                    val errBody = response.body?.string() ?: ""
+                    emit("⚠️ Render Backend Notice (HTTP ${response.code}): $errBody")
                     response.close()
-                    break
+                    return@flow
                 }
 
                 val responseBody = response.body
                 if (responseBody == null) {
-                    break
+                    emit("Empty response from Render backend.")
+                    return@flow
                 }
 
                 val reader = BufferedReader(InputStreamReader(responseBody.byteStream(), Charsets.UTF_8))
                 var line: String?
+                var emittedAnyToken = false
 
                 while (reader.readLine().also { line = it } != null) {
                     val currentLine = line ?: continue
                     if (currentLine.isBlank()) continue
 
-                    // Check for 402 inside SSE stream (Render backend forwards "Error HTTP 402")
-                    if (currentLine.contains("402") || currentLine.contains("insufficient credits", ignoreCase = true) || currentLine.contains("Payment Required", ignoreCase = true)) {
-                        quotaExhausted = true
-                        break
+                    if (currentLine.contains("402") || currentLine.contains("insufficient credits", ignoreCase = true)) {
+                        emit("⚠️ Render Backend Notice (HTTP 402): OpenRouter quota depleted on Render server. Please update OPENROUTER_API_KEY in the Render dashboard.")
+                        return@flow
                     }
 
                     if (currentLine.contains("data:")) {
@@ -670,10 +240,6 @@ class OpenRouterService(private val context: Context) {
                     }
                 }
 
-                if (quotaExhausted) {
-                    break
-                }
-
                 if (emittedAnyToken) {
                     return@flow
                 }
@@ -682,65 +248,13 @@ class OpenRouterService(private val context: Context) {
                     Thread.sleep(2000)
                     continue
                 }
+                emit("Connection error to Render backend: ${e.localizedMessage ?: e.message}")
             }
-        }
-
-        // Auto-fallback when quota is exhausted or cloud is unavailable
-        if (quotaExhausted || !emittedAnyToken) {
-            // Auto-fallback to custom Gemini key if saved
-            if (geminiKey.isNotBlank()) {
-                var geminiSuccess = false
-                try {
-                    streamGeminiDirect(
-                        apiKey = geminiKey,
-                        userMessage = userMessage,
-                        locationContext = locationContext,
-                        enrichedContext = enrichedContext,
-                        history = history,
-                        model = AiPreferences.getGeminiModel(context)
-                    ).collect {
-                        geminiSuccess = true
-                        emit(it)
-                    }
-                } catch (_: Exception) {}
-                if (geminiSuccess) return@flow
-            }
-
-            // Auto-fallback to custom OpenRouter key if saved
-            if (openRouterKey.isNotBlank()) {
-                var openRouterSuccess = false
-                try {
-                    streamOpenRouterDirect(
-                        apiKey = openRouterKey,
-                        userMessage = userMessage,
-                        locationContext = locationContext,
-                        enrichedContext = enrichedContext,
-                        history = history,
-                        model = AiPreferences.getOpenRouterModel(context)
-                    ).collect {
-                        openRouterSuccess = true
-                        emit(it)
-                    }
-                    if (openRouterSuccess) return@flow
-                } catch (_: Exception) {}
-            }
-
-            // Synthesize and emit intelligent meteorological advisory (100% clean of HTTP 402 warnings)
-            val advisory = generateLocalMeteorologicalAdvisory(
-                locationContext = locationContext,
-                weatherContext = weatherContext,
-                userMessage = userMessage,
-                sector = profile.sector,
-                language = profile.preferredLanguage,
-                isVoiceMode = isVoiceMode
-            )
-            emit(advisory)
         }
     }.flowOn(Dispatchers.IO)
 
     /**
-     * Non-streaming completion for status tests & diagnostics.
-     * Guaranteed to never throw raw HTTP 402 exceptions.
+     * Non-streaming completion for status tests & diagnostics against Render backend.
      */
     suspend fun generateChatCompletion(
         userMessage: String,
@@ -748,23 +262,6 @@ class OpenRouterService(private val context: Context) {
         weatherContext: String = "",
         history: List<Pair<String, String>> = emptyList()
     ): Result<String> = withContext(Dispatchers.IO) {
-        val providerMode = AiPreferences.getProviderMode(context)
-        val geminiKey = AiPreferences.getGeminiApiKey(context)
-        val openRouterKey = AiPreferences.getOpenRouterApiKey(context)
-
-        if (providerMode == AiProviderMode.GEMINI_DIRECT && geminiKey.isNotBlank()) {
-            return@withContext testGeminiDirect(geminiKey)
-        }
-
-        if (providerMode == AiProviderMode.OPENROUTER_DIRECT && openRouterKey.isNotBlank()) {
-            val res = testOpenRouterDirect(openRouterKey)
-            if (res.isSuccess) return@withContext res
-            if (geminiKey.isNotBlank()) {
-                return@withContext testGeminiDirect(geminiKey)
-            }
-            return@withContext Result.success("Meteorological Engine Active ✓ (Using live Open-Meteo telemetry)")
-        }
-
         val endpoint = "/api/ai/chat-stream"
         val backendUrl = "${BackendConfig.BASE_URL}$endpoint"
         val profile = UserPreferences.getProfile(context)
@@ -797,29 +294,21 @@ class OpenRouterService(private val context: Context) {
         try {
             val response = client.newCall(request).execute()
             if (response.code == 402) {
-                if (geminiKey.isNotBlank()) {
-                    return@withContext testGeminiDirect(geminiKey)
-                }
-                return@withContext Result.success("Live Meteorological Engine Active ✓")
+                return@withContext Result.failure(Exception("Render Backend (HTTP 402): OpenRouter quota depleted on Render server. Please update OPENROUTER_API_KEY in the Render dashboard."))
             }
             if (!response.isSuccessful) {
-                if (geminiKey.isNotBlank()) {
-                    return@withContext testGeminiDirect(geminiKey)
-                }
-                return@withContext Result.success("Live Meteorological Engine Active ✓")
+                val errBody = response.body?.string() ?: ""
+                return@withContext Result.failure(Exception("Render Backend HTTP ${response.code}: $errBody"))
             }
 
-            val reader = BufferedReader(InputStreamReader(response.body?.byteStream() ?: return@withContext Result.success("Live Meteorological Engine Active ✓")))
+            val reader = BufferedReader(InputStreamReader(response.body?.byteStream() ?: return@withContext Result.failure(Exception("Empty body"))))
             val fullText = StringBuilder()
             var line: String?
 
             while (reader.readLine().also { line = it } != null) {
                 val currentLine = line ?: continue
                 if (currentLine.contains("402") || currentLine.contains("insufficient credits", ignoreCase = true)) {
-                    if (geminiKey.isNotBlank()) {
-                        return@withContext testGeminiDirect(geminiKey)
-                    }
-                    return@withContext Result.success("Live Meteorological Engine Active ✓")
+                    return@withContext Result.failure(Exception("Render Backend (HTTP 402): OpenRouter quota depleted on Render server. Please update OPENROUTER_API_KEY in the Render dashboard."))
                 }
                 if (currentLine.startsWith("data:")) {
                     val rawData = currentLine.removePrefix("data:").trim()
@@ -833,138 +322,10 @@ class OpenRouterService(private val context: Context) {
 
             val resultText = fullText.toString().trim()
             if (resultText.contains("Error HTTP 402", ignoreCase = true) || resultText.contains("402")) {
-                if (geminiKey.isNotBlank()) {
-                    return@withContext testGeminiDirect(geminiKey)
-                }
-                return@withContext Result.success("Live Meteorological Engine Active ✓")
+                return@withContext Result.failure(Exception("Render Backend (HTTP 402): OpenRouter quota depleted on Render server. Please update OPENROUTER_API_KEY in the Render dashboard."))
             }
 
-            Result.success(resultText.ifBlank { "Live Meteorological Engine Active ✓" })
-        } catch (e: Exception) {
-            if (geminiKey.isNotBlank()) {
-                return@withContext testGeminiDirect(geminiKey)
-            }
-            Result.success("Live Meteorological Engine Active ✓")
-        }
-    }
-
-    /**
-     * Verifies a Google Gemini API Key directly against Google's endpoint.
-     * Tries candidate models (Gemini 3.6, 2.5, 2.0) to ensure immediate success.
-     */
-    suspend fun testGeminiDirect(apiKey: String): Result<String> = withContext(Dispatchers.IO) {
-        val cleanApiKey = apiKey.trim()
-        if (cleanApiKey.startsWith("sk-or-")) {
-            return@withContext testOpenRouterDirect(cleanApiKey)
-        }
-        val preferredModel = AiPreferences.getGeminiModel(context).ifBlank { AiPreferences.DEFAULT_GEMINI_MODEL }
-        val modelsToTry = listOf(preferredModel, "gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.0-flash").distinct()
-
-        var lastError: Exception? = null
-        for (targetModel in modelsToTry) {
-            val url = "https://generativelanguage.googleapis.com/v1beta/models/$targetModel:generateContent?key=$cleanApiKey"
-            val jsonBody = JSONObject().apply {
-                put("contents", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("role", "user")
-                        put("parts", JSONArray().apply {
-                            put(JSONObject().apply {
-                                put("text", "Ping test: respond with OK")
-                            })
-                        })
-                    })
-                })
-            }
-
-            val request = Request.Builder()
-                .url(url)
-                .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
-                .addHeader("Content-Type", "application/json")
-                .build()
-
-            try {
-                val response = client.newCall(request).execute()
-                if (response.isSuccessful) {
-                    return@withContext Result.success("Google Gemini ($targetModel · Free AI Studio) Online ✓")
-                }
-                if (response.code == 404 && targetModel != modelsToTry.last()) {
-                    response.close()
-                    continue
-                }
-                val errBody = response.body?.string() ?: ""
-                lastError = Exception("HTTP ${response.code}: $errBody")
-            } catch (e: Exception) {
-                lastError = e
-            }
-        }
-        Result.failure(lastError ?: Exception("Unable to connect to Google Gemini"))
-    }
-
-    suspend fun testOpenRouterDirect(apiKey: String): Result<String> = withContext(Dispatchers.IO) {
-        val cleanApiKey = apiKey.trim().removePrefix("Bearer ").trim()
-        if (cleanApiKey.startsWith("AIzaSy")) {
-            val geminiTest = testGeminiDirect(cleanApiKey)
-            return@withContext if (geminiTest.isSuccess) {
-                Result.success("Google AI Studio Key Verified ✓ (Auto-routed to Gemini 3.6 Flash)")
-            } else {
-                geminiTest
-            }
-        }
-        val model = AiPreferences.getOpenRouterModel(context)
-        val cleanModel = if (model.isBlank()) AiPreferences.DEFAULT_OPENROUTER_MODEL else model
-        val url = "https://openrouter.ai/api/v1/chat/completions"
-
-        val jsonBody = JSONObject().apply {
-            put("model", cleanModel)
-            put("messages", JSONArray().apply {
-                put(JSONObject().apply {
-                    put("role", "user")
-                    put("content", "Ping test: respond with OK")
-                })
-            })
-            put("max_tokens", 50)
-            put("provider", JSONObject().apply {
-                put("order", JSONArray().apply {
-                    put("google-ai-studio")
-                })
-                put("ignore", JSONArray().apply {
-                    put("google-vertex")
-                })
-                put("allow_fallbacks", false)
-            })
-        }
-
-        val request = Request.Builder()
-            .url(url)
-            .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
-            .addHeader("Authorization", "Bearer $cleanApiKey")
-            .addHeader("Content-Type", "application/json")
-            .addHeader("HTTP-Referer", "https://weathergpt.ai")
-            .addHeader("X-Title", "WeatherGPT Android")
-            .build()
-
-        try {
-            val response = client.newCall(request).execute()
-            val resBody = response.body?.string() ?: ""
-            if (!response.isSuccessful) {
-                var errMsg = "HTTP ${response.code}"
-                try {
-                    val errJson = JSONObject(resBody)
-                    val errorObj = errJson.optJSONObject("error")
-                    if (errorObj != null) {
-                        errMsg = errorObj.optString("message", errMsg)
-                    }
-                } catch (_: Exception) {}
-
-                if (response.code == 402) {
-                    return@withContext Result.failure(Exception("OpenRouter 402: Account balance is $0.00. Gemini 3.6 Flash requires credits on openrouter.ai/credits (or use the 100% Free Google Gemini tab above!)"))
-                }
-                if (response.code == 401) {
-                    return@withContext Result.failure(Exception("OpenRouter 401 (Invalid API key): Please verify your key at openrouter.ai/keys"))
-                }
-                return@withContext Result.failure(Exception("OpenRouter: $errMsg"))
-            }
-            Result.success("OpenRouter (Gemini 3.6 Flash · AI Studio) Online ✓")
+            Result.success(resultText.ifBlank { "Render FastAPI Backend Online ✓" })
         } catch (e: Exception) {
             Result.failure(e)
         }

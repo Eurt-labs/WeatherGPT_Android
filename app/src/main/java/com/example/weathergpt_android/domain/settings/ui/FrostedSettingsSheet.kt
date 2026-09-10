@@ -56,8 +56,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import com.example.weathergpt_android.core.network.AiPreferences
-import com.example.weathergpt_android.core.network.AiProviderMode
+import android.content.Context
+import android.content.ClipboardManager
+import android.content.ClipData
+import com.example.weathergpt_android.core.network.BackendConfig
 import androidx.compose.runtime.Composable
 import com.example.weathergpt_android.domain.weather.repository.UnifiedWeatherRepository
 import androidx.compose.runtime.LaunchedEffect
@@ -130,10 +132,6 @@ fun FrostedSettingsSheet(
     var weatherDetail by remember { mutableStateOf<String?>(null) }
     var dbDetail by remember { mutableStateOf<String?>(null) }
     var currentLanguageCode by remember(userProfile.preferredLanguage) { mutableStateOf(userProfile.preferredLanguage) }
-    var aiProviderMode by remember { mutableStateOf(AiPreferences.getProviderMode(context)) }
-    var geminiApiKey by remember { mutableStateOf(AiPreferences.getGeminiApiKey(context)) }
-    var openRouterApiKey by remember { mutableStateOf(AiPreferences.getOpenRouterApiKey(context)) }
-    var showApiKey by remember { mutableStateOf(false) }
     var keyStatusMessage by remember { mutableStateOf<String?>(null) }
     var isTestingAiKey by remember { mutableStateOf(false) }
 
@@ -418,10 +416,10 @@ fun FrostedSettingsSheet(
                 }
             }
 
-            // 3. AI Reasoning Engine & Custom API Keys
+            // 3. FastAPI AI Engine (Render Hosted - Exclusively Connected)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "AI REASONING ENGINE",
+                    text = "FASTAPI AI ENGINE (RENDER HOSTED)",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = subtitleColor,
@@ -435,270 +433,244 @@ fun FrostedSettingsSheet(
                     border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
                 ) {
                     Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        // Provider selector buttons
+                        // Title & Status Badge
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            AiProviderOptionButton(
-                                title = "Cloud (Default)",
-                                icon = Icons.Rounded.CloudQueue,
-                                isSelected = aiProviderMode == AiProviderMode.CLOUD_BACKEND,
-                                onClick = {
-                                    aiProviderMode = AiProviderMode.CLOUD_BACKEND
-                                    AiPreferences.saveProviderMode(context, AiProviderMode.CLOUD_BACKEND)
-                                    keyStatusMessage = null
-                                },
-                                modifier = Modifier.weight(1f),
-                                isDark = isDark
-                            )
-                            AiProviderOptionButton(
-                                title = "Gemini 3.6",
-                                icon = Icons.Rounded.Bolt,
-                                isSelected = aiProviderMode == AiProviderMode.GEMINI_DIRECT,
-                                onClick = {
-                                    aiProviderMode = AiProviderMode.GEMINI_DIRECT
-                                    AiPreferences.saveProviderMode(context, AiProviderMode.GEMINI_DIRECT)
-                                    keyStatusMessage = null
-                                },
-                                modifier = Modifier.weight(1f),
-                                isDark = isDark
-                            )
-                            AiProviderOptionButton(
-                                title = "OpenRouter",
-                                icon = Icons.Rounded.Key,
-                                isSelected = aiProviderMode == AiProviderMode.OPENROUTER_DIRECT,
-                                onClick = {
-                                    aiProviderMode = AiProviderMode.OPENROUTER_DIRECT
-                                    AiPreferences.saveProviderMode(context, AiProviderMode.OPENROUTER_DIRECT)
-                                    keyStatusMessage = null
-                                },
-                                modifier = Modifier.weight(1f),
-                                isDark = isDark
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.CloudDone,
+                                    contentDescription = null,
+                                    tint = Color(0xFF10B981),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = "FastAPI on Render",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = textColor
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0x2010B981),
+                                border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.4f))
+                            ) {
+                                Text(
+                                    text = "Strict Render Mode",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF10B981),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
                         }
 
-                        when (aiProviderMode) {
-                            AiProviderMode.CLOUD_BACKEND -> {
-                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = "All AI conversations and voice queries stream directly through your FastAPI backend. All client-side fallbacks have been removed.",
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
+                            color = subtitleColor
+                        )
+
+                        // Endpoint & Protocol Info Card
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = FrostedGlassTokens.surfaceSubtle(isDark),
+                            border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
                                     Text(
-                                        text = "Uses the hosted WeatherGPT cloud backend powered by Google Gemini 3.6 Flash.",
-                                        fontSize = 12.sp,
-                                        lineHeight = 16.sp,
-                                        color = textColor
-                                    )
-                                    Text(
-                                        text = "⚡ Automatic Fallback: If cloud credits are exhausted (HTTP 402), the app seamlessly falls back to your direct Gemini/OpenRouter key or local meteorological reasoning.",
+                                        text = "Target Endpoint",
                                         fontSize = 11.sp,
-                                        lineHeight = 15.sp,
+                                        fontWeight = FontWeight.SemiBold,
                                         color = subtitleColor
                                     )
-                                }
-                            }
-                            AiProviderMode.GEMINI_DIRECT -> {
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(
-                                        text = "Direct Google Gemini 3.6 Flash connection (gemini-3.6-flash). 15 requests/min 100% free forever from Google AI Studio (aistudio.google.com). No credit card or billing required.",
-                                        fontSize = 12.sp,
-                                        lineHeight = 16.sp,
+                                        text = "https://weathergpt-backend-m5kk.onrender.com",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
                                         color = textColor
                                     )
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Security Protocol",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = subtitleColor
+                                    )
+                                    Text(
+                                        text = "Dynamic HMAC-SHA256 Signed",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFF10B981)
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Target AI Model",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = subtitleColor
+                                    )
+                                    Text(
+                                        text = "Google Gemini 3.6 Flash",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = textColor
+                                    )
+                                }
+                            }
+                        }
 
-                                    if (geminiApiKey.trim().startsWith("sk-or-")) {
+                        // Render Environment Key Setup Box
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isDark) Color(0x18F59E0B) else Color(0x12F59E0B),
+                            border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.35f))
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Key,
+                                        contentDescription = null,
+                                        tint = Color(0xFFF59E0B),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = "Render Dashboard Setup",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFF59E0B)
+                                    )
+                                }
+
+                                Text(
+                                    text = "To enable free live Gemini 3.6 Flash inference via BYOK, set OPENROUTER_API_KEY in your Render environment:",
+                                    fontSize = 11.sp,
+                                    lineHeight = 15.sp,
+                                    color = textColor
+                                )
+
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = FrostedGlassTokens.surfaceSubtle(isDark),
+                                    border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
                                         Text(
-                                            text = "⚠️ Notice: This key begins with 'sk-or-'. It is an OpenRouter key! Please switch to the 'OpenRouter' tab to use it.",
+                                            text = "sk-or-v1-95c2885d...0674a2a",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Medium,
-                                            color = Color(0xFFF59E0B)
+                                            color = textColor
                                         )
-                                    }
-
-                                    OutlinedTextField(
-                                        value = geminiApiKey,
-                                        onValueChange = {
-                                            geminiApiKey = it
-                                            keyStatusMessage = null
-                                        },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        placeholder = { Text("Paste Gemini API Key (AIzaSy...)", fontSize = 12.sp, color = subtitleColor) },
-                                        singleLine = true,
-                                        visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
-                                        trailingIcon = {
-                                            IconButton(onClick = { showApiKey = !showApiKey }) {
-                                                Icon(
-                                                    imageVector = if (showApiKey) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                                                    contentDescription = null,
-                                                    tint = subtitleColor,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                            }
-                                        },
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedBorderColor = accentColor,
-                                            unfocusedBorderColor = FrostedGlassTokens.borderSubtle(isDark),
-                                            focusedTextColor = textColor,
-                                            unfocusedTextColor = textColor
-                                        )
-                                    )
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Button(
-                                            onClick = {
-                                                AiPreferences.saveGeminiApiKey(context, geminiApiKey)
-                                                keyStatusMessage = "Gemini key saved successfully"
-                                            },
-                                            modifier = Modifier.weight(1f).height(40.dp),
-                                            shape = RoundedCornerShape(10.dp),
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = accentColor,
-                                                contentColor = if (isDark) Color(0xFF121214) else Color.White
-                                            )
-                                        ) {
-                                            Text("Save Key", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                        }
-
                                         OutlinedButton(
                                             onClick = {
-                                                isTestingAiKey = true
-                                                keyStatusMessage = "Testing Gemini key..."
-                                                scope.launch {
-                                                    AiPreferences.saveGeminiApiKey(context, geminiApiKey)
-                                                    val res = openRouterService.testGeminiDirect(geminiApiKey)
-                                                    isTestingAiKey = false
-                                                    keyStatusMessage = if (res.isSuccess) "✓ Gemini Online!" else "✗ Failed: ${res.exceptionOrNull()?.localizedMessage}"
-                                                }
+                                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                                val clip = ClipData.newPlainText("OpenRouter Key", "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")
+                                                clipboard.setPrimaryClip(clip)
+                                                keyStatusMessage = "✓ Key copied to clipboard! Paste into Render Dashboard."
                                             },
-                                            enabled = !isTestingAiKey && geminiApiKey.isNotBlank(),
-                                            modifier = Modifier.weight(1f).height(40.dp),
-                                            shape = RoundedCornerShape(10.dp),
-                                            border = BorderStroke(1.dp, FrostedGlassTokens.border(isDark))
+                                            shape = RoundedCornerShape(8.dp),
+                                            border = BorderStroke(1.dp, FrostedGlassTokens.border(isDark)),
+                                            modifier = Modifier.height(30.dp)
                                         ) {
-                                            if (isTestingAiKey) {
-                                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 1.5.dp, color = textColor)
-                                            } else {
-                                                Text("Test Key", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = textColor)
-                                            }
+                                            Text("Copy Key", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = textColor)
                                         }
-                                    }
-
-                                    if (keyStatusMessage != null) {
-                                        val isOk = keyStatusMessage!!.startsWith("✓") || keyStatusMessage!!.contains("saved")
-                                        Text(
-                                            text = keyStatusMessage!!,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = if (isOk) Color(0xFF10B981) else Color(0xFFEF4444)
-                                        )
                                     }
                                 }
                             }
-                            AiProviderMode.OPENROUTER_DIRECT -> {
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(
-                                        text = "Connecting through OpenRouter requires an OpenRouter API key (sk-or-v1-...) from OpenRouter's 'API Keys' sidebar tab. If you linked your Google AI Studio key via BYOK on openrouter.ai, OpenRouter will automatically route through your key without fees.",
-                                        fontSize = 12.sp,
-                                        lineHeight = 16.sp,
-                                        color = textColor
-                                    )
+                        }
 
-                                    if (openRouterApiKey.trim().startsWith("AIzaSy")) {
-                                        Text(
-                                            text = "💡 Detected Google AI Studio Key (AIzaSy...)! The app will automatically route your queries directly to Google Gemini 3.6 Flash for 100% free access. If you prefer OpenRouter, grab an 'sk-or-...' key from OpenRouter's 'API Keys' page.",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = Color(0xFF10B981)
-                                        )
-                                    }
-
-                                    OutlinedTextField(
-                                        value = openRouterApiKey,
-                                        onValueChange = {
-                                            openRouterApiKey = it
-                                            keyStatusMessage = null
-                                        },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        placeholder = { Text("Paste OpenRouter API Key (sk-or-...)", fontSize = 12.sp, color = subtitleColor) },
-                                        singleLine = true,
-                                        visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
-                                        trailingIcon = {
-                                            IconButton(onClick = { showApiKey = !showApiKey }) {
-                                                Icon(
-                                                    imageVector = if (showApiKey) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                                                    contentDescription = null,
-                                                    tint = subtitleColor,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                            }
-                                        },
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedBorderColor = accentColor,
-                                            unfocusedBorderColor = FrostedGlassTokens.borderSubtle(isDark),
-                                            focusedTextColor = textColor,
-                                            unfocusedTextColor = textColor
-                                        )
-                                    )
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Button(
-                                            onClick = {
-                                                AiPreferences.saveOpenRouterApiKey(context, openRouterApiKey)
-                                                keyStatusMessage = "OpenRouter key saved successfully"
-                                            },
-                                            modifier = Modifier.weight(1f).height(40.dp),
-                                            shape = RoundedCornerShape(10.dp),
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = accentColor,
-                                                contentColor = if (isDark) Color(0xFF121214) else Color.White
-                                            )
-                                        ) {
-                                            Text("Save Key", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                        }
-
-                                        OutlinedButton(
-                                            onClick = {
-                                                isTestingAiKey = true
-                                                keyStatusMessage = "Testing OpenRouter key..."
-                                                scope.launch {
-                                                    AiPreferences.saveOpenRouterApiKey(context, openRouterApiKey)
-                                                    val res = openRouterService.testOpenRouterDirect(openRouterApiKey)
-                                                    isTestingAiKey = false
-                                                    keyStatusMessage = if (res.isSuccess) "✓ OpenRouter Online!" else "✗ Failed: ${res.exceptionOrNull()?.localizedMessage}"
-                                                }
-                                            },
-                                            enabled = !isTestingAiKey && openRouterApiKey.isNotBlank(),
-                                            modifier = Modifier.weight(1f).height(40.dp),
-                                            shape = RoundedCornerShape(10.dp),
-                                            border = BorderStroke(1.dp, FrostedGlassTokens.border(isDark))
-                                        ) {
-                                            if (isTestingAiKey) {
-                                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 1.5.dp, color = textColor)
-                                            } else {
-                                                Text("Test Key", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = textColor)
-                                            }
-                                        }
-                                    }
-
-                                    if (keyStatusMessage != null) {
-                                        val isOk = keyStatusMessage!!.startsWith("✓") || keyStatusMessage!!.contains("saved")
-                                        Text(
-                                            text = keyStatusMessage!!,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = if (isOk) Color(0xFF10B981) else Color(0xFFEF4444)
-                                        )
+                        // Test Backend Connection Button
+                        Button(
+                            onClick = {
+                                isTestingAiKey = true
+                                keyStatusMessage = "Testing FastAPI Render backend connection..."
+                                scope.launch {
+                                    val res = openRouterService.generateChatCompletion("Ping test: confirm connection")
+                                    isTestingAiKey = false
+                                    keyStatusMessage = if (res.isSuccess) {
+                                        "✓ FastAPI Backend Online! Response: ${res.getOrNull()}"
+                                    } else {
+                                        "✗ ${res.exceptionOrNull()?.localizedMessage}"
                                     }
                                 }
+                            },
+                            enabled = !isTestingAiKey,
+                            modifier = Modifier.fillMaxWidth().height(42.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = accentColor,
+                                contentColor = if (isDark) Color(0xFF121214) else Color.White
+                            )
+                        ) {
+                            if (isTestingAiKey) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = if (isDark) Color(0xFF121214) else Color.White
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Connecting to Render...", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Rounded.Refresh,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Test Render Backend Connection", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        if (keyStatusMessage != null) {
+                            val isOk = keyStatusMessage!!.startsWith("✓")
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isOk) Color(0x2010B981) else Color(0x25EF4444),
+                                border = BorderStroke(1.dp, if (isOk) Color(0xFF10B981).copy(alpha = 0.4f) else Color(0xFFEF4444).copy(alpha = 0.4f))
+                            ) {
+                                Text(
+                                    text = keyStatusMessage!!,
+                                    fontSize = 11.sp,
+                                    lineHeight = 15.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (isOk) Color(0xFF10B981) else Color(0xFFEF4444),
+                                    modifier = Modifier.padding(10.dp)
+                                )
                             }
                         }
                     }
@@ -880,25 +852,20 @@ fun FrostedSettingsSheet(
                                         weatherDetail = e.localizedMessage ?: "Network error"
                                     }
 
-                                    // 3. AI Intelligence Check
+                                    // 3. AI Intelligence Check (FastAPI Render only, no fallbacks)
                                     try {
                                         val geminiRes = openRouterService.generateChatCompletion("Ping test: confirm connection")
                                         if (geminiRes.isSuccess) {
                                             geminiStatus = DiagnosticStatus.SUCCESS
-                                            geminiDetail = geminiRes.getOrNull() ?: "AI Core Online"
+                                            geminiDetail = "FastAPI Backend Online ✓"
                                         } else {
                                             val err = geminiRes.exceptionOrNull()?.localizedMessage ?: "AI Service unavailable"
-                                            if (err.contains("402")) {
-                                                geminiStatus = DiagnosticStatus.SUCCESS
-                                                geminiDetail = "Live Meteorological Engine Active ✓ (Local Mode)"
-                                            } else {
-                                                geminiStatus = DiagnosticStatus.FAILED
-                                                geminiDetail = err
-                                            }
+                                            geminiStatus = DiagnosticStatus.FAILED
+                                            geminiDetail = err
                                         }
                                     } catch (e: Exception) {
-                                        geminiStatus = DiagnosticStatus.SUCCESS
-                                        geminiDetail = "Live Meteorological Engine Active ✓"
+                                        geminiStatus = DiagnosticStatus.FAILED
+                                        geminiDetail = e.localizedMessage ?: "FastAPI connection failed"
                                     }
 
                                     isTestingAll = false
@@ -1292,49 +1259,5 @@ private fun LanguageOptionCard(
     }
 }
 
-@Composable
-private fun AiProviderOptionButton(
-    title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    isDark: Boolean
-) {
-    val activeBg = if (isDark) Color(0x35E8E3D5) else Color(0xFF18181B)
-    val activeBorder = if (isDark) Color(0xFFE8E3D5) else Color(0xFF18181B)
-    val inactiveBg = FrostedGlassTokens.surfaceSubtle(isDark)
-    val inactiveBorder = FrostedGlassTokens.borderSubtle(isDark)
 
-    Surface(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        color = if (isSelected) activeBg else inactiveBg,
-        border = BorderStroke(1.2.dp, if (isSelected) activeBorder else inactiveBorder)
-    ) {
-        Column(
-            modifier = Modifier.padding(vertical = 9.dp, horizontal = 4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = title,
-                tint = if (isSelected) (if (isDark) Color(0xFFE8E3D5) else Color.White)
-                       else (if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A)),
-                modifier = Modifier.size(16.dp)
-            )
-            Text(
-                text = title,
-                fontSize = 10.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) (if (isDark) Color.White else Color.White)
-                        else (if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A)),
-                maxLines = 1
-            )
-        }
-    }
-}
 
