@@ -99,11 +99,12 @@ class ChatDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
         sessionId: String = "default",
         isSynced: Boolean = false
     ) = withContext(Dispatchers.IO) {
-        val effectiveUserId = if (userId.isNotBlank()) userId else message.userId
-        val effectiveSessionId = if (sessionId != "default") sessionId else message.sessionId
-        val createdAt = if (message.createdAt > 0) message.createdAt else System.currentTimeMillis()
+        try {
+            val effectiveUserId = if (userId.isNotBlank()) userId else message.userId
+            val effectiveSessionId = if (sessionId != "default") sessionId else message.sessionId
+            val createdAt = if (message.createdAt > 0) message.createdAt else System.currentTimeMillis()
 
-        writableDatabase.use { db ->
+            val db = writableDatabase
             val cv = ContentValues().apply {
                 put(COL_ID, message.id)
                 put(COL_TEXT, message.text)
@@ -120,12 +121,15 @@ class ChatDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
             if (estimatedTokens > 0) {
                 db.execSQL("UPDATE $TABLE_STATS SET $COL_STAT_VAL = $COL_STAT_VAL + $estimatedTokens WHERE $COL_STAT_KEY = 'total_tokens'")
             }
+        } catch (e: Exception) {
+            android.util.Log.e("ChatDatabaseHelper", "saveMessage failed", e)
         }
     }
 
     suspend fun getAllMessages(userId: String? = null, sessionId: String? = null): List<ChatMessage> = withContext(Dispatchers.IO) {
         val list = mutableListOf<ChatMessage>()
-        readableDatabase.use { db ->
+        try {
+            val db = readableDatabase
             val query: String
             val args: Array<String>?
             if (!userId.isNullOrBlank() && !sessionId.isNullOrBlank()) {
@@ -162,13 +166,16 @@ class ChatDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
                     )
                 }
             }
+        } catch (e: Exception) {
+            android.util.Log.e("ChatDatabaseHelper", "getAllMessages failed", e)
         }
         list
     }
 
     suspend fun getSessions(userId: String? = null): List<ChatSessionSummary> = withContext(Dispatchers.IO) {
         val sessions = mutableListOf<ChatSessionSummary>()
-        readableDatabase.use { db ->
+        try {
+            val db = readableDatabase
             val query = if (!userId.isNullOrBlank()) {
                 "SELECT $COL_SESSION_ID, COUNT(*), MAX($COL_TIMESTAMP), MAX($COL_CREATED_AT) FROM $TABLE_MESSAGES WHERE $COL_USER_ID = ? OR $COL_USER_ID = '' GROUP BY $COL_SESSION_ID ORDER BY MAX($COL_CREATED_AT) DESC"
             } else {
@@ -209,13 +216,16 @@ class ChatDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
                     )
                 }
             }
+        } catch (e: Exception) {
+            android.util.Log.e("ChatDatabaseHelper", "getSessions failed", e)
         }
         sessions
     }
 
     suspend fun getUnsyncedMessages(userId: String? = null): List<ChatMessage> = withContext(Dispatchers.IO) {
         val list = mutableListOf<ChatMessage>()
-        readableDatabase.use { db ->
+        try {
+            val db = readableDatabase
             val query = if (!userId.isNullOrBlank()) {
                 "SELECT $COL_ID, $COL_TEXT, $COL_IS_USER, $COL_TIMESTAMP, $COL_USER_ID, $COL_SESSION_ID, $COL_CREATED_AT FROM $TABLE_MESSAGES WHERE $COL_SYNCED = 0 AND ($COL_USER_ID = ? OR $COL_USER_ID = '')"
             } else {
@@ -238,21 +248,27 @@ class ChatDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
                     )
                 }
             }
+        } catch (e: Exception) {
+            android.util.Log.e("ChatDatabaseHelper", "getUnsyncedMessages failed", e)
         }
         list
     }
 
     suspend fun markMessagesSynced(messageIds: List<String>) = withContext(Dispatchers.IO) {
         if (messageIds.isEmpty()) return@withContext
-        writableDatabase.use { db ->
+        try {
+            val db = writableDatabase
             val placeholders = messageIds.joinToString(",") { "?" }
             db.execSQL("UPDATE $TABLE_MESSAGES SET $COL_SYNCED = 1 WHERE $COL_ID IN ($placeholders)", messageIds.toTypedArray())
+        } catch (e: Exception) {
+            android.util.Log.e("ChatDatabaseHelper", "markMessagesSynced failed", e)
         }
     }
 
     suspend fun insertBatchFromCloud(messages: List<ChatMessage>, userId: String) = withContext(Dispatchers.IO) {
         if (messages.isEmpty()) return@withContext
-        writableDatabase.use { db ->
+        try {
+            val db = writableDatabase
             db.beginTransaction()
             try {
                 for (m in messages) {
@@ -273,29 +289,37 @@ class ChatDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
             } finally {
                 db.endTransaction()
             }
+        } catch (e: Exception) {
+            android.util.Log.e("ChatDatabaseHelper", "insertBatchFromCloud failed", e)
         }
     }
 
     suspend fun getTotalTokens(): Int = withContext(Dispatchers.IO) {
         var total = 0
-        readableDatabase.use { db ->
+        try {
+            val db = readableDatabase
             val cursor = db.rawQuery("SELECT $COL_STAT_VAL FROM $TABLE_STATS WHERE $COL_STAT_KEY = 'total_tokens'", null)
             cursor.use {
                 if (it.moveToFirst()) {
                     total = it.getInt(0)
                 }
             }
+        } catch (e: Exception) {
+            android.util.Log.e("ChatDatabaseHelper", "getTotalTokens failed", e)
         }
         total
     }
 
     suspend fun clearHistory(userId: String? = null) = withContext(Dispatchers.IO) {
-        writableDatabase.use { db ->
+        try {
+            val db = writableDatabase
             if (!userId.isNullOrBlank()) {
                 db.delete(TABLE_MESSAGES, "$COL_USER_ID = ? OR $COL_USER_ID = ''", arrayOf(userId))
             } else {
                 db.delete(TABLE_MESSAGES, null, null)
             }
+        } catch (e: Exception) {
+            android.util.Log.e("ChatDatabaseHelper", "clearHistory failed", e)
         }
     }
 }

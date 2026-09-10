@@ -219,6 +219,10 @@ com.example.weathergpt_android/
 - **Android Studio `local.properties` Link**: Configured `app/build.gradle.kts` to expose `OPENROUTER_API_KEY` and `GEMINI_API_KEY` to `BuildConfig`, enabling keys declared in Android Studio to work immediately.
 - **Header & Sanitization Fixes**: Added mandatory OpenRouter headers (`HTTP-Referer`, `X-Title`) and trimmed `Bearer ` prefixes; parsed structured error messages from OpenRouter HTTP responses.
 
+### [Version 3.5.2] - Main Page Widget & Card Crash Resolution
+- **SQLite Connection Pool Fix** (`ChatDatabaseHelper.kt`): Eliminated `.use` calls on `readableDatabase` and `writableDatabase` which were prematurely closing the database connection after the initial query on `UnifiedMainScreen`, causing crashes whenever widgets were tapped.
+- **Native Linkage & Lifecycle Hardening** (`SherpaOnnxEngine.kt`, `ImmersiveVoiceScreen.kt`): Caught `Throwable` during ONNX runtime native initialization and guarded `SpeechRecognizer` with `RECORD_AUDIO` permission checks and retry debouncing.
+
 ---
 
 ## 🐛 Bug Fixes & Diagnostics Log
@@ -238,4 +242,5 @@ com.example.weathergpt_android/
 | Initial greeting redundancy across navigation | Welcome card remained embedded in the long weather dashboard list | Separated into dedicated `GreetingWelcomeView` on launch that transitions on nav click | ✅ Fixed |
 | Chat & Voice returning `HTTP 402 Payment Required` | Upstream OpenRouter credit balance on Render backend was $0.00; backend forwarded `Error HTTP 402` in SSE stream | Intercepted 402 in `OpenRouterService.kt`, created intelligent local meteorological advisory fallback, and added direct Google Gemini free API key support in `FrostedSettingsSheet.kt` | ✅ Fixed |
 | OpenRouter key in `local.properties` ignored & giving errors | `build.gradle.kts` didn't export `OPENROUTER_API_KEY` to `BuildConfig`, and OpenRouter requests were missing required headers | Injected keys into `BuildConfig`, added automatic provider selection, added `HTTP-Referer`/`X-Title` headers, and set default model to `google/gemini-2.5-flash` | ✅ Fixed |
+| Main page widgets/boxes crashing on tap | `ChatDatabaseHelper` called `.use` on `readableDatabase`, closing the database after the main screen query; subsequent queries threw `IllegalStateException: closed database` | Removed `.use` from SQLite database instances, safely closed cursors, and added try-catch blocks across all DB queries | ✅ Fixed |
 

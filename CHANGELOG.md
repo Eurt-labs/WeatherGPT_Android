@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.5.2] - 2026-09-10
+### Fixed
+- **Main Page Widget & Card Crash Resolution** ([`ChatDatabaseHelper.kt`](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/assistant/data/ChatDatabaseHelper.kt)):
+  - **Root Cause**: `ChatDatabaseHelper` was calling `.use { }` on `readableDatabase` and `writableDatabase`. Because `use` invokes `close()` on the database, the singleton connection was closed after the initial count query on `UnifiedMainScreen`. Tapping any widget or box ("Live Weather", "Disaster Radar", "Kisan AI", quick pills, bottom bar) crashed with `IllegalStateException: attempt to re-open an already-closed object: SQLiteDatabase`.
+  - **Fix**: Removed database-closing `.use` blocks across all queries in `ChatDatabaseHelper`, ensuring persistent connection reuse and scoped `cursor.use` disposal. Wrapped all database calls in resilient `try-catch` handlers.
+- **ONNX Runtime Linkage Hardening** ([`SherpaOnnxEngine.kt`](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/voice/sherpa/engine/SherpaOnnxEngine.kt)):
+  - Caught `Throwable` instead of `Exception` during `OrtEnvironment.getEnvironment()` initialization and release to prevent native `UnsatisfiedLinkError` crashes on devices without compatible C++ binaries.
+- **Voice AI Permission & Lifecycle Protection** ([`ImmersiveVoiceScreen.kt`](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/voice/ui/ImmersiveVoiceScreen.kt)):
+  - Added explicit runtime `RECORD_AUDIO` permission verification before invoking `SpeechRecognizer.startListening`.
+  - Debounced `onError` retries to prevent infinite recursion loops and ANR.
+  - Wrapped `SpeechRecognizer` and `TextToSpeech` initialization and cleanup in `try-catch` blocks.
+
+---
+
 ## [3.5.1] - 2026-09-10
 ### Fixed & Improved
 - **Gemini 2.5 Flash Integration & OpenRouter Link**:

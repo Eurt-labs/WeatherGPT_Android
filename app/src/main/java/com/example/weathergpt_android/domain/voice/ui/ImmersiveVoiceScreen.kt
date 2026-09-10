@@ -1,7 +1,9 @@
 package com.example.weathergpt_android.domain.voice.ui
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -9,6 +11,7 @@ import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.Voice
 import android.speech.tts.UtteranceProgressListener
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -138,27 +141,39 @@ fun ImmersiveVoiceScreen(
 
     // Start Listening Helper Function with Multilingual Indian Language support
     fun startListening() {
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) return
-        val targetLocaleTag = when (userProfile.preferredLanguage.lowercase()) {
-            "hi" -> "hi-IN"
-            "mr" -> "mr-IN"
-            "bn" -> "bn-IN"
-            "ta" -> "ta-IN"
-            "te" -> "te-IN"
-            "gu" -> "gu-IN"
-            else -> "en-IN"
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            userTranscript = "Microphone permission required. Tap mic to retry."
+            return
         }
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, targetLocaleTag)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, targetLocaleTag)
-            putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, false)
-            putExtra("android.speech.extra.EXTRA_ADDITIONAL_LANGUAGES", arrayOf("hi-IN", "en-IN", "mr-IN", "bn-IN", "ta-IN", "te-IN", "gu-IN"))
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+        if (!SpeechRecognizer.isRecognitionAvailable(context) || speechRecognizer == null) {
+            userTranscript = "Speech recognition service not ready."
+            return
         }
-        speechRecognizer?.startListening(intent)
-        conversationState = VoiceConversationState.LISTENING
+        try {
+            val targetLocaleTag = when (userProfile.preferredLanguage.lowercase()) {
+                "hi" -> "hi-IN"
+                "mr" -> "mr-IN"
+                "bn" -> "bn-IN"
+                "ta" -> "ta-IN"
+                "te" -> "te-IN"
+                "gu" -> "gu-IN"
+                else -> "en-IN"
+            }
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, targetLocaleTag)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, targetLocaleTag)
+                putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, false)
+                putExtra("android.speech.extra.EXTRA_ADDITIONAL_LANGUAGES", arrayOf("hi-IN", "en-IN", "mr-IN", "bn-IN", "ta-IN", "te-IN", "gu-IN"))
+                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            }
+            speechRecognizer?.startListening(intent)
+            conversationState = VoiceConversationState.LISTENING
+        } catch (e: Exception) {
+            conversationState = VoiceConversationState.LISTENING
+            userTranscript = "Tap mic to speak..."
+        }
     }
 
     // Process user query with Gemini 2.5 Flash
@@ -237,94 +252,111 @@ fun ImmersiveVoiceScreen(
 
     // Initialize TTS and SpeechRecognizer
     DisposableEffect(Unit) {
-        val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
-        speechRecognizer = recognizer
+        var recognizer: SpeechRecognizer? = null
+        try {
+            if (SpeechRecognizer.isRecognitionAvailable(context)) {
+                recognizer = SpeechRecognizer.createSpeechRecognizer(context)
+                speechRecognizer = recognizer
 
-        recognizer.setRecognitionListener(object : RecognitionListener {
-            override fun onReadyForSpeech(params: Bundle?) {}
-            override fun onBeginningOfSpeech() {}
-            override fun onRmsChanged(rmsdB: Float) {
-                if (conversationState == VoiceConversationState.LISTENING) {
-                    speechEnergy = ((rmsdB + 2f) / 10f).coerceIn(0f, 1f)
-                }
-            }
-            override fun onBufferReceived(buffer: ByteArray?) {}
-            override fun onEndOfSpeech() {}
-            override fun onError(error: Int) {
-                // If timed out or error while idle, restart listening automatically
-                if (conversationState == VoiceConversationState.LISTENING) {
-                    startListening()
-                }
-            }
+                recognizer.setRecognitionListener(object : RecognitionListener {
+                    override fun onReadyForSpeech(params: Bundle?) {}
+                    override fun onBeginningOfSpeech() {}
+                    override fun onRmsChanged(rmsdB: Float) {
+                        if (conversationState == VoiceConversationState.LISTENING) {
+                            speechEnergy = ((rmsdB + 2f) / 10f).coerceIn(0f, 1f)
+                        }
+                    }
+                    override fun onBufferReceived(buffer: ByteArray?) {}
+                    override fun onEndOfSpeech() {}
+                    override fun onError(error: Int) {
+                        // Debounce before restarting listening to avoid rapid-fire recursion loops
+                        if (conversationState == VoiceConversationState.LISTENING) {
+                            scope.launch {
+                                delay(1200)
+                                if (isActive && conversationState == VoiceConversationState.LISTENING) {
+                                    startListening()
+                                }
+                            }
+                        }
+                    }
 
-            override fun onResults(results: Bundle?) {
-                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                val recognizedText = matches?.firstOrNull() ?: ""
-                if (recognizedText.isNotBlank()) {
-                    userTranscript = recognizedText
-                    processVoiceQuery(recognizedText)
-                } else {
-                    startListening()
-                }
-            }
+                    override fun onResults(results: Bundle?) {
+                        val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        val recognizedText = matches?.firstOrNull() ?: ""
+                        if (recognizedText.isNotBlank()) {
+                            userTranscript = recognizedText
+                            processVoiceQuery(recognizedText)
+                        } else {
+                            startListening()
+                        }
+                    }
 
-            override fun onPartialResults(partialResults: Bundle?) {
-                val partial = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
-                if (!partial.isNullOrBlank()) {
-                    userTranscript = partial
-                    val wordCount = partial.split(" ").filter { it.isNotBlank() }.size
-                    conversationProgress = (conversationProgress + wordCount * 0.003f).coerceAtMost(1f)
-                }
-            }
+                    override fun onPartialResults(partialResults: Bundle?) {
+                        val partial = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
+                        if (!partial.isNullOrBlank()) {
+                            userTranscript = partial
+                            val wordCount = partial.split(" ").filter { it.isNotBlank() }.size
+                            conversationProgress = (conversationProgress + wordCount * 0.003f).coerceAtMost(1f)
+                        }
+                    }
 
-            override fun onEvent(eventType: Int, params: Bundle?) {}
-        })
+                    override fun onEvent(eventType: Int, params: Bundle?) {}
+                })
+            }
+        } catch (e: Throwable) {
+            speechRecognizer = null
+        }
 
         var tts: TextToSpeech? = null
-        tts = TextToSpeech(context) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                isTtsReady = true
-                val initialLocale = detectVoiceLocale("", userProfile.preferredLanguage)
-                applyNativeIndianVoice(tts, initialLocale)
+        try {
+            tts = TextToSpeech(context) { status ->
+                if (status == TextToSpeech.SUCCESS) {
+                    isTtsReady = true
+                    val initialLocale = detectVoiceLocale("", userProfile.preferredLanguage)
+                    applyNativeIndianVoice(tts, initialLocale)
 
-                // Listener for Continuous Conversation Loop:
-                // When TTS finishes speaking, immediately re-arm SpeechRecognizer!
-                tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                    override fun onStart(utteranceId: String?) {
-                        conversationState = VoiceConversationState.SPEAKING
-                    }
+                    tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                        override fun onStart(utteranceId: String?) {
+                            conversationState = VoiceConversationState.SPEAKING
+                        }
 
-                    override fun onDone(utteranceId: String?) {
-                        // CRITICAL FIX: Automatically return to LISTENING so the user can speak again!
-                        scope.launch {
-                            if (conversationState != VoiceConversationState.MUTED) {
-                                userTranscript = "Listening..."
-                                conversationState = VoiceConversationState.LISTENING
-                                startListening()
+                        override fun onDone(utteranceId: String?) {
+                            scope.launch {
+                                if (conversationState != VoiceConversationState.MUTED) {
+                                    userTranscript = "Listening..."
+                                    conversationState = VoiceConversationState.LISTENING
+                                    startListening()
+                                }
                             }
                         }
-                    }
 
-                    override fun onError(utteranceId: String?) {
-                        scope.launch {
-                            if (conversationState != VoiceConversationState.MUTED) {
-                                conversationState = VoiceConversationState.LISTENING
-                                startListening()
+                        override fun onError(utteranceId: String?) {
+                            scope.launch {
+                                if (conversationState != VoiceConversationState.MUTED) {
+                                    conversationState = VoiceConversationState.LISTENING
+                                    startListening()
+                                }
                             }
                         }
-                    }
-                })
+                    })
 
-                // Kick off initial listening
-                startListening()
+                    // Kick off initial listening
+                    startListening()
+                }
             }
+            textToSpeech = tts
+        } catch (e: Throwable) {
+            textToSpeech = null
         }
-        textToSpeech = tts
 
         onDispose {
-            recognizer.destroy()
-            tts.stop()
-            tts.shutdown()
+            try {
+                recognizer?.destroy()
+            } catch (_: Throwable) {}
+            try {
+                tts?.stop()
+                tts?.shutdown()
+            } catch (_: Throwable) {}
         }
     }
 

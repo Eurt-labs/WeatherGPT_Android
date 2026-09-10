@@ -78,7 +78,8 @@ class SherpaOnnxEngine(
             try {
                 ortEnvironment = OrtEnvironment.getEnvironment()
                 _isEngineReady.value = true
-            } catch (e: Exception) {
+            } catch (t: Throwable) {
+                android.util.Log.w("SherpaOnnxEngine", "ONNX Runtime native init bypassed: ${t.message}")
                 _isEngineReady.value = false
             }
         }
@@ -449,7 +450,7 @@ class SherpaOnnxEngine(
         try {
             localTts?.shutdown()
             localTts = null
-        } catch (e: Exception) {
+        } catch (t: Throwable) {
             // Cleanup
         }
         try {
@@ -457,7 +458,7 @@ class SherpaOnnxEngine(
             vadSession?.close()
             ttsSession?.close()
             ortEnvironment?.close()
-        } catch (e: Exception) {
+        } catch (t: Throwable) {
             // Cleanup
         }
     }
