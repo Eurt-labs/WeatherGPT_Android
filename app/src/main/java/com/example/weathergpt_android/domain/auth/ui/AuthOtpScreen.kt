@@ -301,7 +301,7 @@ fun AuthOtpScreen(
                                     decorationBox = { innerTextField ->
                                         if (contactInput.isEmpty()) {
                                             Text(
-                                                text = if (isPhoneMode) "Phone number or 123456" else "name@example.com or 123456",
+                                                text = if (isPhoneMode) "Phone number" else "name@example.com",
                                                 color = textColor.copy(alpha = 0.45f),
                                                 fontSize = 14.sp
                                             )
@@ -337,8 +337,10 @@ fun AuthOtpScreen(
                                         userId = testProfile.userId,
                                         token = "test_session_token_123456",
                                         contact = testProfile.contact,
-                                        contactType = testProfile.contactType
+                                        contactType = testProfile.contactType,
+                                        isOnboarded = true
                                     )
+                                    UserPreferences.saveProfile(context, testProfile)
                                     onAuthSuccess(testProfile, false)
                                     return@Button
                                 }
@@ -422,8 +424,10 @@ fun AuthOtpScreen(
                                                     userId = testProfile.userId,
                                                     token = "test_session_token_123456",
                                                     contact = testProfile.contact,
-                                                    contactType = testProfile.contactType
+                                                    contactType = testProfile.contactType,
+                                                    isOnboarded = true
                                                 )
+                                                UserPreferences.saveProfile(context, testProfile)
                                                 onAuthSuccess(testProfile, false)
                                                 return@BasicTextField
                                             }
@@ -438,19 +442,21 @@ fun AuthOtpScreen(
                                                     )
                                                     isLoading = false
                                                     res.onSuccess { verified ->
-                                                        UserPreferences.saveAuthSession(
-                                                            context,
-                                                            userId = verified.userId,
-                                                            token = verified.sessionToken,
-                                                            contact = contactInput.trim(),
-                                                            contactType = if (isPhoneMode) "phone" else "email"
-                                                        )
                                                         val profile = verified.profile ?: UserProfile(
                                                             userId = verified.userId,
                                                             contact = contactInput.trim(),
                                                             contactType = if (isPhoneMode) "phone" else "email",
                                                             isOnboarded = !verified.isNewUser
                                                         )
+                                                        UserPreferences.saveAuthSession(
+                                                            context,
+                                                            userId = verified.userId,
+                                                            token = verified.sessionToken,
+                                                            contact = contactInput.trim(),
+                                                            contactType = if (isPhoneMode) "phone" else "email",
+                                                            isOnboarded = !verified.isNewUser
+                                                        )
+                                                        UserPreferences.saveProfile(context, profile)
                                                         onAuthSuccess(profile, verified.isNewUser)
                                                     }.onFailure { err ->
                                                         statusMessage = err.message
@@ -498,8 +504,10 @@ fun AuthOtpScreen(
                                         userId = testProfile.userId,
                                         token = "test_session_token_123456",
                                         contact = testProfile.contact,
-                                        contactType = testProfile.contactType
+                                        contactType = testProfile.contactType,
+                                        isOnboarded = true
                                     )
+                                    UserPreferences.saveProfile(context, testProfile)
                                     onAuthSuccess(testProfile, false)
                                     return@Button
                                 }
@@ -512,19 +520,21 @@ fun AuthOtpScreen(
                                     )
                                     isLoading = false
                                     res.onSuccess { verified ->
-                                        UserPreferences.saveAuthSession(
-                                            context,
-                                            userId = verified.userId,
-                                            token = verified.sessionToken,
-                                            contact = contactInput.trim(),
-                                            contactType = if (isPhoneMode) "phone" else "email"
-                                        )
                                         val profile = verified.profile ?: UserProfile(
                                             userId = verified.userId,
                                             contact = contactInput.trim(),
                                             contactType = if (isPhoneMode) "phone" else "email",
                                             isOnboarded = !verified.isNewUser
                                         )
+                                        UserPreferences.saveAuthSession(
+                                            context,
+                                            userId = verified.userId,
+                                            token = verified.sessionToken,
+                                            contact = contactInput.trim(),
+                                            contactType = if (isPhoneMode) "phone" else "email",
+                                            isOnboarded = !verified.isNewUser
+                                        )
+                                        UserPreferences.saveProfile(context, profile)
                                         onAuthSuccess(profile, verified.isNewUser)
                                     }.onFailure { err ->
                                         statusMessage = err.message

@@ -483,7 +483,8 @@ fun PersonalizedOnboardingScreen(
                                 preferredLanguage = selectedLanguage,
                                 crops = selectedCrops,
                                 landArea = landArea,
-                                monitoredRegion = monitoredRegion
+                                monitoredRegion = monitoredRegion,
+                                isOnboarded = true
                             )
                             scope.launch {
                                 UserPreferences.saveProfile(context, completedProfile)

@@ -102,11 +102,11 @@ fun WeatherGPTApp(
 
     var userProfile by remember { mutableStateOf(UserPreferences.getProfile(context)) }
 
-    // Initial Screen Check: Auth -> Onboarding -> Main Hub
-    val initialScreen = when {
-        !UserPreferences.isLoggedIn(context) -> AppScreen.AUTH_OTP
-        !UserPreferences.isOnboarded(context) -> AppScreen.ONBOARDING_SETUP
-        else -> AppScreen.MAIN_HUB
+    // Initial Screen Check: Once user is logged in, immediately launch Main Hub!
+    val initialScreen = if (UserPreferences.isLoggedIn(context)) {
+        AppScreen.MAIN_HUB
+    } else {
+        AppScreen.AUTH_OTP
     }
 
     var currentScreen by remember { mutableStateOf(initialScreen) }
@@ -197,7 +197,7 @@ fun WeatherGPTApp(
                     currentTheme = currentTheme,
                     onAuthSuccess = { profile, isNewUser ->
                         userProfile = profile
-                        if (isNewUser || !profile.isOnboarded) {
+                        if (isNewUser && !profile.isOnboarded) {
                             currentScreen = AppScreen.ONBOARDING_SETUP
                         } else {
                             currentScreen = AppScreen.MAIN_HUB

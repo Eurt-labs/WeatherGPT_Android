@@ -32,7 +32,8 @@ class AuthApiService(private val context: Context) {
 
     suspend fun sendOtp(contact: String, channel: String = "email"): Result<String> = withContext(Dispatchers.IO) {
         if (contact.trim() == "123456") {
-            return@withContext Result.success("Testing bypass active. Code: 123456")
+            val cleanMsg = if (channel == "phone") "OTP sent on phone" else "OTP sent on email"
+            return@withContext Result.success(cleanMsg)
         }
 
         val endpoint = "/api/auth/send-otp"

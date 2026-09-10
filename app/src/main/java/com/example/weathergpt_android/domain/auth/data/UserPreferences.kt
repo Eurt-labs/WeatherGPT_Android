@@ -27,14 +27,22 @@ object UserPreferences {
         getPrefs(context).getBoolean(KEY_IS_LOGGED_IN, false)
 
     fun isOnboarded(context: Context): Boolean =
-        getPrefs(context).getBoolean(KEY_IS_ONBOARDED, false)
+        getPrefs(context).getBoolean(KEY_IS_ONBOARDED, false) || isLoggedIn(context)
 
     fun getSessionToken(context: Context): String =
         getPrefs(context).getString(KEY_TOKEN, "") ?: ""
 
-    fun saveAuthSession(context: Context, userId: String, token: String, contact: String, contactType: String) {
+    fun saveAuthSession(
+        context: Context,
+        userId: String,
+        token: String,
+        contact: String,
+        contactType: String,
+        isOnboarded: Boolean = true
+    ) {
         getPrefs(context).edit()
             .putBoolean(KEY_IS_LOGGED_IN, true)
+            .putBoolean(KEY_IS_ONBOARDED, isOnboarded)
             .putString(KEY_USER_ID, userId)
             .putString(KEY_TOKEN, token)
             .putString(KEY_CONTACT, contact)
@@ -44,6 +52,8 @@ object UserPreferences {
 
     fun saveProfile(context: Context, profile: UserProfile) {
         getPrefs(context).edit()
+            .putBoolean(KEY_IS_LOGGED_IN, true)
+            .putBoolean(KEY_IS_ONBOARDED, true)
             .putString(KEY_USER_ID, profile.userId)
             .putString(KEY_NAME, profile.name)
             .putString(KEY_CONTACT, profile.contact)
@@ -53,7 +63,6 @@ object UserPreferences {
             .putString(KEY_CROPS, profile.crops)
             .putString(KEY_LAND_AREA, profile.landArea)
             .putString(KEY_MONITORED_REGION, profile.monitoredRegion)
-            .putBoolean(KEY_IS_ONBOARDED, profile.isOnboarded)
             .apply()
     }
 
