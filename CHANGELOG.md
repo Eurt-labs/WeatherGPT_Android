@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.5.1] - 2026-09-10
+### Fixed & Improved
+- **Gemini 2.5 Flash Integration & OpenRouter Link**:
+  - Locked default AI model strictly to **Google Gemini 2.5 Flash** (`google/gemini-2.5-flash` on OpenRouter, `gemini-2.5-flash` on Google Direct API).
+  - Injected `OPENROUTER_API_KEY` and `GEMINI_API_KEY` from `local.properties` directly into `BuildConfig` via `app/build.gradle.kts`.
+  - Added automatic fallback to `BuildConfig.OPENROUTER_API_KEY` in `AiPreferences.getOpenRouterApiKey()` and automatic provider mode selection when keys are defined in `local.properties`.
+  - Added mandatory OpenRouter headers (`HTTP-Referer`, `X-Title`) and whitespace/Bearer prefix sanitization to prevent connection rejections.
+  - Implemented detailed JSON error extraction for OpenRouter HTTP 400, 401, 402, and 429 errors.
+
+---
+
 ## [3.5.0] - 2026-09-10
 ### Added
 - **Multi-Provider AI Engine Architecture** ([`AiPreferences.kt`](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/core/network/AiPreferences.kt)):

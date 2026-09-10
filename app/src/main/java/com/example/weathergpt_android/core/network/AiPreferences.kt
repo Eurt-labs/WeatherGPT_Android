@@ -17,30 +17,48 @@ object AiPreferences {
     private const val KEY_GEMINI_MODEL = "gemini_model"
     private const val KEY_OPENROUTER_MODEL = "openrouter_model"
 
-    const val DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
-    const val DEFAULT_OPENROUTER_MODEL = "google/gemini-2.0-flash-exp:free"
+    const val DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+    const val DEFAULT_OPENROUTER_MODEL = "google/gemini-2.5-flash"
 
     private fun getPrefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun getProviderMode(context: Context): AiProviderMode {
-        val raw = getPrefs(context).getString(KEY_PROVIDER_MODE, AiProviderMode.CLOUD_BACKEND.id)
-        return AiProviderMode.values().firstOrNull { it.id == raw } ?: AiProviderMode.CLOUD_BACKEND
+        val prefs = getPrefs(context)
+        if (prefs.contains(KEY_PROVIDER_MODE)) {
+            val raw = prefs.getString(KEY_PROVIDER_MODE, AiProviderMode.CLOUD_BACKEND.id)
+            return AiProviderMode.values().firstOrNull { it.id == raw } ?: AiProviderMode.CLOUD_BACKEND
+        }
+        // If an OpenRouter key is provided via BuildConfig / local.properties, default to OPENROUTER_DIRECT!
+        if (getOpenRouterApiKey(context).isNotBlank()) {
+            return AiProviderMode.OPENROUTER_DIRECT
+        }
+        // If a Gemini key is provided, default to GEMINI_DIRECT!
+        if (getGeminiApiKey(context).isNotBlank()) {
+            return AiProviderMode.GEMINI_DIRECT
+        }
+        return AiProviderMode.CLOUD_BACKEND
     }
 
     fun saveProviderMode(context: Context, mode: AiProviderMode) {
         getPrefs(context).edit().putString(KEY_PROVIDER_MODE, mode.id).apply()
     }
 
-    fun getGeminiApiKey(context: Context): String =
-        getPrefs(context).getString(KEY_GEMINI_API_KEY, "") ?: ""
+    fun getGeminiApiKey(context: Context): String {
+        val saved = getPrefs(context).getString(KEY_GEMINI_API_KEY, "") ?: ""
+        if (saved.isNotBlank()) return saved
+        return com.example.weathergpt_android.BuildConfig.GEMINI_API_KEY
+    }
 
     fun saveGeminiApiKey(context: Context, key: String) {
         getPrefs(context).edit().putString(KEY_GEMINI_API_KEY, key.trim()).apply()
     }
 
-    fun getOpenRouterApiKey(context: Context): String =
-        getPrefs(context).getString(KEY_OPENROUTER_API_KEY, "") ?: ""
+    fun getOpenRouterApiKey(context: Context): String {
+        val saved = getPrefs(context).getString(KEY_OPENROUTER_API_KEY, "") ?: ""
+        if (saved.isNotBlank()) return saved
+        return com.example.weathergpt_android.BuildConfig.OPENROUTER_API_KEY
+    }
 
     fun saveOpenRouterApiKey(context: Context, key: String) {
         getPrefs(context).edit().putString(KEY_OPENROUTER_API_KEY, key.trim()).apply()

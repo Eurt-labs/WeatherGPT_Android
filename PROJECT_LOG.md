@@ -214,6 +214,11 @@ com.example.weathergpt_android/
 - **AI Settings UI** (`FrostedSettingsSheet.kt`): Added AI engine configuration card with API key entry, key testing, and 402 diagnostic reporting.
 - See detailed philosophy in [CONCEPT.md](CONCEPT.md) and full version history in [CHANGELOG.md](CHANGELOG.md).
 
+### [Version 3.5.1] - Locked to Gemini 2.5 Flash & local.properties OpenRouter Link
+- **Model Lock**: Pinned all providers to **Google Gemini 2.5 Flash** (`google/gemini-2.5-flash` on OpenRouter, `gemini-2.5-flash` on Google Direct API).
+- **Android Studio `local.properties` Link**: Configured `app/build.gradle.kts` to expose `OPENROUTER_API_KEY` and `GEMINI_API_KEY` to `BuildConfig`, enabling keys declared in Android Studio to work immediately.
+- **Header & Sanitization Fixes**: Added mandatory OpenRouter headers (`HTTP-Referer`, `X-Title`) and trimmed `Bearer ` prefixes; parsed structured error messages from OpenRouter HTTP responses.
+
 ---
 
 ## 🐛 Bug Fixes & Diagnostics Log
@@ -232,4 +237,5 @@ com.example.weathergpt_android/
 | Top Island lacked shadow and overlapped GPT chat screen | Top Island had no dark spot shadow and was rendered above GPT chat content | Added `12dp` layered shadow and auto-hid top island in GPT tab via `AnimatedVisibility` | ✅ Fixed |
 | Initial greeting redundancy across navigation | Welcome card remained embedded in the long weather dashboard list | Separated into dedicated `GreetingWelcomeView` on launch that transitions on nav click | ✅ Fixed |
 | Chat & Voice returning `HTTP 402 Payment Required` | Upstream OpenRouter credit balance on Render backend was $0.00; backend forwarded `Error HTTP 402` in SSE stream | Intercepted 402 in `OpenRouterService.kt`, created intelligent local meteorological advisory fallback, and added direct Google Gemini free API key support in `FrostedSettingsSheet.kt` | ✅ Fixed |
+| OpenRouter key in `local.properties` ignored & giving errors | `build.gradle.kts` didn't export `OPENROUTER_API_KEY` to `BuildConfig`, and OpenRouter requests were missing required headers | Injected keys into `BuildConfig`, added automatic provider selection, added `HTTP-Referer`/`X-Title` headers, and set default model to `google/gemini-2.5-flash` | ✅ Fixed |
 

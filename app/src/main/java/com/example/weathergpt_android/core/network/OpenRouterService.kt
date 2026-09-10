@@ -324,13 +324,14 @@ class OpenRouterService(private val context: Context) {
         history: List<Pair<String, String>>,
         model: String = AiPreferences.DEFAULT_OPENROUTER_MODEL
     ): Flow<String> = flow {
+        val cleanApiKey = apiKey.trim().removePrefix("Bearer ").trim()
         val cleanModel = if (model.isBlank()) AiPreferences.DEFAULT_OPENROUTER_MODEL else model
         val url = "https://openrouter.ai/api/v1/chat/completions"
 
         val messagesArray = JSONArray().apply {
             put(JSONObject().apply {
                 put("role", "system")
-                put("content", "You are WeatherGPT, an expert meteorologist and domain assistant for $locationContext. Weather context:\n$enrichedContext")
+                put("content", "You are WeatherGPT, an expert meteorologist powered by Google Gemini 2.5 Flash for $locationContext. Weather context:\n$enrichedContext")
             })
             for ((role, text) in history.takeLast(4)) {
                 put(JSONObject().apply {
@@ -355,7 +356,7 @@ class OpenRouterService(private val context: Context) {
         val request = Request.Builder()
             .url(url)
             .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
-            .addHeader("Authorization", "Bearer $apiKey")
+            .addHeader("Authorization", "Bearer $cleanApiKey")
             .addHeader("Content-Type", "application/json")
             .addHeader("Accept", "text/event-stream")
             .addHeader("HTTP-Referer", "https://weathergpt.ai")
@@ -364,12 +365,26 @@ class OpenRouterService(private val context: Context) {
 
         try {
             val response = client.newCall(request).execute()
-            if (response.code == 402) {
-                emit("OpenRouter error: HTTP 402 (Insufficient credits on your OpenRouter account).")
-                return@flow
-            }
             if (!response.isSuccessful) {
-                emit("OpenRouter error: HTTP ${response.code}. Please check your OpenRouter API key.")
+                val errBody = response.body?.string() ?: ""
+                var errMsg = "HTTP ${response.code}"
+                try {
+                    val errJson = JSONObject(errBody)
+                    val errorObj = errJson.optJSONObject("error")
+                    if (errorObj != null) {
+                        errMsg = errorObj.optString("message", errMsg)
+                    }
+                } catch (_: Exception) {
+                    if (errBody.isNotBlank()) errMsg = errBody
+                }
+
+                if (response.code == 402) {
+                    emit("OpenRouter Quota Exhausted (HTTP 402): $errMsg. Please check your credit balance at openrouter.ai/credits.")
+                } else if (response.code == 401) {
+                    emit("OpenRouter Authentication Error (HTTP 401): $errMsg. Please check your OpenRouter API key in local.properties or Settings.")
+                } else {
+                    emit("OpenRouter error (HTTP ${response.code}): $errMsg")
+                }
                 return@flow
             }
 
@@ -384,6 +399,18 @@ class OpenRouterService(private val context: Context) {
             while (reader.readLine().also { line = it } != null) {
                 val currentLine = line ?: continue
                 if (currentLine.isBlank()) continue
+
+                if (currentLine.contains("\"error\":")) {
+                    try {
+                        val rawData = currentLine.removePrefix("data:").trim()
+                        val errJson = JSONObject(rawData)
+                        val errObj = errJson.optJSONObject("error")
+                        val msg = errObj?.optString("message") ?: "OpenRouter stream error"
+                        emit("OpenRouter error: $msg")
+                        return@flow
+                    } catch (_: Exception) {}
+                }
+
                 if (currentLine.contains("data:")) {
                     val token = extractTokenFromSseChunk(currentLine)
                     if (token.isNotEmpty()) {
@@ -721,10 +748,8 @@ class OpenRouterService(private val context: Context) {
         }
     }
 
-    /**
-     * Verifies an OpenRouter API Key directly against OpenRouter's endpoint.
-     */
     suspend fun testOpenRouterDirect(apiKey: String): Result<String> = withContext(Dispatchers.IO) {
+        val cleanApiKey = apiKey.trim().removePrefix("Bearer ").trim()
         val model = AiPreferences.getOpenRouterModel(context)
         val cleanModel = if (model.isBlank()) AiPreferences.DEFAULT_OPENROUTER_MODEL else model
         val url = "https://openrouter.ai/api/v1/chat/completions"
@@ -734,7 +759,7 @@ class OpenRouterService(private val context: Context) {
             put("messages", JSONArray().apply {
                 put(JSONObject().apply {
                     put("role", "user")
-                    put("content", "Ping test: respond with OK")
+                    put("content", "Ping test: respond with 'Gemini 2.5 Flash Online'")
                 })
             })
             put("max_tokens", 10)
@@ -743,19 +768,34 @@ class OpenRouterService(private val context: Context) {
         val request = Request.Builder()
             .url(url)
             .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
-            .addHeader("Authorization", "Bearer $apiKey")
+            .addHeader("Authorization", "Bearer $cleanApiKey")
             .addHeader("Content-Type", "application/json")
+            .addHeader("HTTP-Referer", "https://weathergpt.ai")
+            .addHeader("X-Title", "WeatherGPT Android")
             .build()
 
         try {
             val response = client.newCall(request).execute()
-            if (response.code == 402) {
-                return@withContext Result.failure(Exception("OpenRouter 402: Insufficient credits on account."))
-            }
+            val resBody = response.body?.string() ?: ""
             if (!response.isSuccessful) {
-                return@withContext Result.failure(Exception("OpenRouter HTTP ${response.code}: ${response.message}"))
+                var errMsg = "HTTP ${response.code}"
+                try {
+                    val errJson = JSONObject(resBody)
+                    val errorObj = errJson.optJSONObject("error")
+                    if (errorObj != null) {
+                        errMsg = errorObj.optString("message", errMsg)
+                    }
+                } catch (_: Exception) {}
+
+                if (response.code == 402) {
+                    return@withContext Result.failure(Exception("OpenRouter 402 (Insufficient credits for Gemini 2.5 Flash): $errMsg"))
+                }
+                if (response.code == 401) {
+                    return@withContext Result.failure(Exception("OpenRouter 401 (Invalid API key): $errMsg"))
+                }
+                return@withContext Result.failure(Exception("OpenRouter: $errMsg"))
             }
-            Result.success("OpenRouter Online (Direct API)")
+            Result.success("OpenRouter (Gemini 2.5 Flash) Online ✓")
         } catch (e: Exception) {
             Result.failure(e)
         }

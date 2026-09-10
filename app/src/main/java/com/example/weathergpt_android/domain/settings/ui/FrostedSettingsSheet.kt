@@ -456,7 +456,7 @@ fun FrostedSettingsSheet(
                                 isDark = isDark
                             )
                             AiProviderOptionButton(
-                                title = "Gemini (Free)",
+                                title = "Gemini 2.5",
                                 icon = Icons.Rounded.Bolt,
                                 isSelected = aiProviderMode == AiProviderMode.GEMINI_DIRECT,
                                 onClick = {
@@ -485,13 +485,13 @@ fun FrostedSettingsSheet(
                             AiProviderMode.CLOUD_BACKEND -> {
                                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Text(
-                                        text = "Uses the hosted WeatherGPT cloud backend with Google Gemini 2.5 Flash.",
+                                        text = "Uses the hosted WeatherGPT cloud backend powered by Google Gemini 2.5 Flash.",
                                         fontSize = 12.sp,
                                         lineHeight = 16.sp,
                                         color = textColor
                                     )
                                     Text(
-                                        text = "⚡ Automatic Fallback: If cloud credits are exhausted (HTTP 402), the app automatically switches to live local meteorological reasoning or your custom Gemini key.",
+                                        text = "⚡ Automatic Fallback: If cloud credits are exhausted (HTTP 402), the app seamlessly falls back to your direct Gemini/OpenRouter key or local meteorological reasoning.",
                                         fontSize = 11.sp,
                                         lineHeight = 15.sp,
                                         color = subtitleColor
@@ -501,7 +501,7 @@ fun FrostedSettingsSheet(
                             AiProviderMode.GEMINI_DIRECT -> {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(
-                                        text = "Direct Google Gemini connection. 15 requests/min 100% free forever from Google AI Studio (no credit card required).",
+                                        text = "Direct Google Gemini 2.5 Flash connection (gemini-2.5-flash). 15 requests/min 100% free from Google AI Studio (aistudio.google.com).",
                                         fontSize = 12.sp,
                                         lineHeight = 16.sp,
                                         color = textColor
@@ -593,7 +593,7 @@ fun FrostedSettingsSheet(
                             AiProviderMode.OPENROUTER_DIRECT -> {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(
-                                        text = "Direct OpenRouter connection with your personal API key (sk-or-v1-...).",
+                                        text = "Direct OpenRouter connection using Google Gemini 2.5 Flash (google/gemini-2.5-flash). Paste your API key (sk-or-v1-...) with available credit balance.",
                                         fontSize = 12.sp,
                                         lineHeight = 16.sp,
                                         color = textColor
