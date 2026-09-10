@@ -52,6 +52,7 @@ import com.example.weathergpt_android.domain.onboarding.ui.PersonalizedOnboardin
 import com.example.weathergpt_android.domain.settings.ui.FrostedSettingsSheet
 import com.example.weathergpt_android.domain.voice.ui.ImmersiveVoiceScreen
 import com.example.weathergpt_android.domain.weather.repository.UnifiedWeatherRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -121,6 +122,22 @@ fun WeatherGPTApp(
                 liveWeatherData = data
             }
         }
+    }
+
+    suspend fun refreshAllWeatherData() {
+        // 1. Fetch live weather for current coordinates immediately
+        weatherRepository.fetchLiveWeather(locationData.latitude, locationData.longitude).onSuccess { data ->
+            liveWeatherData = data
+        }
+        // 2. Request fresh GPS location fix and update weather with fresh coordinates
+        locationProvider.fetchRealtimeLocation(scope) { resolved ->
+            locationData = resolved
+            refreshLiveWeather(resolved)
+        }
+        // 3. Refresh user profile
+        userProfile = UserPreferences.getProfile(context)
+        // 4. Smooth minimum animation delay for pull-to-refresh
+        delay(650)
     }
 
     // Android System Back Button Handling
@@ -226,7 +243,8 @@ fun WeatherGPTApp(
                         currentScreen = AppScreen.ACTIVE_CHAT
                     },
                     onOpenPreviousChats = { showPreviousChatsSheet = true },
-                    onOpenSettings = { showSettingsSheet = true }
+                    onOpenSettings = { showSettingsSheet = true },
+                    onRefresh = { refreshAllWeatherData() }
                 )
 
                 AppScreen.VOICE_AI -> ImmersiveVoiceScreen(

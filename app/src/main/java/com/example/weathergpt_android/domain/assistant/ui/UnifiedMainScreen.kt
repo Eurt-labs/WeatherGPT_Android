@@ -50,6 +50,10 @@ import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import com.example.weathergpt_android.domain.assistant.network.ChatSyncService
 import com.example.weathergpt_android.domain.location.model.LocationData
 import java.util.Calendar
@@ -59,7 +63,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -87,6 +93,7 @@ import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
  * Tapping bottom bar opens Chat; tapping mic opens Voice.
  * Kisan AI card displays Chat History.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UnifiedMainScreen(
     currentTheme: AppThemeMode,
@@ -97,12 +104,16 @@ fun UnifiedMainScreen(
     onLaunchChatWithPrompt: (String) -> Unit,
     onOpenPreviousChats: () -> Unit = {},
     onOpenSettings: () -> Unit,
+    onRefresh: suspend () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val dbHelper = remember { ChatDatabaseHelper.getInstance(context) }
     val syncService = remember { ChatSyncService(context) }
     var totalHistoryCount by remember { mutableIntStateOf(0) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    val pullRefreshState = rememberPullToRefreshState()
 
     LaunchedEffect(userProfile.userId) {
         val messages = dbHelper.getAllMessages(userProfile.userId)
@@ -162,15 +173,53 @@ fun UnifiedMainScreen(
         currentTheme = currentTheme,
         modifier = modifier.fillMaxSize()
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .padding(horizontal = 22.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            // Top Row: History Icon Button & Avatar/Settings Icon
+        Box(modifier = Modifier.fillMaxSize()) {
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = {
+                    scope.launch {
+                        isRefreshing = true
+                        try {
+                            val messages = dbHelper.getAllMessages(userProfile.userId)
+                            totalHistoryCount = messages.size
+                            if (userProfile.userId.isNotBlank()) {
+                                syncService.fetchCloudHistory(userProfile.userId).onSuccess { cloudMsgs ->
+                                    if (cloudMsgs.isNotEmpty()) {
+                                        dbHelper.insertBatchFromCloud(cloudMsgs, userProfile.userId)
+                                        totalHistoryCount = dbHelper.getAllMessages(userProfile.userId).size
+                                    }
+                                }
+                            }
+                            onRefresh()
+                        } finally {
+                            isRefreshing = false
+                        }
+                    }
+                },
+                state = pullRefreshState,
+                indicator = {
+                    PullToRefreshDefaults.Indicator(
+                        state = pullRefreshState,
+                        isRefreshing = isRefreshing,
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .statusBarsPadding()
+                            .padding(top = 8.dp),
+                        containerColor = if (isDark) Color(0xFF27272A) else Color(0xFFF4EFE6),
+                        color = if (isDark) Color(0xFFE8E3D5) else Color(0xFF18181B)
+                    )
+                },
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                        .padding(horizontal = 22.dp, vertical = 14.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Top Row: History Icon Button & Avatar/Settings Icon
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -407,13 +456,35 @@ fun UnifiedMainScreen(
                 isDark = isDark
             )
 
+            // Space at bottom so scrolling content is never obstructed by bottom bar
+            Spacer(modifier = Modifier.height(84.dp))
+        }
+    }
+
             // Bottom Capsule: Animated bar opening Chat, animated glowing mic opening Voice!
-            AnimatedChatCapsuleBar(
-                isDark = isDark,
-                textColor = textColor,
-                onLaunchChat = { onLaunchChatWithPrompt("") },
-                onLaunchVoice = onLaunchVoice
-            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                if (isDark) Color(0xCC09090B) else Color(0xCCF7F6F2),
+                                if (isDark) Color(0xF209090B) else Color(0xF2F7F6F2)
+                            )
+                        )
+                    )
+                    .navigationBarsPadding()
+                    .padding(horizontal = 22.dp, vertical = 14.dp)
+            ) {
+                AnimatedChatCapsuleBar(
+                    isDark = isDark,
+                    textColor = textColor,
+                    onLaunchChat = { onLaunchChatWithPrompt("") },
+                    onLaunchVoice = onLaunchVoice
+                )
+            }
         }
     }
 }
