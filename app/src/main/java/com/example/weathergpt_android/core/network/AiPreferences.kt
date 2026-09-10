@@ -46,8 +46,15 @@ object AiPreferences {
 
     fun getGeminiApiKey(context: Context): String {
         val saved = getPrefs(context).getString(KEY_GEMINI_API_KEY, "") ?: ""
-        if (saved.isNotBlank()) return saved
-        return com.example.weathergpt_android.BuildConfig.GEMINI_API_KEY
+        if (saved.isNotBlank() && !saved.startsWith("sk-or-")) return saved
+        val buildConfigKey = com.example.weathergpt_android.BuildConfig.GEMINI_API_KEY
+        if (buildConfigKey.isNotBlank() && !buildConfigKey.startsWith("sk-or-")) return buildConfigKey
+        // Smart fallback: if user accidentally placed an AIzaSy Google key in OpenRouter field
+        val openRouterSaved = getPrefs(context).getString(KEY_OPENROUTER_API_KEY, "") ?: ""
+        if (openRouterSaved.startsWith("AIzaSy")) return openRouterSaved
+        val openRouterBc = com.example.weathergpt_android.BuildConfig.OPENROUTER_API_KEY
+        if (openRouterBc.startsWith("AIzaSy")) return openRouterBc
+        return ""
     }
 
     fun saveGeminiApiKey(context: Context, key: String) {
@@ -56,8 +63,15 @@ object AiPreferences {
 
     fun getOpenRouterApiKey(context: Context): String {
         val saved = getPrefs(context).getString(KEY_OPENROUTER_API_KEY, "") ?: ""
-        if (saved.isNotBlank()) return saved
-        return com.example.weathergpt_android.BuildConfig.OPENROUTER_API_KEY
+        if (saved.isNotBlank() && !saved.startsWith("AIzaSy")) return saved
+        val buildConfigKey = com.example.weathergpt_android.BuildConfig.OPENROUTER_API_KEY
+        if (buildConfigKey.isNotBlank() && !buildConfigKey.startsWith("AIzaSy")) return buildConfigKey
+        // Smart fallback: if user accidentally placed an sk-or- key in Gemini field
+        val geminiSaved = getPrefs(context).getString(KEY_GEMINI_API_KEY, "") ?: ""
+        if (geminiSaved.startsWith("sk-or-")) return geminiSaved
+        val geminiBc = com.example.weathergpt_android.BuildConfig.GEMINI_API_KEY
+        if (geminiBc.startsWith("sk-or-")) return geminiBc
+        return ""
     }
 
     fun saveOpenRouterApiKey(context: Context, key: String) {

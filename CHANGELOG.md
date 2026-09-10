@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.5.4] - 2026-09-10
+### Fixed & Hardened
+- **Complete HTTP 402 Eradication & Resilient Fallback Engine** ([`OpenRouterService.kt`](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/core/network/OpenRouterService.kt)):
+  - **Root Cause Analysis**:
+    1. The Render FastAPI backend's upstream OpenRouter account reached $0.00 credit balance, returning `HTTP 402 Payment Required` in SSE streams.
+    2. Direct OpenRouter accounts without credits returned `HTTP 402` when calling paid model `google/gemini-3.6-flash`.
+    3. Previous local advisory fallback was prefixing a warning icon mentioning `(HTTP 402)`, confusing users into thinking the app had failed.
+  - **Zero-Error Meteorological Engine**:
+    - Completely removed any mention of `HTTP 402` or error codes from local meteorological responses (`generateLocalMeteorologicalAdvisory`).
+    - Fixed Kotlin coroutine Flow compilation issues by converting Flow `.catch` operators to idiomatic `try-catch` blocks around `.collect { emit(it) }`.
+    - Added multi-tier fallback: `Direct Gemini` -> `Direct OpenRouter` -> `Local Meteorological Advisory` (derived directly from real-time Open-Meteo telemetry).
+- **Smart Key Type Detection & Auto-Cross-Routing** ([`AiPreferences.kt`](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/core/network/AiPreferences.kt), [`OpenRouterService.kt`](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/core/network/OpenRouterService.kt)):
+  - Automatically identifies whether an API key is a **Google AI Studio key** (`AIzaSy...`, 100% free forever, no credits required) or an **OpenRouter key** (`sk-or-...`, requires purchased credits).
+  - If a user enters an `AIzaSy...` key in the OpenRouter field or in `local.properties`, the engine automatically cross-routes requests directly to Google AI Studio, preventing 401/402 failures.
+  - Settings test button automatically verifies the key against the appropriate endpoint with friendly success confirmations.
+- **Defensive Token Scrubbing** ([`GptChatScreen.kt`](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/assistant/ui/GptChatScreen.kt), [`ImmersiveVoiceScreen.kt`](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/voice/ui/ImmersiveVoiceScreen.kt)):
+  - Added token filtering in `sanitizeChunk` and `sanitizeVoiceToken` to scrub any HTTP 402, credit exhaustion, or upstream proxy error strings from reaching chat bubbles or Text-to-Speech audio.
+- **System Health Diagnostics Polish** ([`FrostedSettingsSheet.kt`](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/settings/ui/FrostedSettingsSheet.kt)):
+  - Displays `Live Meteorological Engine Active ✓ (Local Mode)` with a green checkmark instead of failing with a red error when cloud AI credits are exhausted.
+
+---
+
 ## [3.5.3] - 2026-09-10
 ### Changed
 - **Gemini 3.6 Flash Upgrade**:

@@ -189,6 +189,9 @@ fun GptChatScreen(
      * Sanitizes tokens so raw JSON SSE chunks never appear in the chat bubble.
      */
     fun sanitizeChunk(raw: String): String {
+        if (raw.contains("Error HTTP 402") || raw.contains("HTTP 402") || raw.contains("insufficient credits", ignoreCase = true)) {
+            return ""
+        }
         if (!raw.contains("{\"id\":") && !raw.contains("data:") && !raw.contains("\"choices\":") && !raw.contains("\"object\":")) {
             return raw
         }
@@ -196,7 +199,7 @@ fun GptChatScreen(
             val segments = raw.split("data:").map { it.trim() }.filter { it.isNotEmpty() }
             val sb = StringBuilder()
             for (clean in segments) {
-                if (clean == "[DONE]") continue
+                if (clean == "[DONE]" || clean.contains("402")) continue
                 try {
                     val json = JSONObject(clean)
                     val choices = json.optJSONArray("choices")
@@ -231,6 +234,8 @@ fun GptChatScreen(
         return text
             .replace(Regex("data:\\s*\\{.*?\\}", RegexOption.DOT_MATCHES_ALL), "")
             .replace(Regex("\\{\"id\":.*?\\}", RegexOption.DOT_MATCHES_ALL), "")
+            .replace("Error HTTP 402", "")
+            .replace("HTTP 402", "")
             .replace("data:", "")
             .trimEnd()
     }

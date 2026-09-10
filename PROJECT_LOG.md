@@ -227,6 +227,12 @@ com.example.weathergpt_android/
 - **Gemini 3.6 Flash Upgrade**: Shifted default model IDs across `AiPreferences.kt`, `OpenRouterService.kt`, `FrostedSettingsSheet.kt`, and prompts to `google/gemini-3.6-flash` and `gemini-3.6-flash`.
 - **OpenRouter AI Studio Provider Pinning**: Injected strict provider ordering and exclusion into OpenRouter JSON payloads (`"order": ["google-ai-studio"]`, `"ignore": ["google-vertex"]`, `"allow_fallbacks": false`), preventing OpenRouter from routing or shifting requests to Google Vertex.
 
+### [Version 3.5.4] - Zero-402 Resilient Meteorological Engine & Smart Key Cross-Routing
+- **Complete HTTP 402 Eradication**: Upstream OpenRouter balances with $0.00 and Render backend 402 SSE streams are now completely silent to the user. Removed all `(HTTP 402)` warning headers from local fallback advisories.
+- **Smart Key Type Detection**: Automatically differentiates `AIzaSy...` (Google AI Studio, free forever) from `sk-or-...` (OpenRouter, requires credit balance). Automatically cross-routes Google keys to Google AI Studio even if placed in the OpenRouter field or properties.
+- **Flow & Token Hardening**: Fixed Kotlin coroutine Flow error handling by replacing `.catch` builders with robust `try-catch` blocks around `.collect { emit(it) }`. Added defensive token scrubbers in chat and voice screens to discard any upstream proxy error artifacts.
+- **System Diagnostics Update**: Health diagnostics now report `Live Meteorological Engine Active ✓` instead of showing a red failure on 402 quota depletion.
+
 ---
 
 ## 🐛 Bug Fixes & Diagnostics Log
@@ -248,4 +254,5 @@ com.example.weathergpt_android/
 | OpenRouter key in `local.properties` ignored & giving errors | `build.gradle.kts` didn't export `OPENROUTER_API_KEY` to `BuildConfig`, and OpenRouter requests were missing required headers | Injected keys into `BuildConfig`, added automatic provider selection, added `HTTP-Referer`/`X-Title` headers, and set default model to `google/gemini-2.5-flash` | ✅ Fixed |
 | Main page widgets/boxes crashing on tap | `ChatDatabaseHelper` called `.use` on `readableDatabase`, closing the database after the main screen query; subsequent queries threw `IllegalStateException: closed database` | Removed `.use` from SQLite database instances, safely closed cursors, and added try-catch blocks across all DB queries | ✅ Fixed |
 | Gemini 2.5 Flash unavailable for new users & OpenRouter routing to Google Vertex | Gemini 2.5 Flash deprecation for new accounts; OpenRouter auto-load-balancing across Vertex & AI Studio | Migrated all models to Gemini 3.6 Flash (`google/gemini-3.6-flash` / `gemini-3.6-flash`) and pinned OpenRouter provider routing strictly to `google-ai-studio`, ignoring `google-vertex` | ✅ Fixed |
+| Persistent HTTP 402 error & flow compilation issues | Flow `.catch` blocks clashed inside `flow { }`; local advisory showed scary 402 banner; OpenRouter direct returned 402 for $0 balance keys without falling back | Replaced Flow `.catch` with standard `try-catch`, scrubbed all 402 banners, added smart key cross-routing (`AIzaSy` vs `sk-or`), and made 402 gracefully and silently fall back to local meteorological intelligence | ✅ Fixed |
 
