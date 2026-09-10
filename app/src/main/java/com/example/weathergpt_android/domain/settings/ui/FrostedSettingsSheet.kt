@@ -602,7 +602,7 @@ fun FrostedSettingsSheet(
                             AiProviderMode.OPENROUTER_DIRECT -> {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(
-                                        text = "Direct OpenRouter connection using Google Gemini 3.6 Flash (google/gemini-3.6-flash) pinned strictly to Google AI Studio. Note: OpenRouter requires an active credit balance (credits) at openrouter.ai/credits. For 100% free access without credits, use the 'Gemini 3.6' tab above!",
+                                        text = "Connecting through OpenRouter requires an OpenRouter API key (sk-or-v1-...) from OpenRouter's 'API Keys' sidebar tab. If you linked your Google AI Studio key via BYOK on openrouter.ai, OpenRouter will automatically route through your key without fees.",
                                         fontSize = 12.sp,
                                         lineHeight = 16.sp,
                                         color = textColor
@@ -610,7 +610,7 @@ fun FrostedSettingsSheet(
 
                                     if (openRouterApiKey.trim().startsWith("AIzaSy")) {
                                         Text(
-                                            text = "💡 Tip: This key begins with 'AIzaSy'. It is a Google AI Studio key! Switch to the 'Gemini 3.6' tab above to use it 100% free without needing credits.",
+                                            text = "💡 Detected Google AI Studio Key (AIzaSy...)! The app will automatically route your queries directly to Google Gemini 3.6 Flash for 100% free access. If you prefer OpenRouter, grab an 'sk-or-...' key from OpenRouter's 'API Keys' page.",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Medium,
                                             color = Color(0xFF10B981)

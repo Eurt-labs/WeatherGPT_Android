@@ -58,7 +58,11 @@ object AiPreferences {
     }
 
     fun saveGeminiApiKey(context: Context, key: String) {
-        getPrefs(context).edit().putString(KEY_GEMINI_API_KEY, key.trim()).apply()
+        val trimmed = key.trim()
+        getPrefs(context).edit().putString(KEY_GEMINI_API_KEY, trimmed).apply()
+        if (trimmed.startsWith("sk-or-")) {
+            getPrefs(context).edit().putString(KEY_OPENROUTER_API_KEY, trimmed).apply()
+        }
     }
 
     fun getOpenRouterApiKey(context: Context): String {
@@ -75,7 +79,11 @@ object AiPreferences {
     }
 
     fun saveOpenRouterApiKey(context: Context, key: String) {
-        getPrefs(context).edit().putString(KEY_OPENROUTER_API_KEY, key.trim()).apply()
+        val trimmed = key.trim()
+        getPrefs(context).edit().putString(KEY_OPENROUTER_API_KEY, trimmed).apply()
+        if (trimmed.startsWith("AIzaSy")) {
+            getPrefs(context).edit().putString(KEY_GEMINI_API_KEY, trimmed).apply()
+        }
     }
 
     fun getGeminiModel(context: Context): String =
