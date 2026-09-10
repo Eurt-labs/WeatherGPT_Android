@@ -85,7 +85,7 @@ enum class VoiceConversationState {
 /**
  * Immersive Voice AI Screen matching the exact UI in user's reference (Screenshot 3).
  * Features animated edge lighting, live subtitles, concentric pulsing orb, and a continuous
- * conversational loop powered by Google Gemini 2.5 Flash (Puck voice).
+ * conversational loop powered by Google Gemini 3.6 Flash (Puck voice).
  */
 @Composable
 fun ImmersiveVoiceScreen(
@@ -176,7 +176,7 @@ fun ImmersiveVoiceScreen(
         }
     }
 
-    // Process user query with Gemini 2.5 Flash
+    // Process user query with Gemini 3.6 Flash
     fun processVoiceQuery(query: String) {
         if (query.isBlank()) return
         conversationState = VoiceConversationState.THINKING

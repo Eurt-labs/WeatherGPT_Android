@@ -223,6 +223,10 @@ com.example.weathergpt_android/
 - **SQLite Connection Pool Fix** (`ChatDatabaseHelper.kt`): Eliminated `.use` calls on `readableDatabase` and `writableDatabase` which were prematurely closing the database connection after the initial query on `UnifiedMainScreen`, causing crashes whenever widgets were tapped.
 - **Native Linkage & Lifecycle Hardening** (`SherpaOnnxEngine.kt`, `ImmersiveVoiceScreen.kt`): Caught `Throwable` during ONNX runtime native initialization and guarded `SpeechRecognizer` with `RECORD_AUDIO` permission checks and retry debouncing.
 
+### [Version 3.5.3] - Upgraded to Gemini 3.6 Flash & Pinned OpenRouter to Google AI Studio
+- **Gemini 3.6 Flash Upgrade**: Shifted default model IDs across `AiPreferences.kt`, `OpenRouterService.kt`, `FrostedSettingsSheet.kt`, and prompts to `google/gemini-3.6-flash` and `gemini-3.6-flash`.
+- **OpenRouter AI Studio Provider Pinning**: Injected strict provider ordering and exclusion into OpenRouter JSON payloads (`"order": ["google-ai-studio"]`, `"ignore": ["google-vertex"]`, `"allow_fallbacks": false`), preventing OpenRouter from routing or shifting requests to Google Vertex.
+
 ---
 
 ## 🐛 Bug Fixes & Diagnostics Log
@@ -243,4 +247,5 @@ com.example.weathergpt_android/
 | Chat & Voice returning `HTTP 402 Payment Required` | Upstream OpenRouter credit balance on Render backend was $0.00; backend forwarded `Error HTTP 402` in SSE stream | Intercepted 402 in `OpenRouterService.kt`, created intelligent local meteorological advisory fallback, and added direct Google Gemini free API key support in `FrostedSettingsSheet.kt` | ✅ Fixed |
 | OpenRouter key in `local.properties` ignored & giving errors | `build.gradle.kts` didn't export `OPENROUTER_API_KEY` to `BuildConfig`, and OpenRouter requests were missing required headers | Injected keys into `BuildConfig`, added automatic provider selection, added `HTTP-Referer`/`X-Title` headers, and set default model to `google/gemini-2.5-flash` | ✅ Fixed |
 | Main page widgets/boxes crashing on tap | `ChatDatabaseHelper` called `.use` on `readableDatabase`, closing the database after the main screen query; subsequent queries threw `IllegalStateException: closed database` | Removed `.use` from SQLite database instances, safely closed cursors, and added try-catch blocks across all DB queries | ✅ Fixed |
+| Gemini 2.5 Flash unavailable for new users & OpenRouter routing to Google Vertex | Gemini 2.5 Flash deprecation for new accounts; OpenRouter auto-load-balancing across Vertex & AI Studio | Migrated all models to Gemini 3.6 Flash (`google/gemini-3.6-flash` / `gemini-3.6-flash`) and pinned OpenRouter provider routing strictly to `google-ai-studio`, ignoring `google-vertex` | ✅ Fixed |
 

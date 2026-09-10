@@ -331,7 +331,7 @@ class OpenRouterService(private val context: Context) {
         val messagesArray = JSONArray().apply {
             put(JSONObject().apply {
                 put("role", "system")
-                put("content", "You are WeatherGPT, an expert meteorologist powered by Google Gemini 2.5 Flash for $locationContext. Weather context:\n$enrichedContext")
+                put("content", "You are WeatherGPT, an expert meteorologist powered by Google Gemini 3.6 Flash for $locationContext. Weather context:\n$enrichedContext")
             })
             for ((role, text) in history.takeLast(4)) {
                 put(JSONObject().apply {
@@ -351,6 +351,15 @@ class OpenRouterService(private val context: Context) {
             put("stream", true)
             put("temperature", 0.4)
             put("max_tokens", 800)
+            put("provider", JSONObject().apply {
+                put("order", JSONArray().apply {
+                    put("google-ai-studio")
+                })
+                put("ignore", JSONArray().apply {
+                    put("google-vertex")
+                })
+                put("allow_fallbacks", false)
+            })
         }
 
         val request = Request.Builder()
@@ -759,10 +768,19 @@ class OpenRouterService(private val context: Context) {
             put("messages", JSONArray().apply {
                 put(JSONObject().apply {
                     put("role", "user")
-                    put("content", "Ping test: respond with 'Gemini 2.5 Flash Online'")
+                    put("content", "Ping test: respond with 'Gemini 3.6 Flash Online'")
                 })
             })
             put("max_tokens", 10)
+            put("provider", JSONObject().apply {
+                put("order", JSONArray().apply {
+                    put("google-ai-studio")
+                })
+                put("ignore", JSONArray().apply {
+                    put("google-vertex")
+                })
+                put("allow_fallbacks", false)
+            })
         }
 
         val request = Request.Builder()
@@ -788,14 +806,14 @@ class OpenRouterService(private val context: Context) {
                 } catch (_: Exception) {}
 
                 if (response.code == 402) {
-                    return@withContext Result.failure(Exception("OpenRouter 402 (Insufficient credits for Gemini 2.5 Flash): $errMsg"))
+                    return@withContext Result.failure(Exception("OpenRouter 402 (Insufficient credits for Gemini 3.6 Flash): $errMsg"))
                 }
                 if (response.code == 401) {
                     return@withContext Result.failure(Exception("OpenRouter 401 (Invalid API key): $errMsg"))
                 }
                 return@withContext Result.failure(Exception("OpenRouter: $errMsg"))
             }
-            Result.success("OpenRouter (Gemini 2.5 Flash) Online ✓")
+            Result.success("OpenRouter (Gemini 3.6 Flash · AI Studio) Online ✓")
         } catch (e: Exception) {
             Result.failure(e)
         }

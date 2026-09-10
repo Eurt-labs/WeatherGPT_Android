@@ -17,8 +17,8 @@ object AiPreferences {
     private const val KEY_GEMINI_MODEL = "gemini_model"
     private const val KEY_OPENROUTER_MODEL = "openrouter_model"
 
-    const val DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
-    const val DEFAULT_OPENROUTER_MODEL = "google/gemini-2.5-flash"
+    const val DEFAULT_GEMINI_MODEL = "gemini-3.6-flash"
+    const val DEFAULT_OPENROUTER_MODEL = "google/gemini-3.6-flash"
 
     private fun getPrefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

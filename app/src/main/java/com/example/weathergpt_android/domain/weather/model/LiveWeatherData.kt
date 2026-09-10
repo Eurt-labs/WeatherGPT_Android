@@ -46,7 +46,7 @@ data class LiveWeatherData(
 ) {
     /**
      * Dense, high-information meteorological context with predictive trend analysis,
-     * formatted for Gemini 2.5 Flash reasoning. Supplies atmospheric snapshots, precipitation
+     * formatted for Gemini 3.6 Flash reasoning. Supplies atmospheric snapshots, precipitation
      * forecasts, soil saturation, risk metrics, AND computed trend patterns so the LLM
      * can reason like a professional meteorologist.
      */

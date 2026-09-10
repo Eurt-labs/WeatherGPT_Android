@@ -456,7 +456,7 @@ fun FrostedSettingsSheet(
                                 isDark = isDark
                             )
                             AiProviderOptionButton(
-                                title = "Gemini 2.5",
+                                title = "Gemini 3.6",
                                 icon = Icons.Rounded.Bolt,
                                 isSelected = aiProviderMode == AiProviderMode.GEMINI_DIRECT,
                                 onClick = {
@@ -485,7 +485,7 @@ fun FrostedSettingsSheet(
                             AiProviderMode.CLOUD_BACKEND -> {
                                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Text(
-                                        text = "Uses the hosted WeatherGPT cloud backend powered by Google Gemini 2.5 Flash.",
+                                        text = "Uses the hosted WeatherGPT cloud backend powered by Google Gemini 3.6 Flash.",
                                         fontSize = 12.sp,
                                         lineHeight = 16.sp,
                                         color = textColor
@@ -501,7 +501,7 @@ fun FrostedSettingsSheet(
                             AiProviderMode.GEMINI_DIRECT -> {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(
-                                        text = "Direct Google Gemini 2.5 Flash connection (gemini-2.5-flash). 15 requests/min 100% free from Google AI Studio (aistudio.google.com).",
+                                        text = "Direct Google Gemini 3.6 Flash connection (gemini-3.6-flash). 15 requests/min 100% free from Google AI Studio (aistudio.google.com).",
                                         fontSize = 12.sp,
                                         lineHeight = 16.sp,
                                         color = textColor
@@ -593,7 +593,7 @@ fun FrostedSettingsSheet(
                             AiProviderMode.OPENROUTER_DIRECT -> {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(
-                                        text = "Direct OpenRouter connection using Google Gemini 2.5 Flash (google/gemini-2.5-flash). Paste your API key (sk-or-v1-...) with available credit balance.",
+                                        text = "Direct OpenRouter connection using Google Gemini 3.6 Flash (google/gemini-3.6-flash) pinned strictly to Google AI Studio. Paste your API key (sk-or-v1-...) with available credit balance.",
                                         fontSize = 12.sp,
                                         lineHeight = 16.sp,
                                         color = textColor

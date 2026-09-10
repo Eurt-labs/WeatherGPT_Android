@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.5.3] - 2026-09-10
+### Changed
+- **Gemini 3.6 Flash Upgrade**:
+  - Upgraded default AI model across the app from Gemini 2.5 Flash to **Google Gemini 3.6 Flash** (`google/gemini-3.6-flash` on OpenRouter and `gemini-3.6-flash` on Google Direct API).
+  - Updated model defaults in `AiPreferences.kt` (`DEFAULT_GEMINI_MODEL`, `DEFAULT_OPENROUTER_MODEL`).
+  - Updated all UI settings badges, descriptions, ping tests, and voice/chat meteorological context prompts to reflect Gemini 3.6 Flash.
+- **Strict OpenRouter Provider Pinning (Google AI Studio)**:
+  - Added routing constraint in OpenRouter requests (`streamOpenRouterDirect` & `testOpenRouterDirect`):
+    ```json
+    "provider": {
+      "order": ["google-ai-studio"],
+      "ignore": ["google-vertex"],
+      "allow_fallbacks": false
+    }
+    ```
+  - Eliminates automatic upstream shifting to Google Vertex on OpenRouter, guaranteeing 100% of OpenRouter queries are fulfilled by Google AI Studio.
+
+---
+
 ## [3.5.2] - 2026-09-10
 ### Fixed
 - **Main Page Widget & Card Crash Resolution** ([`ChatDatabaseHelper.kt`](file:///c:/Users/Dhruv%20Saraswat/Documents/SIh/WeatherGPT_Android/app/src/main/java/com/example/weathergpt_android/domain/assistant/data/ChatDatabaseHelper.kt)):
