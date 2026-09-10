@@ -7,15 +7,20 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,11 +29,16 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.DirectionsWalk
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Flight
 import androidx.compose.material.icons.rounded.Grass
 import androidx.compose.material.icons.rounded.History
@@ -61,6 +71,7 @@ import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.weathergpt_android.core.components.AmbientGlowBackground
@@ -114,12 +125,10 @@ fun UnifiedMainScreen(
         AppThemeMode.SYSTEM -> isSystemInDarkTheme()
     }
 
-    val textColor = if (isDark) Color.White else Color(0xFF0F172A)
-    val subtitleColor = if (isDark) Color.White.copy(alpha = 0.65f) else Color(0xFF64748B)
-
-    val neonPurple = Color(0xFF9333EA)
-    val neonMagenta = Color(0xFFC026D3)
-    val neonCoral = Color(0xFFFF5722)
+    val textColor = if (isDark) Color.White else Color(0xFF111113)
+    val subtitleColor = if (isDark) Color(0xFFA1A1AA) else Color(0xFF575553)
+    val accentBeige = if (isDark) Color(0xFFE8E3D5) else Color(0xFF8E8B85)
+    val primaryAccent = if (isDark) Color(0xFFE8E3D5) else Color(0xFF111113)
 
     val hour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
     val timeGreeting = when (hour) {
@@ -167,7 +176,7 @@ fun UnifiedMainScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Top Left: Clean History Icon Button (Nothing more!)
+                // Top Left: Clean History Icon Button
                 Box(
                     modifier = Modifier
                         .size(44.dp)
@@ -175,7 +184,7 @@ fun UnifiedMainScreen(
                         .background(FrostedGlassTokens.surfaceSubtle(isDark))
                         .border(
                             1.dp,
-                            Brush.linearGradient(listOf(neonPurple.copy(alpha = 0.5f), neonMagenta.copy(alpha = 0.5f))),
+                            FrostedGlassTokens.border(isDark),
                             CircleShape
                         )
                         .clickable(onClick = onOpenPreviousChats),
@@ -189,22 +198,27 @@ fun UnifiedMainScreen(
                     )
                 }
 
-                // Top Right Avatar with Neon Ring
+                // Top Right Avatar with Monochromatic / Champagne Ring
                 Box(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(Brush.sweepGradient(listOf(neonMagenta, neonPurple, neonCoral, neonMagenta)))
+                        .background(
+                            Brush.sweepGradient(
+                                if (isDark) listOf(Color(0xFFE8E3D5), Color.White, Color(0xFFA1A1AA), Color(0xFFE8E3D5))
+                                else listOf(Color(0xFF111113), Color(0xFFC4BCAF), Color(0xFF575553), Color(0xFF111113))
+                            )
+                        )
                         .padding(2.dp)
                         .clip(CircleShape)
-                        .background(if (isDark) Color(0xFF0F172A) else Color.White)
+                        .background(if (isDark) Color(0xFF09090B) else Color.White)
                         .clickable(onClick = onOpenSettings),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Person,
                         contentDescription = "Profile & Settings",
-                        tint = if (isDark) Color.White else Color(0xFF0F172A),
+                        tint = if (isDark) Color.White else Color(0xFF111113),
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -232,14 +246,14 @@ fun UnifiedMainScreen(
                         Icon(
                             imageVector = Icons.Rounded.LocationOn,
                             contentDescription = null,
-                            tint = Color(0xFFFF5722),
+                            tint = accentBeige,
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
                             text = "$displayLocation • ${liveWeatherData.temperature} ${liveWeatherData.condition}",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = neonMagenta
+                            color = if (isDark) Color(0xFFE8E3D5) else Color(0xFF575553)
                         )
                     }
                 }
@@ -266,7 +280,7 @@ fun UnifiedMainScreen(
                         title = "Live Weather",
                         subtitle = "${liveWeatherData.temperature} • ${liveWeatherData.condition}",
                         icon = Icons.Rounded.WbSunny,
-                        iconTint = Color(0xFFFF9E64),
+                        iconTint = primaryAccent,
                         onClick = { onLaunchChatWithPrompt("Provide full live weather details and hourly breakdown.") },
                         modifier = Modifier.weight(1f),
                         isDark = isDark
@@ -276,7 +290,7 @@ fun UnifiedMainScreen(
                         title = "Voice AI",
                         subtitle = "Instant Voice AI",
                         icon = Icons.Rounded.Mic,
-                        iconTint = neonMagenta,
+                        iconTint = primaryAccent,
                         onClick = onLaunchVoice,
                         modifier = Modifier.weight(1f),
                         isDark = isDark
@@ -294,7 +308,7 @@ fun UnifiedMainScreen(
                                 title = "Kisan AI",
                                 subtitle = if (totalHistoryCount > 0) "Previous Chats ($totalHistoryCount)" else "Previous Chats",
                                 icon = Icons.Rounded.History,
-                                iconTint = Color(0xFF10B981),
+                                iconTint = primaryAccent,
                                 onClick = onOpenPreviousChats,
                                 modifier = Modifier.weight(1f),
                                 isDark = isDark
@@ -304,7 +318,7 @@ fun UnifiedMainScreen(
                                 title = "Disaster Radar",
                                 subtitle = "Severe Alerts: ${if (liveWeatherData.floodRiskLevel.contains("Low", true)) "Clear" else "Active"}",
                                 icon = Icons.Rounded.Thunderstorm,
-                                iconTint = Color(0xFFEF4444),
+                                iconTint = primaryAccent,
                                 onClick = { onLaunchChatWithPrompt("Check for any flash flood, heatwave, or severe weather alerts.") },
                                 modifier = Modifier.weight(1f),
                                 isDark = isDark
@@ -316,7 +330,7 @@ fun UnifiedMainScreen(
                                 title = "Disaster Radar",
                                 subtitle = "Flood Risk: ${liveWeatherData.floodRiskLevel}",
                                 icon = Icons.Rounded.Thunderstorm,
-                                iconTint = Color(0xFFEF4444),
+                                iconTint = primaryAccent,
                                 onClick = { onLaunchChatWithPrompt("Give a deep emergency report on river discharge, storm surges, and flood alerts.") },
                                 modifier = Modifier.weight(1f),
                                 isDark = isDark
@@ -326,7 +340,7 @@ fun UnifiedMainScreen(
                                 title = "Chat History",
                                 subtitle = if (totalHistoryCount > 0) "History ($totalHistoryCount)" else "Previous Chats",
                                 icon = Icons.Rounded.History,
-                                iconTint = neonPurple,
+                                iconTint = primaryAccent,
                                 onClick = onOpenPreviousChats,
                                 modifier = Modifier.weight(1f),
                                 isDark = isDark
@@ -338,7 +352,7 @@ fun UnifiedMainScreen(
                                 title = "Commute AQI",
                                 subtitle = "AQI: ${liveWeatherData.aqi}",
                                 icon = Icons.Rounded.DirectionsWalk,
-                                iconTint = Color(0xFF38BDF8),
+                                iconTint = primaryAccent,
                                 onClick = { onLaunchChatWithPrompt("Will it rain during evening commute? Give hourly rain and AQI breakdown.") },
                                 modifier = Modifier.weight(1f),
                                 isDark = isDark
@@ -348,7 +362,7 @@ fun UnifiedMainScreen(
                                 title = "Chat History",
                                 subtitle = if (totalHistoryCount > 0) "History ($totalHistoryCount)" else "Previous Chats",
                                 icon = Icons.Rounded.History,
-                                iconTint = Color(0xFFF59E0B),
+                                iconTint = primaryAccent,
                                 onClick = onOpenPreviousChats,
                                 modifier = Modifier.weight(1f),
                                 isDark = isDark
@@ -360,7 +374,7 @@ fun UnifiedMainScreen(
                                 title = "Flight Weather",
                                 subtitle = "Wind: ${liveWeatherData.windSpeed}",
                                 icon = Icons.Rounded.Flight,
-                                iconTint = Color(0xFF6366F1),
+                                iconTint = primaryAccent,
                                 onClick = { onLaunchChatWithPrompt("Provide aviation METAR style briefing: crosswinds, visibility, and cloud ceilings.") },
                                 modifier = Modifier.weight(1f),
                                 isDark = isDark
@@ -370,7 +384,7 @@ fun UnifiedMainScreen(
                                 title = "Chat History",
                                 subtitle = if (totalHistoryCount > 0) "History ($totalHistoryCount)" else "Previous Chats",
                                 icon = Icons.Rounded.History,
-                                iconTint = Color(0xFFEF4444),
+                                iconTint = primaryAccent,
                                 onClick = onOpenPreviousChats,
                                 modifier = Modifier.weight(1f),
                                 isDark = isDark
@@ -379,6 +393,19 @@ fun UnifiedMainScreen(
                     }
                 }
             }
+
+            // Smart Context-Aware Quick Action Pills
+            SmartWeatherPills(
+                liveWeatherData = liveWeatherData,
+                isDark = isDark,
+                onLaunchChatWithPrompt = onLaunchChatWithPrompt
+            )
+
+            // "View in Detail" Expandable Card
+            DetailedWeatherCard(
+                liveWeatherData = liveWeatherData,
+                isDark = isDark
+            )
 
             // Bottom Capsule: Animated bar opening Chat, animated glowing mic opening Voice!
             AnimatedChatCapsuleBar(
@@ -403,8 +430,8 @@ private fun BentoHubCard(
 ) {
     val cardBg = FrostedGlassTokens.surface(isDark)
     val cardBorder = FrostedGlassTokens.border(isDark)
-    val textColor = if (isDark) Color.White else Color(0xFF0F172A)
-    val subtitleColor = if (isDark) Color.White.copy(alpha = 0.60f) else Color(0xFF64748B)
+    val textColor = if (isDark) Color.White else Color(0xFF111113)
+    val subtitleColor = if (isDark) Color(0xFFA1A1AA) else Color(0xFF575553)
 
     Surface(
         modifier = modifier
@@ -429,7 +456,7 @@ private fun BentoHubCard(
                     .clip(CircleShape)
                     .background(
                         Brush.radialGradient(
-                            listOf(iconTint.copy(alpha = 0.4f), Color.Transparent)
+                            listOf(iconTint.copy(alpha = if (isDark) 0.25f else 0.12f), Color.Transparent)
                         )
                     ),
                 contentAlignment = Alignment.Center
@@ -438,13 +465,13 @@ private fun BentoHubCard(
                     modifier = Modifier
                         .size(24.dp)
                         .clip(CircleShape)
-                        .background(iconTint),
+                        .background(if (isDark) Color(0x26E8E3D5) else Color(0x18111113)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = iconTint,
                         modifier = Modifier.size(13.dp)
                     )
                 }
@@ -470,7 +497,7 @@ private fun BentoHubCard(
 }
 
 /**
- * Animated Chat & Voice Capsule Bar with moving liquid neon gradient border,
+ * Animated Chat & Voice Capsule Bar with moving liquid monochromatic gradient border,
  * glowing breathing mic button, and expanding ripple halo.
  */
 @Composable
@@ -483,7 +510,7 @@ private fun AnimatedChatCapsuleBar(
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "capsule_ambient_anim")
 
-    // 1. Flowing iridescent neon border shimmer
+    // 1. Flowing monochromatic border shimmer
     val borderCycle by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -537,13 +564,12 @@ private fun AnimatedChatCapsuleBar(
         label = "text_alpha"
     )
 
-    val neonPurple = Color(0xFF9333EA)
-    val neonMagenta = Color(0xFFD946EF)
-    val neonCoral = Color(0xFFF43F5E)
-    val neonCyan = Color(0xFF06B6D4)
-
     val dynamicBorderBrush = Brush.horizontalGradient(
-        colors = listOf(neonPurple, neonMagenta, neonCoral, neonCyan, neonPurple),
+        colors = if (isDark) {
+            listOf(Color(0xFF27272A), Color(0xFFE8E3D5), Color(0xFFFFFFFF), Color(0xFFBFB8A5), Color(0xFF27272A))
+        } else {
+            listOf(Color(0xFFE4E4E7), Color(0xFF575553), Color(0xFF111113), Color(0xFFC4BCAF), Color(0xFFE4E4E7))
+        },
         startX = -600f + borderCycle * 1200f,
         endX = 600f + borderCycle * 1200f,
         tileMode = TileMode.Repeated
@@ -580,7 +606,7 @@ private fun AnimatedChatCapsuleBar(
                 Icon(
                     imageVector = Icons.Rounded.AutoAwesome,
                     contentDescription = null,
-                    tint = neonMagenta.copy(alpha = textAlpha),
+                    tint = (if (isDark) Color(0xFFE8E3D5) else Color(0xFF111113)).copy(alpha = textAlpha),
                     modifier = Modifier.size(16.dp)
                 )
 
@@ -603,7 +629,7 @@ private fun AnimatedChatCapsuleBar(
                         .size(44.dp)
                         .scale(rippleScale)
                         .clip(CircleShape)
-                        .background(Color(0xFFC026D3).copy(alpha = rippleAlpha))
+                        .background((if (isDark) Color(0xFFE8E3D5) else Color(0xFFC4BCAF)).copy(alpha = rippleAlpha * 0.40f))
                 )
 
                 // Pulsing Center Radiant Mic Button
@@ -614,18 +640,14 @@ private fun AnimatedChatCapsuleBar(
                         .shadow(
                             elevation = 10.dp,
                             shape = CircleShape,
-                            ambientColor = Color(0xFFC026D3),
-                            spotColor = Color(0xFFE879F9)
+                            ambientColor = if (isDark) Color(0x50E8E3D5) else Color(0x30000000),
+                            spotColor = if (isDark) Color(0x70E8E3D5) else Color(0x40000000)
                         )
                         .clip(CircleShape)
                         .background(
                             Brush.radialGradient(
-                                listOf(
-                                    Color(0xFFE879F9),
-                                    Color(0xFFC026D3),
-                                    Color(0xFF9333EA),
-                                    Color(0xFFE11D48)
-                                )
+                                if (isDark) listOf(Color(0xFFFFFFFF), Color(0xFFE8E3D5), Color(0xFFC4BCAF), Color(0xFF8E8B85))
+                                else listOf(Color(0xFF2C2A29), Color(0xFF1A1918), Color(0xFF111113))
                             )
                         )
                         .clickable(onClick = onLaunchVoice),
@@ -634,9 +656,184 @@ private fun AnimatedChatCapsuleBar(
                     Icon(
                         imageVector = Icons.Rounded.Mic,
                         contentDescription = "Start Voice",
-                        tint = Color.White,
+                        tint = if (isDark) Color(0xFF111113) else Color.White,
                         modifier = Modifier.size(22.dp)
                     )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Smart Context-Aware Weather Quick Action Pills.
+ * Dynamically shows relevant suggestions based on current weather conditions.
+ */
+@Composable
+private fun SmartWeatherPills(
+    liveWeatherData: LiveWeatherData,
+    isDark: Boolean,
+    onLaunchChatWithPrompt: (String) -> Unit
+) {
+    val pills = buildList {
+        // Parse rain probability from peakRainTiming
+        if (liveWeatherData.rainNext24h != "0.0 mm" && !liveWeatherData.rainNext24h.startsWith("0.")) {
+            add(Triple("☔ Rain advisory", if (isDark) Color(0xFFE8E3D5) else Color(0xFF111113), "Will it rain today? Give me a detailed prediction with timing windows."))
+        }
+        // High UV
+        val uvNumStr = liveWeatherData.uvIndex.substringBefore(" ").substringBefore("(")
+        val uvVal = uvNumStr.trim().toIntOrNull() ?: 0
+        if (uvVal >= 7) {
+            add(Triple("☀️ UV Protection", if (isDark) Color(0xFFE8E3D5) else Color(0xFF111113), "The UV index is high. What precautions should I take today?"))
+        }
+        // AQI Warning
+        val aqiNumStr = liveWeatherData.aqi.substringBefore(" ").substringBefore("(")
+        val aqiVal = aqiNumStr.trim().toIntOrNull() ?: 0
+        if (aqiVal > 150) {
+            add(Triple("😷 Air Quality", if (isDark) Color(0xFFE8E3D5) else Color(0xFF111113), "Air quality is poor. Is it safe to go outside today?"))
+        }
+        // Heatwave
+        if (!liveWeatherData.heatwaveAlert.equals("None", ignoreCase = true)) {
+            add(Triple("🌡️ Heatwave", if (isDark) Color(0xFFE8E3D5) else Color(0xFF111113), "There's a heatwave alert. What should I do to stay safe?"))
+        }
+        // Pressure dropping (storm risk)
+        if (liveWeatherData.pressureTrend.contains("Falling", ignoreCase = true)) {
+            add(Triple("🌀 Storm risk", if (isDark) Color(0xFFE8E3D5) else Color(0xFF111113), "Barometric pressure is falling. What weather change should I expect?"))
+        }
+        // Fog risk
+        if (liveWeatherData.dewPointProximity.contains("Critical", ignoreCase = true) ||
+            liveWeatherData.dewPointProximity.contains("Warning", ignoreCase = true)) {
+            add(Triple("🌫️ Fog alert", if (isDark) Color(0xFFE8E3D5) else Color(0xFF111113), "There's a fog risk. How will visibility be affected?"))
+        }
+        // Default: always show "Ask anything"
+        if (isEmpty()) {
+            add(Triple("✨ Today's outlook", if (isDark) Color(0xFFE8E3D5) else Color(0xFF111113), "Give me a quick weather summary for today."))
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        pills.forEach { (label, _, prompt) ->
+            Surface(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .clickable { onLaunchChatWithPrompt(prompt) },
+                shape = RoundedCornerShape(20.dp),
+                color = if (isDark) Color(0x18E8E3D5) else Color(0x35ECE8E1),
+                border = BorderStroke(1.dp, if (isDark) Color(0x28E8E3D5) else Color(0x28B8AE9C))
+            ) {
+                Text(
+                    text = label,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isDark) Color.White.copy(alpha = 0.92f) else Color(0xFF111113),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    maxLines = 1
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Expandable "View in Detail" card showing full meteorological data sections.
+ */
+@Composable
+private fun DetailedWeatherCard(
+    liveWeatherData: LiveWeatherData,
+    isDark: Boolean
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+    val textColor = if (isDark) Color.White else Color(0xFF111113)
+    val subtitleColor = if (isDark) Color(0xFFA1A1AA) else Color(0xFF575553)
+    val accentColor = if (isDark) Color(0xFFE8E3D5) else Color(0xFF111113)
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .clickable { isExpanded = !isExpanded },
+        shape = RoundedCornerShape(18.dp),
+        color = FrostedGlassTokens.surface(isDark),
+        border = BorderStroke(1.dp, FrostedGlassTokens.border(isDark))
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp)
+        ) {
+            // Header Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "📊 View in Detail",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textColor
+                    )
+                    Text(
+                        text = "Tap to see full weather data & trend analysis",
+                        fontSize = 11.sp,
+                        color = subtitleColor
+                    )
+                }
+                Icon(
+                    imageVector = if (isExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                    contentDescription = "Toggle Details",
+                    tint = accentColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            // Expandable Detail Content
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
+                Column(
+                    modifier = Modifier.padding(top = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    val sections = liveWeatherData.toDetailedDataView()
+                    sections.forEach { (sectionTitle, items) ->
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = sectionTitle,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = accentColor
+                            )
+                            items.forEach { (label, value) ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = label,
+                                        fontSize = 12.sp,
+                                        color = subtitleColor,
+                                        modifier = Modifier.weight(0.45f)
+                                    )
+                                    Text(
+                                        text = value,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = textColor,
+                                        modifier = Modifier.weight(0.55f),
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

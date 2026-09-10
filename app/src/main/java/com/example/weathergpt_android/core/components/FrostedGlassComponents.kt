@@ -116,7 +116,7 @@ fun FrostedGlassChip(
 ) {
     val surfaceColor = FrostedGlassTokens.surfaceSubtle(isDark)
     val borderColor = FrostedGlassTokens.borderSubtle(isDark)
-    val textColor = if (isDark) Color.White.copy(alpha = 0.9f) else Color(0xFF0F172A)
+    val textColor = if (isDark) Color.White.copy(alpha = 0.92f) else Color(0xFF111113)
 
     Surface(
         modifier = modifier
@@ -164,7 +164,7 @@ fun FrostedIconButton(
 ) {
     val surfaceColor = FrostedGlassTokens.surfaceSubtle(isDark)
     val borderColor = FrostedGlassTokens.border(isDark)
-    val iconTint = tint ?: if (isDark) Color.White else Color(0xFF0F172A)
+    val iconTint = tint ?: if (isDark) Color.White else Color(0xFF111113)
 
     Box(
         modifier = modifier
@@ -208,9 +208,9 @@ fun FrostedBottomInputBar(
 ) {
     val barColor = FrostedGlassTokens.surfaceRaised(isDark)
     val borderColor = FrostedGlassTokens.border(isDark)
-    val textColor = if (isDark) Color.White else Color(0xFF0F172A)
-    val hintColor = if (isDark) Color.White.copy(alpha = 0.55f) else Color(0xFF64748B)
-    val iconColor = if (isDark) Color.White.copy(alpha = 0.85f) else Color(0xFF1E293B)
+    val textColor = if (isDark) Color.White else Color(0xFF111113)
+    val hintColor = if (isDark) Color.White.copy(alpha = 0.55f) else Color(0xFF575553)
+    val iconColor = if (isDark) Color.White.copy(alpha = 0.85f) else Color(0xFF111113)
 
     Surface(
         modifier = modifier
@@ -233,7 +233,7 @@ fun FrostedBottomInputBar(
                 modifier = Modifier
                     .size(38.dp)
                     .clip(CircleShape)
-                    .background(if (isDark) Color(0x20FFFFFF) else Color(0x40E2E8F0))
+                    .background(if (isDark) Color(0x20FFFFFF) else Color(0x30E4E4E7))
                     .clickable(onClick = onVoiceWaveformClick),
                 contentAlignment = Alignment.Center
             ) {
@@ -267,7 +267,7 @@ fun FrostedBottomInputBar(
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Normal
                     ),
-                    cursorBrush = SolidColor(if (isDark) Color(0xFFFF9E64) else Color(0xFF0284C7)),
+                    cursorBrush = SolidColor(if (isDark) Color(0xFFE8E3D5) else Color(0xFF111113)),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = { if (inputText.isNotBlank()) onSend() }),
@@ -297,14 +297,14 @@ fun FrostedBottomInputBar(
                 modifier = Modifier
                     .size(38.dp)
                     .clip(CircleShape)
-                    .background(if (isDark) Color(0x35FFFFFF) else Color(0xFF0284C7).copy(alpha = 0.15f))
+                    .background(if (isDark) Color(0x28E8E3D5) else Color(0x25C4BCAF))
                     .clickable(onClick = onVoiceWaveformClick),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Rounded.GraphicEq,
                     contentDescription = "Live Voice AI",
-                    tint = if (isDark) Color(0xFFFFB088) else Color(0xFF0284C7),
+                    tint = if (isDark) Color(0xFFE8E3D5) else Color(0xFF111113),
                     modifier = Modifier.size(19.dp)
                 )
             }

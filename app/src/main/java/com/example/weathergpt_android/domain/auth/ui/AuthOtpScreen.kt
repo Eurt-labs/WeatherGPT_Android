@@ -107,11 +107,9 @@ fun AuthOtpScreen(
         }
     }
 
-    val textColor = if (isDark) Color.White else Color(0xFF0F172A)
-    val subtitleColor = if (isDark) Color.White.copy(alpha = 0.65f) else Color(0xFF64748B)
-    val neonPurple = Color(0xFF9333EA)
-    val neonMagenta = Color(0xFFC026D3)
-    val neonCoral = Color(0xFFFF5722)
+    val textColor = if (isDark) Color.White else Color(0xFF111113)
+    val subtitleColor = if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A)
+    val accentBeige = if (isDark) Color(0xFFE8E3D5) else Color(0xFFC4BCAF)
 
     AmbientGlowBackground(
         currentTheme = currentTheme,
@@ -132,22 +130,26 @@ fun AuthOtpScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.padding(top = 28.dp)
             ) {
+                val logoRingBrush = if (isDark) {
+                    Brush.sweepGradient(listOf(Color(0xFFFFFFFF), Color(0xFFE8E3D5), Color(0xFFA1A1AA), Color(0xFFFFFFFF)))
+                } else {
+                    Brush.sweepGradient(listOf(Color(0xFF18181B), Color(0xFFC4BCAF), Color(0xFF71717A), Color(0xFF18181B)))
+                }
+
                 Box(
                     modifier = Modifier
                         .size(68.dp)
                         .clip(CircleShape)
-                        .background(
-                            Brush.sweepGradient(listOf(neonMagenta, neonPurple, neonCoral, neonMagenta))
-                        )
-                        .padding(3.dp)
+                        .background(logoRingBrush)
+                        .padding(2.5.dp)
                         .clip(CircleShape)
-                        .background(if (isDark) Color(0xFF0B0C14) else Color.White),
+                        .background(if (isDark) Color(0xFF000000) else Color.White),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.WbSunny,
                         contentDescription = "WeatherGPT",
-                        tint = Color(0xFFFF9E64),
+                        tint = if (isDark) accentBeige else Color(0xFF18181B),
                         modifier = Modifier.size(34.dp)
                     )
                 }
@@ -190,6 +192,9 @@ fun AuthOtpScreen(
 
                     if (!isOtpSent) {
                         // Toggle: Email vs Phone
+                        val activeToggleBg = if (isDark) Color(0x35E8E3D5) else Color(0xFF18181B)
+                        val activeToggleTint = if (isDark) accentBeige else Color.White
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -202,7 +207,7 @@ fun AuthOtpScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(10.dp))
-                                    .background(if (!isPhoneMode) neonPurple else Color.Transparent)
+                                    .background(if (!isPhoneMode) activeToggleBg else Color.Transparent)
                                     .clickable {
                                         isPhoneMode = false
                                         contactInput = "dhruv@example.com"
@@ -217,14 +222,14 @@ fun AuthOtpScreen(
                                     Icon(
                                         imageVector = Icons.Rounded.Email,
                                         contentDescription = null,
-                                        tint = if (!isPhoneMode) Color.White else subtitleColor,
+                                        tint = if (!isPhoneMode) activeToggleTint else subtitleColor,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Text(
                                         text = "Email",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = if (!isPhoneMode) Color.White else subtitleColor
+                                        color = if (!isPhoneMode) activeToggleTint else subtitleColor
                                     )
                                 }
                             }
@@ -233,7 +238,7 @@ fun AuthOtpScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(10.dp))
-                                    .background(if (isPhoneMode) neonPurple else Color.Transparent)
+                                    .background(if (isPhoneMode) activeToggleBg else Color.Transparent)
                                     .clickable {
                                         isPhoneMode = true
                                         contactInput = "+919876543210"
@@ -248,14 +253,14 @@ fun AuthOtpScreen(
                                     Icon(
                                         imageVector = Icons.Rounded.Phone,
                                         contentDescription = null,
-                                        tint = if (isPhoneMode) Color.White else subtitleColor,
+                                        tint = if (isPhoneMode) activeToggleTint else subtitleColor,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Text(
                                         text = "Phone (SMS)",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = if (isPhoneMode) Color.White else subtitleColor
+                                        color = if (isPhoneMode) activeToggleTint else subtitleColor
                                     )
                                 }
                             }
@@ -276,7 +281,7 @@ fun AuthOtpScreen(
                                 Icon(
                                     imageVector = if (isPhoneMode) Icons.Rounded.Phone else Icons.Rounded.Email,
                                     contentDescription = null,
-                                    tint = neonMagenta,
+                                    tint = accentBeige,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 BasicTextField(
@@ -290,7 +295,7 @@ fun AuthOtpScreen(
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Medium
                                     ),
-                                    cursorBrush = SolidColor(neonMagenta),
+                                    cursorBrush = SolidColor(accentBeige),
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth(),
                                     decorationBox = { innerTextField ->
@@ -308,6 +313,9 @@ fun AuthOtpScreen(
                         }
 
                         // Send OTP Button
+                        val authBtnBg = if (isDark) Color(0xFFE8E3D5) else Color(0xFF18181B)
+                        val authBtnContent = if (isDark) Color(0xFF121214) else Color.White
+
                         Button(
                             onClick = {
                                 if (contactInput.isBlank()) {
@@ -359,12 +367,12 @@ fun AuthOtpScreen(
                                 .height(50.dp),
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = neonPurple,
-                                contentColor = Color.White
+                                containerColor = authBtnBg,
+                                contentColor = authBtnContent
                             )
                         ) {
                             if (isLoading) {
-                                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp))
+                                CircularProgressIndicator(color = authBtnContent, modifier = Modifier.size(20.dp))
                             } else {
                                 Text(text = "Send Verification OTP", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             }
@@ -392,7 +400,7 @@ fun AuthOtpScreen(
                                 Icon(
                                     imageVector = Icons.Rounded.Lock,
                                     contentDescription = null,
-                                    tint = neonMagenta,
+                                    tint = accentBeige,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 BasicTextField(
@@ -459,7 +467,7 @@ fun AuthOtpScreen(
                                         fontWeight = FontWeight.Bold,
                                         letterSpacing = 4.sp
                                     ),
-                                    cursorBrush = SolidColor(neonMagenta),
+                                    cursorBrush = SolidColor(accentBeige),
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth()
                                 )
@@ -467,6 +475,9 @@ fun AuthOtpScreen(
                         }
 
                         // Verify Button
+                        val verifyBtnBg = if (isDark) Color(0xFFE8E3D5) else Color(0xFF18181B)
+                        val verifyBtnContent = if (isDark) Color(0xFF121214) else Color.White
+
                         Button(
                             onClick = {
                                 if (otpInput.length < 6) {
@@ -527,12 +538,12 @@ fun AuthOtpScreen(
                                 .height(50.dp),
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = neonMagenta,
-                                contentColor = Color.White
+                                containerColor = verifyBtnBg,
+                                contentColor = verifyBtnContent
                             )
                         ) {
                             if (isLoading) {
-                                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp))
+                                CircularProgressIndicator(color = verifyBtnContent, modifier = Modifier.size(20.dp))
                             } else {
                                 Text(text = "Verify & Proceed", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             }
@@ -547,7 +558,7 @@ fun AuthOtpScreen(
                             Text(
                                 text = "Change Contact",
                                 fontSize = 12.sp,
-                                color = neonMagenta,
+                                color = accentBeige,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.clickable { isOtpSent = false }
                             )
@@ -555,7 +566,7 @@ fun AuthOtpScreen(
                             Text(
                                 text = if (timerCountdown > 0) "Resend in ${timerCountdown}s" else "Resend OTP",
                                 fontSize = 12.sp,
-                                color = if (timerCountdown > 0) subtitleColor else neonPurple,
+                                color = if (timerCountdown > 0) subtitleColor else accentBeige,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.clickable(enabled = timerCountdown == 0) {
                                     scope.launch {

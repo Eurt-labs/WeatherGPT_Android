@@ -37,6 +37,7 @@ fun ConcentricPulsingOrb(
     modifier: Modifier = Modifier,
     isActive: Boolean = true,
     isMuted: Boolean = false,
+    isDark: Boolean = true,
     onClick: () -> Unit = {},
     size: Dp = 86.dp
 ) {
@@ -84,25 +85,49 @@ fun ConcentricPulsingOrb(
 
     val centerButtonGradient = if (isMuted) {
         Brush.radialGradient(
+            colors = if (isDark) {
+                listOf(Color(0xFF52525B), Color(0xFF3F3F46), Color(0xFF27272A), Color(0xFF18181B))
+            } else {
+                listOf(Color(0xFFD4D4D8), Color(0xFFA1A1AA), Color(0xFF71717A))
+            }
+        )
+    } else if (isDark) {
+        // OLED Dark: Radiant champagne beige core with specular silver halo
+        Brush.radialGradient(
             colors = listOf(
-                Color(0xFFF87171),
-                Color(0xFFEF4444),
-                Color(0xFFB91C1C),
-                Color(0xFF7F1D1D)
+                Color(0xFFFFFFFF),
+                Color(0xFFE8E3D5),
+                Color(0xFFC4BCAF),
+                Color(0xFF8E8B85)
             )
         )
     } else {
+        // Clean Minimal Light: Crisp charcoal / warm stone core
         Brush.radialGradient(
             colors = listOf(
-                Color(0xFFE879F9),
-                Color(0xFFC026D3),
-                Color(0xFF9333EA),
-                Color(0xFFE11D48)
+                Color(0xFF2C2A29),
+                Color(0xFF1A1918),
+                Color(0xFF111113),
+                Color(0xFF09090B)
             )
         )
     }
 
-    val shadowColor = if (isMuted) Color(0xFFEF4444) else Color(0xFFC026D3)
+    val shadowColor = if (isMuted) {
+        Color(0x30000000)
+    } else if (isDark) {
+        Color(0x55E8E3D5)
+    } else {
+        Color(0x40000000)
+    }
+
+    val iconColor = if (isMuted) {
+        Color.White
+    } else if (isDark) {
+        Color(0xFF111113) // High-contrast deep charcoal icon on radiant champagne orb
+    } else {
+        Color(0xFFFFFFFF) // Crisp white icon on deep charcoal orb
+    }
 
     Box(
         modifier = modifier.size(size * 1.8f),
@@ -115,7 +140,10 @@ fun ConcentricPulsingOrb(
                     .size(size)
                     .scale(ripple1Scale)
                     .clip(CircleShape)
-                    .background(Color(0xFF9333EA).copy(alpha = ripple1Alpha))
+                    .background(
+                        (if (isDark) Color(0xFFE8E3D5) else Color(0xFFC4BCAF))
+                            .copy(alpha = ripple1Alpha * if (isDark) 0.35f else 0.40f)
+                    )
             )
 
             // Middle Expanding Ripple 2
@@ -124,7 +152,10 @@ fun ConcentricPulsingOrb(
                     .size(size)
                     .scale(ripple2Scale)
                     .clip(CircleShape)
-                    .background(Color(0xFFC026D3).copy(alpha = ripple2Alpha))
+                    .background(
+                        (if (isDark) Color(0xFFFFFFFF) else Color(0xFF111113))
+                            .copy(alpha = ripple2Alpha * if (isDark) 0.30f else 0.20f)
+                    )
             )
         }
 
@@ -132,7 +163,7 @@ fun ConcentricPulsingOrb(
         Surface(
             modifier = Modifier
                 .size(size)
-                .shadow(24.dp, CircleShape, ambientColor = shadowColor, spotColor = shadowColor)
+                .shadow(20.dp, CircleShape, ambientColor = shadowColor, spotColor = shadowColor)
                 .clip(CircleShape)
                 .clickable(onClick = onClick),
             shape = CircleShape,
@@ -147,7 +178,7 @@ fun ConcentricPulsingOrb(
                 Icon(
                     imageVector = if (isMuted) Icons.Rounded.MicOff else Icons.Rounded.Mic,
                     contentDescription = if (isMuted) "Unmute Microphone" else "Mute Microphone",
-                    tint = Color.White,
+                    tint = iconColor,
                     modifier = Modifier.size(size * 0.44f)
                 )
             }

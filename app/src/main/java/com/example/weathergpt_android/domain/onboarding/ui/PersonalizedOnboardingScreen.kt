@@ -106,10 +106,9 @@ fun PersonalizedOnboardingScreen(
     var monitoredRegion by remember { mutableStateOf(initialProfile.monitoredRegion.ifBlank { "Hathras, Uttar Pradesh" }) }
     var isSaving by remember { mutableStateOf(false) }
 
-    val textColor = if (isDark) Color.White else Color(0xFF0F172A)
-    val subtitleColor = if (isDark) Color.White.copy(alpha = 0.65f) else Color(0xFF64748B)
-    val neonPurple = Color(0xFF9333EA)
-    val neonMagenta = Color(0xFFC026D3)
+    val textColor = if (isDark) Color.White else Color(0xFF111113)
+    val subtitleColor = if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A)
+    val accentBeige = if (isDark) Color(0xFFE8E3D5) else Color(0xFFC4BCAF)
 
     AmbientGlowBackground(
         currentTheme = currentTheme,
@@ -134,7 +133,7 @@ fun PersonalizedOnboardingScreen(
                         text = "Step $currentStep of 3",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = neonMagenta,
+                        color = accentBeige,
                         letterSpacing = 1.sp
                     )
 
@@ -324,7 +323,7 @@ fun PersonalizedOnboardingScreen(
                                     Icon(
                                         imageVector = Icons.Rounded.Person,
                                         contentDescription = null,
-                                        tint = neonMagenta,
+                                        tint = accentBeige,
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Column {
@@ -333,7 +332,7 @@ fun PersonalizedOnboardingScreen(
                                             value = userName,
                                             onValueChange = { userName = it },
                                             textStyle = TextStyle(color = textColor, fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
-                                            cursorBrush = SolidColor(neonMagenta),
+                                            cursorBrush = SolidColor(accentBeige),
                                             singleLine = true,
                                             modifier = Modifier.fillMaxWidth()
                                         )
@@ -394,7 +393,7 @@ fun PersonalizedOnboardingScreen(
                                                     value = landArea,
                                                     onValueChange = { landArea = it },
                                                     textStyle = TextStyle(color = textColor, fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
-                                                    cursorBrush = SolidColor(neonMagenta),
+                                                    cursorBrush = SolidColor(accentBeige),
                                                     singleLine = true,
                                                     modifier = Modifier.fillMaxWidth()
                                                 )
@@ -419,7 +418,7 @@ fun PersonalizedOnboardingScreen(
                                             Icon(
                                                 imageVector = Icons.Rounded.Place,
                                                 contentDescription = null,
-                                                tint = Color(0xFF38BDF8),
+                                                tint = accentBeige,
                                                 modifier = Modifier.size(20.dp)
                                             )
                                             Column {
@@ -428,7 +427,7 @@ fun PersonalizedOnboardingScreen(
                                                     value = monitoredRegion,
                                                     onValueChange = { monitoredRegion = it },
                                                     textStyle = TextStyle(color = textColor, fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
-                                                    cursorBrush = SolidColor(neonMagenta),
+                                                    cursorBrush = SolidColor(accentBeige),
                                                     singleLine = true,
                                                     modifier = Modifier.fillMaxWidth()
                                                 )
@@ -468,6 +467,9 @@ fun PersonalizedOnboardingScreen(
                     Box(modifier = Modifier.size(50.dp))
                 }
 
+                val btnBg = if (isDark) Color(0xFFE8E3D5) else Color(0xFF18181B)
+                val btnContent = if (isDark) Color(0xFF121214) else Color.White
+
                 Button(
                     onClick = {
                         if (currentStep < 3) {
@@ -481,32 +483,29 @@ fun PersonalizedOnboardingScreen(
                                 preferredLanguage = selectedLanguage,
                                 crops = selectedCrops,
                                 landArea = landArea,
-                                monitoredRegion = monitoredRegion,
-                                isOnboarded = true
+                                monitoredRegion = monitoredRegion
                             )
-
-                            UserPreferences.saveProfile(context, completedProfile)
-
                             scope.launch {
-                                authService.saveUserProfile(completedProfile)
-                                isSaving = false
+                                UserPreferences.saveProfile(context, completedProfile)
+                                if (completedProfile.userId.isNotBlank()) {
+                                    authService.saveUserProfile(completedProfile)
+                                }
                                 onComplete(completedProfile)
                             }
                         }
                     },
-                    enabled = !isSaving,
                     modifier = Modifier
                         .height(52.dp)
                         .weight(1f)
                         .padding(start = 12.dp),
                     shape = RoundedCornerShape(18.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = neonPurple,
-                        contentColor = Color.White
+                        containerColor = btnBg,
+                        contentColor = btnContent
                     )
                 ) {
                     if (isSaving) {
-                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp))
+                        CircularProgressIndicator(color = btnContent, modifier = Modifier.size(20.dp))
                     } else {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -540,12 +539,18 @@ private fun LanguageSelectCard(
     isDark: Boolean
 ) {
     val bg = if (isSelected) {
-        if (isDark) Color(0x35C026D3) else Color(0x20C026D3)
+        if (isDark) Color(0x28E8E3D5) else Color(0xFF18181B)
     } else {
         FrostedGlassTokens.surfaceSubtle(isDark)
     }
 
-    val border = if (isSelected) Color(0xFFC026D3) else FrostedGlassTokens.borderSubtle(isDark)
+    val border = if (isSelected) {
+        if (isDark) Color(0xFFE8E3D5) else Color(0xFF18181B)
+    } else {
+        FrostedGlassTokens.borderSubtle(isDark)
+    }
+
+    val accent = if (isDark) Color(0xFFE8E3D5) else Color(0xFFC4BCAF)
 
     Surface(
         modifier = Modifier
@@ -571,13 +576,13 @@ private fun LanguageSelectCard(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
-                        .background(if (isSelected) Color(0xFFC026D3) else FrostedGlassTokens.surfaceSubtle(isDark)),
+                        .background(if (isSelected) (if (isDark) Color(0xFFE8E3D5) else Color(0xFF27272A)) else FrostedGlassTokens.surfaceSubtle(isDark)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Language,
                         contentDescription = null,
-                        tint = if (isSelected) Color.White else if (isDark) Color.White else Color(0xFF475569),
+                        tint = if (isSelected) (if (isDark) Color(0xFF121214) else Color.White) else if (isDark) Color.White else Color(0xFF475569),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -587,12 +592,12 @@ private fun LanguageSelectCard(
                         text = nativeName,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isDark) Color.White else Color(0xFF0F172A)
+                        color = if (isSelected) (if (isDark) Color.White else Color.White) else if (isDark) Color.White else Color(0xFF111113)
                     )
                     Text(
                         text = name,
                         fontSize = 12.sp,
-                        color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+                        color = if (isSelected) accent else if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A)
                     )
                 }
             }
@@ -602,13 +607,13 @@ private fun LanguageSelectCard(
                     modifier = Modifier
                         .size(24.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFC026D3)),
+                        .background(accent),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Check,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = if (isDark) Color(0xFF121214) else Color(0xFF18181B),
                         modifier = Modifier.size(14.dp)
                     )
                 }
@@ -625,7 +630,7 @@ private fun StepBarSegment(isActive: Boolean, modifier: Modifier = Modifier) {
             .clip(RoundedCornerShape(2.dp))
             .then(
                 if (isActive) {
-                    Modifier.background(Brush.horizontalGradient(listOf(Color(0xFF9333EA), Color(0xFFC026D3))))
+                    Modifier.background(Color(0xFFE8E3D5))
                 } else {
                     Modifier.background(Color(0x25FFFFFF))
                 }
@@ -643,12 +648,18 @@ private fun SectorSelectCard(
     isDark: Boolean
 ) {
     val bg = if (isSelected) {
-        if (isDark) Color(0x359333EA) else Color(0x209333EA)
+        if (isDark) Color(0x28E8E3D5) else Color(0xFF18181B)
     } else {
         FrostedGlassTokens.surfaceSubtle(isDark)
     }
 
-    val border = if (isSelected) Color(0xFF9333EA) else FrostedGlassTokens.borderSubtle(isDark)
+    val border = if (isSelected) {
+        if (isDark) Color(0xFFE8E3D5) else Color(0xFF18181B)
+    } else {
+        FrostedGlassTokens.borderSubtle(isDark)
+    }
+
+    val accent = if (isDark) Color(0xFFE8E3D5) else Color(0xFFC4BCAF)
 
     Surface(
         modifier = Modifier
@@ -670,13 +681,13 @@ private fun SectorSelectCard(
                 modifier = Modifier
                     .size(46.dp)
                     .clip(CircleShape)
-                    .background(if (isSelected) Color(0xFF9333EA) else FrostedGlassTokens.surfaceSubtle(isDark)),
+                    .background(if (isSelected) (if (isDark) Color(0xFFE8E3D5) else Color(0xFF27272A)) else FrostedGlassTokens.surfaceSubtle(isDark)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = if (isSelected) Color.White else if (isDark) Color.White else Color(0xFF334155),
+                    tint = if (isSelected) (if (isDark) Color(0xFF121214) else Color.White) else if (isDark) Color.White else Color(0xFF334155),
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -686,12 +697,12 @@ private fun SectorSelectCard(
                     text = title,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (isDark) Color.White else Color(0xFF0F172A)
+                    color = if (isSelected) (if (isDark) Color.White else Color.White) else if (isDark) Color.White else Color(0xFF111113)
                 )
                 Text(
                     text = subtitle,
                     fontSize = 12.sp,
-                    color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+                    color = if (isSelected) accent else if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A)
                 )
             }
 
@@ -700,13 +711,13 @@ private fun SectorSelectCard(
                     modifier = Modifier
                         .size(24.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF9333EA)),
+                        .background(accent),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Check,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = if (isDark) Color(0xFF121214) else Color(0xFF18181B),
                         modifier = Modifier.size(14.dp)
                     )
                 }

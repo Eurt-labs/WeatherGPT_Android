@@ -230,6 +230,7 @@ fun WeatherGPTApp(
                 )
 
                 AppScreen.VOICE_AI -> ImmersiveVoiceScreen(
+                    currentTheme = currentTheme,
                     locationData = locationData,
                     liveWeatherData = liveWeatherData,
                     onClose = { currentScreen = AppScreen.MAIN_HUB }

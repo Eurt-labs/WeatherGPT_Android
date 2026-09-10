@@ -123,11 +123,9 @@ fun GptChatScreen(
         AppThemeMode.SYSTEM -> isSystemInDarkTheme()
     }
 
-    val textColor = if (isDark) Color.White else Color(0xFF0F172A)
-    val subtitleColor = if (isDark) Color.White.copy(alpha = 0.65f) else Color(0xFF64748B)
-    val neonPurple = Color(0xFF9333EA)
-    val neonMagenta = Color(0xFFC026D3)
-    val neonCoral = Color(0xFFFF5722)
+    val textColor = if (isDark) Color.White else Color(0xFF111113)
+    val subtitleColor = if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A)
+    val accentBeige = if (isDark) Color(0xFFE8E3D5) else Color(0xFFC4BCAF)
 
     var isGenerating by remember { mutableStateOf(false) }
     var inputText by remember { mutableStateOf("") }
@@ -376,7 +374,7 @@ fun GptChatScreen(
                             modifier = Modifier
                                 .size(9.dp)
                                 .clip(CircleShape)
-                                .background(if (isGenerating) neonMagenta else Color(0xFF10B981))
+                                .background(if (isGenerating) accentBeige else Color(0xFF10B981))
                         )
                         Text(
                             text = userProfile.sector.title,
@@ -525,7 +523,7 @@ fun GptChatScreen(
                 }
             }
 
-            // Bottom Obsidian Frosted Input Bar
+            // Bottom Frosted Input Bar
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -534,8 +532,8 @@ fun GptChatScreen(
                 shape = RoundedCornerShape(30.dp),
                 color = FrostedGlassTokens.surfaceRaised(isDark),
                 border = BorderStroke(
-                    1.2.dp,
-                    Brush.horizontalGradient(listOf(neonPurple.copy(alpha = 0.6f), neonMagenta.copy(alpha = 0.6f), neonCoral.copy(alpha = 0.4f)))
+                    1.dp,
+                    if (isDark) accentBeige.copy(alpha = 0.22f) else accentBeige.copy(alpha = 0.45f)
                 )
             ) {
                 Row(
@@ -557,7 +555,7 @@ fun GptChatScreen(
                         Icon(
                             imageVector = Icons.Rounded.Mic,
                             contentDescription = "Voice Mode",
-                            tint = neonMagenta,
+                            tint = if (isDark) accentBeige else Color(0xFF18181B),
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -584,7 +582,7 @@ fun GptChatScreen(
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Normal
                             ),
-                            cursorBrush = SolidColor(neonMagenta),
+                            cursorBrush = SolidColor(if (isDark) accentBeige else Color(0xFF18181B)),
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                             keyboardActions = KeyboardActions(onSend = {
@@ -598,16 +596,23 @@ fun GptChatScreen(
                         )
                     }
 
-                    // Send Button with Glowing Purple/Magenta Gradient
+                    // Send Button with Monochromatic Champagne / High-contrast Charcoal Gradient
+                    val sendGradient = if (isDark) {
+                        Brush.radialGradient(
+                            listOf(Color(0xFFFFFFFF), Color(0xFFE8E3D5), Color(0xFFD0C9BA))
+                        )
+                    } else {
+                        Brush.radialGradient(
+                            listOf(Color(0xFF27272A), Color(0xFF18181B), Color(0xFF09090B))
+                        )
+                    }
+                    val sendTint = if (isDark) Color(0xFF121214) else Color.White
+
                     Box(
                         modifier = Modifier
                             .size(42.dp)
                             .clip(CircleShape)
-                            .background(
-                                Brush.radialGradient(
-                                    listOf(Color(0xFFE879F9), Color(0xFFC026D3), Color(0xFF7C3AED))
-                                )
-                            )
+                            .background(sendGradient)
                             .clickable(enabled = !isGenerating && inputText.isNotBlank()) {
                                 if (inputText.isNotBlank()) {
                                     val t = inputText
@@ -618,12 +623,12 @@ fun GptChatScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         if (isGenerating) {
-                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            CircularProgressIndicator(color = sendTint, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                         } else {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Rounded.Send,
                                 contentDescription = "Send",
-                                tint = Color.White,
+                                tint = sendTint,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -644,26 +649,32 @@ private fun ChatBubbleItem(
     val isUser = message.isUser
     val alignment = if (isUser) Alignment.End else Alignment.Start
 
-    val neonPurple = Color(0xFF9333EA)
-    val neonMagenta = Color(0xFFC026D3)
+    val accentBeige = if (isDark) Color(0xFFE8E3D5) else Color(0xFFC4BCAF)
 
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = alignment
     ) {
         if (isUser) {
-            // User message bubble: Signature Gradient Pill
+            // User message bubble: Monochromatic Obsidian Pill with subtle beige border
+            val userBubbleGradient = if (isDark) {
+                Brush.horizontalGradient(listOf(Color(0xFF222226), Color(0xFF161618)))
+            } else {
+                Brush.horizontalGradient(listOf(Color(0xFF1E1E22), Color(0xFF111113)))
+            }
+            val userBorderColor = if (isDark) accentBeige.copy(alpha = 0.25f) else accentBeige.copy(alpha = 0.40f)
+
             Surface(
                 modifier = Modifier
                     .widthIn(max = 295.dp)
-                    .shadow(8.dp, RoundedCornerShape(22.dp, 22.dp, 4.dp, 22.dp), ambientColor = Color(0x30000000), spotColor = Color(0x30000000)),
+                    .shadow(FrostedGlassTokens.ElevationDefault, RoundedCornerShape(22.dp, 22.dp, 4.dp, 22.dp), ambientColor = FrostedGlassTokens.ShadowColor, spotColor = FrostedGlassTokens.ShadowColor),
                 shape = RoundedCornerShape(22.dp, 22.dp, 4.dp, 22.dp),
                 color = Color.Transparent,
-                border = BorderStroke(1.dp, Color(0x40FFFFFF))
+                border = BorderStroke(1.dp, userBorderColor)
             ) {
                 Box(
                     modifier = Modifier
-                        .background(Brush.horizontalGradient(listOf(neonPurple, neonMagenta)))
+                        .background(userBubbleGradient)
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     Text(
@@ -676,7 +687,7 @@ private fun ChatBubbleItem(
                 }
             }
         } else {
-            // Assistant frosted glass message bubble with neon accents
+            // Assistant frosted glass message bubble with monochromatic/beige accents
             Surface(
                 modifier = Modifier
                     .widthIn(max = 330.dp)
@@ -684,13 +695,11 @@ private fun ChatBubbleItem(
                 shape = RoundedCornerShape(4.dp, 22.dp, 22.dp, 22.dp),
                 color = FrostedGlassTokens.surface(isDark),
                 border = BorderStroke(
-                    1.2.dp,
+                    1.dp,
                     if (isSpeaking) {
-                        Brush.horizontalGradient(listOf(Color(0xFF06B6D4), Color(0xFFD946EF)))
-                    } else if (isDark) {
-                        Brush.horizontalGradient(listOf(Color(0x50C026D3), Color(0x209333EA)))
+                        accentBeige
                     } else {
-                        Brush.horizontalGradient(listOf(Color(0x30C026D3), Color(0x209333EA)))
+                        FrostedGlassTokens.border(isDark)
                     }
                 )
             ) {
@@ -711,13 +720,13 @@ private fun ChatBubbleItem(
                                 modifier = Modifier
                                     .size(20.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0x30C026D3)),
+                                    .background(if (isDark) Color(0x30E8E3D5) else Color(0x1818181B)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.AutoAwesome,
                                     contentDescription = null,
-                                    tint = neonMagenta,
+                                    tint = if (isDark) accentBeige else Color(0xFF18181B),
                                     modifier = Modifier.size(12.dp)
                                 )
                             }
@@ -725,7 +734,7 @@ private fun ChatBubbleItem(
                                 text = "WeatherGPT AI",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = neonMagenta
+                                color = if (isDark) accentBeige else Color(0xFF18181B)
                             )
                         }
 

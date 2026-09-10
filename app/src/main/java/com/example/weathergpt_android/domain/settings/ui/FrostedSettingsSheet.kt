@@ -39,12 +39,25 @@ import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.WbSunny
+import androidx.compose.material.icons.rounded.CloudQueue
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import com.example.weathergpt_android.core.network.AiPreferences
+import com.example.weathergpt_android.core.network.AiProviderMode
 import androidx.compose.runtime.Composable
 import com.example.weathergpt_android.domain.weather.repository.UnifiedWeatherRepository
 import androidx.compose.runtime.LaunchedEffect
@@ -117,6 +130,12 @@ fun FrostedSettingsSheet(
     var weatherDetail by remember { mutableStateOf<String?>(null) }
     var dbDetail by remember { mutableStateOf<String?>(null) }
     var currentLanguageCode by remember(userProfile.preferredLanguage) { mutableStateOf(userProfile.preferredLanguage) }
+    var aiProviderMode by remember { mutableStateOf(AiPreferences.getProviderMode(context)) }
+    var geminiApiKey by remember { mutableStateOf(AiPreferences.getGeminiApiKey(context)) }
+    var openRouterApiKey by remember { mutableStateOf(AiPreferences.getOpenRouterApiKey(context)) }
+    var showApiKey by remember { mutableStateOf(false) }
+    var keyStatusMessage by remember { mutableStateOf<String?>(null) }
+    var isTestingAiKey by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         totalTokens = dbHelper.getTotalTokens()
@@ -124,9 +143,9 @@ fun FrostedSettingsSheet(
 
     val cardBackground = FrostedGlassTokens.surfaceRaised(isDark)
     val cardBorder = FrostedGlassTokens.border(isDark)
-    val textColor = if (isDark) Color(0xFFFFFFFF) else Color(0xFF0F172A)
-    val subtitleColor = if (isDark) Color(0xFFB4B9C8) else Color(0xFF475569)
-    val accentColor = if (isDark) Color(0xFFC026D3) else Color(0xFF9333EA)
+    val textColor = if (isDark) Color.White else Color(0xFF111113)
+    val subtitleColor = if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A)
+    val accentColor = if (isDark) Color(0xFFE8E3D5) else Color(0xFF18181B)
 
     Surface(
         modifier = modifier
@@ -399,7 +418,276 @@ fun FrostedSettingsSheet(
                 }
             }
 
-            // 3. System Diagnostics & All-in-One Health Check
+            // 3. AI Reasoning Engine & Custom API Keys
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "AI REASONING ENGINE",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = subtitleColor,
+                    letterSpacing = 1.sp
+                )
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    color = FrostedGlassTokens.surface(isDark),
+                    border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Provider selector buttons
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            AiProviderOptionButton(
+                                title = "Cloud (Default)",
+                                icon = Icons.Rounded.CloudQueue,
+                                isSelected = aiProviderMode == AiProviderMode.CLOUD_BACKEND,
+                                onClick = {
+                                    aiProviderMode = AiProviderMode.CLOUD_BACKEND
+                                    AiPreferences.saveProviderMode(context, AiProviderMode.CLOUD_BACKEND)
+                                    keyStatusMessage = null
+                                },
+                                modifier = Modifier.weight(1f),
+                                isDark = isDark
+                            )
+                            AiProviderOptionButton(
+                                title = "Gemini (Free)",
+                                icon = Icons.Rounded.Bolt,
+                                isSelected = aiProviderMode == AiProviderMode.GEMINI_DIRECT,
+                                onClick = {
+                                    aiProviderMode = AiProviderMode.GEMINI_DIRECT
+                                    AiPreferences.saveProviderMode(context, AiProviderMode.GEMINI_DIRECT)
+                                    keyStatusMessage = null
+                                },
+                                modifier = Modifier.weight(1f),
+                                isDark = isDark
+                            )
+                            AiProviderOptionButton(
+                                title = "OpenRouter",
+                                icon = Icons.Rounded.Key,
+                                isSelected = aiProviderMode == AiProviderMode.OPENROUTER_DIRECT,
+                                onClick = {
+                                    aiProviderMode = AiProviderMode.OPENROUTER_DIRECT
+                                    AiPreferences.saveProviderMode(context, AiProviderMode.OPENROUTER_DIRECT)
+                                    keyStatusMessage = null
+                                },
+                                modifier = Modifier.weight(1f),
+                                isDark = isDark
+                            )
+                        }
+
+                        when (aiProviderMode) {
+                            AiProviderMode.CLOUD_BACKEND -> {
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(
+                                        text = "Uses the hosted WeatherGPT cloud backend with Google Gemini 2.5 Flash.",
+                                        fontSize = 12.sp,
+                                        lineHeight = 16.sp,
+                                        color = textColor
+                                    )
+                                    Text(
+                                        text = "⚡ Automatic Fallback: If cloud credits are exhausted (HTTP 402), the app automatically switches to live local meteorological reasoning or your custom Gemini key.",
+                                        fontSize = 11.sp,
+                                        lineHeight = 15.sp,
+                                        color = subtitleColor
+                                    )
+                                }
+                            }
+                            AiProviderMode.GEMINI_DIRECT -> {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(
+                                        text = "Direct Google Gemini connection. 15 requests/min 100% free forever from Google AI Studio (no credit card required).",
+                                        fontSize = 12.sp,
+                                        lineHeight = 16.sp,
+                                        color = textColor
+                                    )
+
+                                    OutlinedTextField(
+                                        value = geminiApiKey,
+                                        onValueChange = {
+                                            geminiApiKey = it
+                                            keyStatusMessage = null
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        placeholder = { Text("Paste Gemini API Key (AIzaSy...)", fontSize = 12.sp, color = subtitleColor) },
+                                        singleLine = true,
+                                        visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
+                                        trailingIcon = {
+                                            IconButton(onClick = { showApiKey = !showApiKey }) {
+                                                Icon(
+                                                    imageVector = if (showApiKey) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                                    contentDescription = null,
+                                                    tint = subtitleColor,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = accentColor,
+                                            unfocusedBorderColor = FrostedGlassTokens.borderSubtle(isDark),
+                                            focusedTextColor = textColor,
+                                            unfocusedTextColor = textColor
+                                        )
+                                    )
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Button(
+                                            onClick = {
+                                                AiPreferences.saveGeminiApiKey(context, geminiApiKey)
+                                                keyStatusMessage = "Gemini key saved successfully"
+                                            },
+                                            modifier = Modifier.weight(1f).height(40.dp),
+                                            shape = RoundedCornerShape(10.dp),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = accentColor,
+                                                contentColor = if (isDark) Color(0xFF121214) else Color.White
+                                            )
+                                        ) {
+                                            Text("Save Key", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+
+                                        OutlinedButton(
+                                            onClick = {
+                                                isTestingAiKey = true
+                                                keyStatusMessage = "Testing Gemini key..."
+                                                scope.launch {
+                                                    AiPreferences.saveGeminiApiKey(context, geminiApiKey)
+                                                    val res = openRouterService.testGeminiDirect(geminiApiKey)
+                                                    isTestingAiKey = false
+                                                    keyStatusMessage = if (res.isSuccess) "✓ Gemini Online!" else "✗ Failed: ${res.exceptionOrNull()?.localizedMessage}"
+                                                }
+                                            },
+                                            enabled = !isTestingAiKey && geminiApiKey.isNotBlank(),
+                                            modifier = Modifier.weight(1f).height(40.dp),
+                                            shape = RoundedCornerShape(10.dp),
+                                            border = BorderStroke(1.dp, FrostedGlassTokens.border(isDark))
+                                        ) {
+                                            if (isTestingAiKey) {
+                                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 1.5.dp, color = textColor)
+                                            } else {
+                                                Text("Test Key", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = textColor)
+                                            }
+                                        }
+                                    }
+
+                                    if (keyStatusMessage != null) {
+                                        val isOk = keyStatusMessage!!.startsWith("✓") || keyStatusMessage!!.contains("saved")
+                                        Text(
+                                            text = keyStatusMessage!!,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = if (isOk) Color(0xFF10B981) else Color(0xFFEF4444)
+                                        )
+                                    }
+                                }
+                            }
+                            AiProviderMode.OPENROUTER_DIRECT -> {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(
+                                        text = "Direct OpenRouter connection with your personal API key (sk-or-v1-...).",
+                                        fontSize = 12.sp,
+                                        lineHeight = 16.sp,
+                                        color = textColor
+                                    )
+
+                                    OutlinedTextField(
+                                        value = openRouterApiKey,
+                                        onValueChange = {
+                                            openRouterApiKey = it
+                                            keyStatusMessage = null
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        placeholder = { Text("Paste OpenRouter API Key (sk-or-...)", fontSize = 12.sp, color = subtitleColor) },
+                                        singleLine = true,
+                                        visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
+                                        trailingIcon = {
+                                            IconButton(onClick = { showApiKey = !showApiKey }) {
+                                                Icon(
+                                                    imageVector = if (showApiKey) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                                    contentDescription = null,
+                                                    tint = subtitleColor,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = accentColor,
+                                            unfocusedBorderColor = FrostedGlassTokens.borderSubtle(isDark),
+                                            focusedTextColor = textColor,
+                                            unfocusedTextColor = textColor
+                                        )
+                                    )
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Button(
+                                            onClick = {
+                                                AiPreferences.saveOpenRouterApiKey(context, openRouterApiKey)
+                                                keyStatusMessage = "OpenRouter key saved successfully"
+                                            },
+                                            modifier = Modifier.weight(1f).height(40.dp),
+                                            shape = RoundedCornerShape(10.dp),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = accentColor,
+                                                contentColor = if (isDark) Color(0xFF121214) else Color.White
+                                            )
+                                        ) {
+                                            Text("Save Key", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+
+                                        OutlinedButton(
+                                            onClick = {
+                                                isTestingAiKey = true
+                                                keyStatusMessage = "Testing OpenRouter key..."
+                                                scope.launch {
+                                                    AiPreferences.saveOpenRouterApiKey(context, openRouterApiKey)
+                                                    val res = openRouterService.testOpenRouterDirect(openRouterApiKey)
+                                                    isTestingAiKey = false
+                                                    keyStatusMessage = if (res.isSuccess) "✓ OpenRouter Online!" else "✗ Failed: ${res.exceptionOrNull()?.localizedMessage}"
+                                                }
+                                            },
+                                            enabled = !isTestingAiKey && openRouterApiKey.isNotBlank(),
+                                            modifier = Modifier.weight(1f).height(40.dp),
+                                            shape = RoundedCornerShape(10.dp),
+                                            border = BorderStroke(1.dp, FrostedGlassTokens.border(isDark))
+                                        ) {
+                                            if (isTestingAiKey) {
+                                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 1.5.dp, color = textColor)
+                                            } else {
+                                                Text("Test Key", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = textColor)
+                                            }
+                                        }
+                                    }
+
+                                    if (keyStatusMessage != null) {
+                                        val isOk = keyStatusMessage!!.startsWith("✓") || keyStatusMessage!!.contains("saved")
+                                        Text(
+                                            text = keyStatusMessage!!,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = if (isOk) Color(0xFF10B981) else Color(0xFFEF4444)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 4. System Diagnostics & All-in-One Health Check
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "SYSTEM HEALTH & DIAGNOSTICS",
@@ -579,14 +867,24 @@ fun FrostedSettingsSheet(
                                         val geminiRes = openRouterService.generateChatCompletion("Ping test: confirm connection")
                                         if (geminiRes.isSuccess) {
                                             geminiStatus = DiagnosticStatus.SUCCESS
-                                            geminiDetail = "AI Core Online"
+                                            geminiDetail = geminiRes.getOrNull() ?: "AI Core Online"
                                         } else {
                                             geminiStatus = DiagnosticStatus.FAILED
-                                            geminiDetail = geminiRes.exceptionOrNull()?.localizedMessage ?: "AI Service unavailable"
+                                            val err = geminiRes.exceptionOrNull()?.localizedMessage ?: "AI Service unavailable"
+                                            geminiDetail = if (err.contains("402")) {
+                                                "Quota Depleted (HTTP 402) - See AI section above"
+                                            } else {
+                                                err
+                                            }
                                         }
                                     } catch (e: Exception) {
                                         geminiStatus = DiagnosticStatus.FAILED
-                                        geminiDetail = e.localizedMessage ?: "Network error"
+                                        val err = e.localizedMessage ?: "Network error"
+                                        geminiDetail = if (err.contains("402")) {
+                                            "Quota Depleted (HTTP 402) - See AI section above"
+                                        } else {
+                                            err
+                                        }
                                     }
 
                                     isTestingAll = false
@@ -597,9 +895,10 @@ fun FrostedSettingsSheet(
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = accentColor,
-                                contentColor = Color.White
+                                contentColor = if (isDark) Color(0xFF121214) else Color.White
                             )
                         ) {
+                            val btnContentColor = if (isDark) Color(0xFF121214) else Color.White
                             if (isTestingAll) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -607,10 +906,10 @@ fun FrostedSettingsSheet(
                                 ) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(16.dp),
-                                        color = Color.White,
+                                        color = btnContentColor,
                                         strokeWidth = 2.dp
                                     )
-                                    Text("Testing All Services...", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Text("Testing All Services...", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = btnContentColor)
                                 }
                             } else {
                                 Row(
@@ -620,9 +919,10 @@ fun FrostedSettingsSheet(
                                     Icon(
                                         imageVector = Icons.Rounded.Refresh,
                                         contentDescription = null,
+                                        tint = btnContentColor,
                                         modifier = Modifier.size(16.dp)
                                     )
-                                    Text("Test All Connections", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Text("Test All Connections", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = btnContentColor)
                                 }
                             }
                         }
@@ -754,8 +1054,8 @@ private fun ThemeOptionButton(
     modifier: Modifier = Modifier,
     isDark: Boolean
 ) {
-    val activeBg = if (isDark) Color(0xFFC026D3).copy(alpha = 0.35f) else Color(0xFF9333EA).copy(alpha = 0.20f)
-    val activeBorder = if (isDark) Color(0xFFE879F9) else Color(0xFF9333EA)
+    val activeBg = if (isDark) Color(0x35E8E3D5) else Color(0xFF18181B)
+    val activeBorder = if (isDark) Color(0xFFE8E3D5) else Color(0xFF18181B)
     val inactiveBg = FrostedGlassTokens.surfaceSubtle(isDark)
     val inactiveBorder = FrostedGlassTokens.borderSubtle(isDark)
 
@@ -775,16 +1075,16 @@ private fun ThemeOptionButton(
             Icon(
                 imageVector = icon,
                 contentDescription = title,
-                tint = if (isSelected) (if (isDark) Color(0xFFE879F9) else Color(0xFF9333EA))
-                       else (if (isDark) Color(0xFFB4B9C8) else Color(0xFF64748B)),
+                tint = if (isSelected) (if (isDark) Color(0xFFE8E3D5) else Color.White)
+                       else (if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A)),
                 modifier = Modifier.size(17.dp)
             )
             Text(
                 text = title,
                 fontSize = 11.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) (if (isDark) Color.White else Color(0xFF0F172A))
-                        else (if (isDark) Color(0xFFB4B9C8) else Color(0xFF64748B))
+                color = if (isSelected) (if (isDark) Color.White else Color.White)
+                        else (if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A))
             )
         }
     }
@@ -918,9 +1218,8 @@ private fun LanguageOptionCard(
     modifier: Modifier = Modifier,
     isDark: Boolean
 ) {
-    val neonMagenta = Color(0xFFC026D3)
-    val neonPurple = Color(0xFF9333EA)
-    val activeBorder = Brush.horizontalGradient(listOf(neonPurple, neonMagenta))
+    val activeBorder = if (isDark) Color(0xFFE8E3D5) else Color(0xFF18181B)
+    val accentBeige = if (isDark) Color(0xFFE8E3D5) else Color(0xFFC4BCAF)
 
     Surface(
         modifier = modifier
@@ -928,13 +1227,13 @@ private fun LanguageOptionCard(
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         color = if (isSelected) {
-            if (isDark) Color(0x35C026D3) else Color(0x209333EA)
+            if (isDark) Color(0x28E8E3D5) else Color(0xFF18181B)
         } else {
             FrostedGlassTokens.surfaceSubtle(isDark)
         },
         border = BorderStroke(
             if (isSelected) 1.5.dp else 1.dp,
-            if (isSelected) activeBorder else SolidColor(FrostedGlassTokens.borderSubtle(isDark))
+            if (isSelected) activeBorder else FrostedGlassTokens.borderSubtle(isDark)
         )
     ) {
         Row(
@@ -949,13 +1248,13 @@ private fun LanguageOptionCard(
                     text = nativeName,
                     fontSize = 13.sp,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                    color = if (isSelected) (if (isDark) Color.White else Color(0xFF0F172A))
-                            else (if (isDark) Color(0xFFE2E8F0) else Color(0xFF334155))
+                    color = if (isSelected) (if (isDark) Color.White else Color.White)
+                            else (if (isDark) Color(0xFFE4E4E7) else Color(0xFF27272A))
                 )
                 Text(
                     text = englishName,
                     fontSize = 10.sp,
-                    color = if (isSelected) neonMagenta else (if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B))
+                    color = if (isSelected) accentBeige else (if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A))
                 )
             }
 
@@ -964,13 +1263,13 @@ private fun LanguageOptionCard(
                     modifier = Modifier
                         .size(16.dp)
                         .clip(CircleShape)
-                        .background(neonMagenta),
+                        .background(accentBeige),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Check,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = if (isDark) Color(0xFF121214) else Color(0xFF18181B),
                         modifier = Modifier.size(11.dp)
                     )
                 }
@@ -978,3 +1277,50 @@ private fun LanguageOptionCard(
         }
     }
 }
+
+@Composable
+private fun AiProviderOptionButton(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isDark: Boolean
+) {
+    val activeBg = if (isDark) Color(0x35E8E3D5) else Color(0xFF18181B)
+    val activeBorder = if (isDark) Color(0xFFE8E3D5) else Color(0xFF18181B)
+    val inactiveBg = FrostedGlassTokens.surfaceSubtle(isDark)
+    val inactiveBorder = FrostedGlassTokens.borderSubtle(isDark)
+
+    Surface(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = if (isSelected) activeBg else inactiveBg,
+        border = BorderStroke(1.2.dp, if (isSelected) activeBorder else inactiveBorder)
+    ) {
+        Column(
+            modifier = Modifier.padding(vertical = 9.dp, horizontal = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                tint = if (isSelected) (if (isDark) Color(0xFFE8E3D5) else Color.White)
+                       else (if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A)),
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = title,
+                fontSize = 10.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSelected) (if (isDark) Color.White else Color.White)
+                        else (if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A)),
+                maxLines = 1
+            )
+        }
+    }
+}
+

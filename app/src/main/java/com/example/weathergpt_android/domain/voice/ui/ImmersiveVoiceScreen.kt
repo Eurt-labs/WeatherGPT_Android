@@ -9,8 +9,16 @@ import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.Voice
 import android.speech.tts.UtteranceProgressListener
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import com.example.weathergpt_android.core.theme.AppThemeMode
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -78,6 +86,7 @@ enum class VoiceConversationState {
  */
 @Composable
 fun ImmersiveVoiceScreen(
+    currentTheme: AppThemeMode = AppThemeMode.DARK,
     locationData: LocationData,
     liveWeatherData: LiveWeatherData,
     onClose: () -> Unit,
@@ -88,6 +97,12 @@ fun ImmersiveVoiceScreen(
     val openRouterService = remember { OpenRouterService(context) }
     val dbHelper = remember { ChatDatabaseHelper.getInstance(context) }
     val userProfile = remember { UserPreferences.getProfile(context) }
+
+    val isDark = when (currentTheme) {
+        AppThemeMode.DARK -> true
+        AppThemeMode.LIGHT -> false
+        AppThemeMode.SYSTEM -> isSystemInDarkTheme()
+    }
 
     var conversationState by remember { mutableStateOf(VoiceConversationState.LISTENING) }
     var userTranscript by remember { mutableStateOf("Listening to your voice...") }
@@ -316,6 +331,7 @@ fun ImmersiveVoiceScreen(
     // Voice Edge Lighting Wrapper (Screen 3)
     VoiceEdgeLighting(
         isActive = conversationState != VoiceConversationState.MUTED,
+        isDark = isDark,
         speechEnergy = when (conversationState) {
             VoiceConversationState.SPEAKING -> 0.65f
             VoiceConversationState.THINKING -> 0.22f
@@ -327,7 +343,7 @@ fun ImmersiveVoiceScreen(
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .background(Color(0xFF07080B))
+                .background(if (isDark) Color(0xFF000000) else Color(0xFFFFFFFF))
                 .statusBarsPadding()
                 .navigationBarsPadding()
                 .padding(horizontal = 24.dp, vertical = 16.dp),
@@ -343,21 +359,21 @@ fun ImmersiveVoiceScreen(
                     icon = Icons.AutoMirrored.Rounded.ArrowBack,
                     onClick = onClose,
                     size = 42.dp,
-                    isDark = true
+                    isDark = isDark
                 )
 
-                // Neon Sparkle Badge
+                // Sparkle Badge
                 Box(
                     modifier = Modifier
                         .size(42.dp)
                         .clip(CircleShape)
-                        .background(Color(0x359333EA)),
+                        .background(if (isDark) Color(0x30E8E3D5) else Color(0x1818181B)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.AutoAwesome,
                         contentDescription = "AI Voice Engine",
-                        tint = Color(0xFFE879F9),
+                        tint = if (isDark) Color(0xFFE8E3D5) else Color(0xFF18181B),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -382,32 +398,39 @@ fun ImmersiveVoiceScreen(
                     fontSize = 22.sp,
                     lineHeight = 32.sp,
                     fontWeight = FontWeight.Normal,
-                    color = Color.White.copy(alpha = 0.88f)
+                    color = if (isDark) Color.White.copy(alpha = 0.90f) else Color(0xFF111113)
                 )
             }
 
-            // State Label ("Listening...", "Speaking...", "Muted")
+            // Bottom Mic & Wave Area
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = when (conversationState) {
-                        VoiceConversationState.LISTENING -> "Listening..."
-                        VoiceConversationState.THINKING -> "Voice AI is thinking..."
-                        VoiceConversationState.SPEAKING -> "Voice AI is speaking..."
-                        VoiceConversationState.MUTED -> "Microphone Muted · Tap to speak"
-                    },
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (conversationState == VoiceConversationState.MUTED) Color(0xFFF87171) else Color.White.copy(alpha = 0.55f)
-                )
+                // Liquid Wave Animation above the Mic when active
+                if (conversationState != VoiceConversationState.MUTED) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        VoiceWaveLineAnimation(
+                            isSpeaking = conversationState == VoiceConversationState.SPEAKING,
+                            energy = speechEnergy,
+                            isDark = isDark
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.height(40.dp))
+                }
 
                 // Concentric Pulsing Mic Orb with Pause on Speak & Mute on Click
                 ConcentricPulsingOrb(
                     isActive = conversationState == VoiceConversationState.LISTENING || conversationState == VoiceConversationState.SPEAKING,
                     isMuted = conversationState == VoiceConversationState.MUTED,
+                    isDark = isDark,
                     onClick = {
                         when (conversationState) {
                             VoiceConversationState.SPEAKING -> {
@@ -440,6 +463,75 @@ fun ImmersiveVoiceScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
             }
+        }
+    }
+}
+
+/**
+ * A beautiful horizontal liquid wave animation with Monochromatic & subtle beige styling
+ */
+@Composable
+private fun VoiceWaveLineAnimation(
+    isSpeaking: Boolean,
+    energy: Float,
+    isDark: Boolean = true
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "wave_loop")
+    val phase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 2f * Math.PI.toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "wave_phase"
+    )
+
+    val amplitude by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isSpeaking) 0.8f else (0.2f + energy * 0.6f),
+        animationSpec = tween(300),
+        label = "wave_amp"
+    )
+
+    androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+        val width = size.width
+        val height = size.height
+        val centerY = height / 2f
+        
+        val colors = if (isDark) {
+            listOf(Color(0xFFFFFFFF), Color(0xFFE8E3D5), Color(0xFFA1A1AA))
+        } else {
+            listOf(Color(0xFF18181B), Color(0xFFC4BCAF), Color(0xFF71717A))
+        }
+        
+        for (i in 0 until 3) {
+            val path = androidx.compose.ui.graphics.Path()
+            path.moveTo(0f, centerY)
+            
+            val offset = i * (Math.PI.toFloat() / 3f)
+            val waveSpeed = 1f + i * 0.2f
+            
+            for (x in 0..width.toInt() step 5) {
+                val progress = x / width
+                val envelope = Math.sin(progress * Math.PI).toFloat() // Tapere ends
+                
+                val currentPhase = phase * waveSpeed + offset
+                val yOffset = Math.sin(x * 0.03 + currentPhase).toFloat() * 
+                              (height / 2f) * amplitude * envelope
+                
+                path.lineTo(x.toFloat(), centerY + yOffset)
+            }
+            
+            drawPath(
+                path = path,
+                color = colors[i],
+                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                    width = 4.dp.toPx(),
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    join = androidx.compose.ui.graphics.StrokeJoin.Round
+                ),
+                alpha = 0.75f
+            )
         }
     }
 }

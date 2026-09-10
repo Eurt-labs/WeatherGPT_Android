@@ -180,14 +180,39 @@ com.example.weathergpt_android/
   - 🇮🇳 **Telugu / తెలుగు** (`te-IN`)
 - Real-time localized weather intelligence dialog with native audio TTS output.
 
-### [Version 2.8.0] - Full Transition to Pure Open-Meteo (Zero-Key 10K Daily Quota)
+### [Version 3.0.0] - Unified Main Screen & SQLite Persistence
+- **Unified Main Screen Architecture** (`UnifiedMainScreen.kt`): Replaced fragmented multi-tab screens with a single fluid glassmorphic surface featuring `BentoHubCards` and `AnimatedChatCapsuleBar`.
+- **Local SQLite Database** (`ChatDatabaseHelper.kt`): Complete on-device SQLite database storing chat history, session IDs, and token analytics with offline accessibility.
 
-#### 1. Pure Open-Meteo Engine Architecture (`domain/weather/repository` & Backend)
-- Completely transitioned both Android Client and FastAPI Cloud Server to **100% Open-Meteo**:
-  - **Zero API Keys Required**: 100% free, zero authentication configuration.
-  - **10,000 Requests/Day Quota**: 10x higher rate capacity than standard weather providers.
-  - **Dynamic Multi-Depth Features**: Ingests `soil_moisture_0_to_1cm`, `relative_humidity_2m`, `wind_speed_10m`, `precipitation_probability`, and `past_days=3` rainfall trends.
-  - **Synchronized Hourly & 7-Day Forecasting**: Full dynamic timeline rendering across all UI cards and AI system prompts.
+### [Version 3.1.0] - Dynamic Canvas & GPU Shader System
+- Built custom mathematical particle & wave shaders:
+  - `ConstellationField.kt`: dynamic starfield simulation with distance-based link lines.
+  - `AmbientGlowBackground.kt`: atmospheric radial gradient pools.
+  - `VoiceEdgeLighting.kt`: dual-edge linear illumination expanding from bezel center during voice interaction.
+  - `ConcentricPulsingOrb.kt`: voice orb with reactive concentric ripple halos.
+  - `VoiceWaveLineAnimation.kt`: Siri-like multi-harmonic fluid liquid sine waves.
+
+### [Version 3.2.0] - Multilingual Neural Voice & Persona Framework
+- Added regional Indian voice profiles for 7 languages (Hindi, Marathi, Bengali, Tamil, Telugu, Gujarati, English) with tuned cadence.
+- Implemented multi-sector onboarding for 6 domains (Farmer, Commuter, Disaster, Aviation, Marine, Climate Analyst).
+- Expanded `LiveWeatherData.kt` with deep agricultural soil metrics, evapotranspiration, and risk indicators.
+
+### [Version 3.3.0] - Cloud Backend & Cryptographic HMAC Security
+- Deployed FastAPI backend on Render (`https://weathergpt-backend-m5kk.onrender.com`).
+- Implemented `HmacSigner.kt` with dynamic HMAC-SHA256 signature verification preventing token spoofing and replay attacks.
+- Integrated Supabase OTP authentication.
+
+### [Version 3.4.0] - Monochromatic OLED & Clean Minimal Redesign
+- Eliminated legacy neon colors across all screens and shaders.
+- **OLED Dark Theme**: Pitch black (`#000000`) for maximum battery efficiency on organic displays.
+- **Clean Minimal Light Theme**: Pure porcelain white (`#FFFFFF`) for crisp outdoor direct sunlight legibility.
+- **Champagne Beige Accents**: Editorial warm beige (`#E8E3D5` in dark, `#C4BCAF` in light).
+
+### [Version 3.5.0] - Multi-Provider AI Engine & HTTP 402 Self-Healing Fallback
+- **Multi-Provider AI Architecture** (`AiPreferences.kt`): Added selectable AI provider modes (Cloud Backend, Google Gemini Direct 15 RPM Free, OpenRouter Direct).
+- **HTTP 402 Interception & Fallback** (`OpenRouterService.kt`): Intercepts credit depletion (402) and synthesizes an intelligent local meteorological advisory from in-memory Open-Meteo telemetry.
+- **AI Settings UI** (`FrostedSettingsSheet.kt`): Added AI engine configuration card with API key entry, key testing, and 402 diagnostic reporting.
+- See detailed philosophy in [CONCEPT.md](CONCEPT.md) and full version history in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -206,3 +231,5 @@ com.example.weathergpt_android/
 | Faint / flat card appearance on device | Insufficient shadow elevation and contrast | Added multi-layer ambient colored shadows (`elevation = 8dp`, `spotColor = primary.copy(alpha = 0.15f)`) | ✅ Fixed |
 | Top Island lacked shadow and overlapped GPT chat screen | Top Island had no dark spot shadow and was rendered above GPT chat content | Added `12dp` layered shadow and auto-hid top island in GPT tab via `AnimatedVisibility` | ✅ Fixed |
 | Initial greeting redundancy across navigation | Welcome card remained embedded in the long weather dashboard list | Separated into dedicated `GreetingWelcomeView` on launch that transitions on nav click | ✅ Fixed |
+| Chat & Voice returning `HTTP 402 Payment Required` | Upstream OpenRouter credit balance on Render backend was $0.00; backend forwarded `Error HTTP 402` in SSE stream | Intercepted 402 in `OpenRouterService.kt`, created intelligent local meteorological advisory fallback, and added direct Google Gemini free API key support in `FrostedSettingsSheet.kt` | ✅ Fixed |
+

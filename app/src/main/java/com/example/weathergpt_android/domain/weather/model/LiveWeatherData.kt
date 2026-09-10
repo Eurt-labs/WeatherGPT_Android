@@ -35,20 +35,88 @@ data class LiveWeatherData(
     val windGusts: String = "12 km/h",
     val rainNext24h: String = "0.0 mm",
     val rainNext48h: String = "0.0 mm",
-    val peakRainTiming: String = "No severe rain spells expected."
+    val peakRainTiming: String = "No severe rain spells expected.",
+    // Predictive Trend Analysis Layer (computed from hourly time-series)
+    val pressureTrend: String = "Steady",
+    val windShiftSummary: String = "No significant wind direction change.",
+    val cloudTrend: String = "Stable cloud cover.",
+    val dewPointProximity: String = "Safe gap — low condensation risk.",
+    val rainfallPatternSummary: String = "No significant recent rainfall.",
+    val precipitationWindows: String = "No rain windows detected."
 ) {
     /**
-     * Dense, high-information meteorological context formatted for Gemini 2.5 Flash reasoning.
-     * Supplies comprehensive atmospheric, precipitation, soil saturation, and risk metrics.
+     * Dense, high-information meteorological context with predictive trend analysis,
+     * formatted for Gemini 2.5 Flash reasoning. Supplies atmospheric snapshots, precipitation
+     * forecasts, soil saturation, risk metrics, AND computed trend patterns so the LLM
+     * can reason like a professional meteorologist.
      */
     fun toDenseMeteorologicalContext(): String {
         return buildString {
             append("Live Atmosphere: $temperature ($condition, Feels $apparentTemperature) | Humidity: $humidity | Dew Point: $dewPoint | Surface Pressure: $surfacePressure | Wind: $windSpeed (Peak Gusts: $windGusts) | Air Quality: $aqi | Visibility: $visibilityKm.\n")
             append("Precipitation Outlook: Next 24h Rain: $rainNext24h | Next 48h Rain: $rainNext48h | Timing Window: $peakRainTiming\n")
             append("Agriculture & Soil Layer: Surface Moisture: $soilMoisture | Root Zone Moisture (1-9cm): $rootZoneSoilMoisture | Soil Temp: $soilTemperature | Evapotranspiration (ET0): $evapotranspiration | Irrigation Advisory: $irrigationAdvice\n")
-            append("Risk & Disaster Layer: Waterlogging Risk: $waterloggingRisk | River Discharge / Flood: $floodRiskLevel ($riverDischarge) | Heatwave: $heatwaveAlert | Past 3-Day Rain: $pastRainfallTrend")
+            append("Risk & Disaster Layer: Waterlogging Risk: $waterloggingRisk | River Discharge / Flood: $floodRiskLevel ($riverDischarge) | Heatwave: $heatwaveAlert | Past Rain: $pastRainfallTrend\n")
+            append("Predictive Analysis Layer (USE THIS FOR REASONING):\n")
+            append("  - Barometric Pressure Trend: $pressureTrend\n")
+            append("  - Wind Pattern Shift: $windShiftSummary\n")
+            append("  - Cloud Cover Progression: $cloudTrend\n")
+            append("  - Dew Point Gap: $dewPointProximity\n")
+            append("  - Rainfall History Pattern: $rainfallPatternSummary\n")
+            append("  - Upcoming Rain Windows: $precipitationWindows")
         }
     }
+
+    /**
+     * Human-readable detailed data view for "View in Detail" UI card.
+     * Returns formatted sections with actual numbers for users who want to see raw data.
+     */
+    fun toDetailedDataView(): List<Pair<String, List<Pair<String, String>>>> {
+        return listOf(
+            "🌡️ Atmosphere" to listOf(
+                "Temperature" to temperature,
+                "Feels Like" to apparentTemperature,
+                "Condition" to condition,
+                "High / Low" to highLow,
+                "Humidity" to humidity,
+                "Dew Point" to dewPoint,
+                "Surface Pressure" to surfacePressure,
+                "Visibility" to visibilityKm
+            ),
+            "💨 Wind" to listOf(
+                "Wind Speed" to windSpeed,
+                "Wind Gusts" to windGusts,
+                "Wind Shift" to windShiftSummary
+            ),
+            "🌧️ Precipitation" to listOf(
+                "Next 24h Rain" to rainNext24h,
+                "Next 48h Rain" to rainNext48h,
+                "Peak Rain Window" to peakRainTiming,
+                "Rain Windows" to precipitationWindows,
+                "Past Rainfall" to pastRainfallTrend
+            ),
+            "📊 Trend Analysis" to listOf(
+                "Pressure Trend" to pressureTrend,
+                "Cloud Progression" to cloudTrend,
+                "Dew Point Gap" to dewPointProximity,
+                "Rainfall Pattern" to rainfallPatternSummary
+            ),
+            "🌾 Agriculture" to listOf(
+                "Surface Soil Moisture" to soilMoisture,
+                "Root Zone Moisture" to rootZoneSoilMoisture,
+                "Soil Temperature" to soilTemperature,
+                "Evapotranspiration" to evapotranspiration,
+                "Irrigation Advice" to irrigationAdvice
+            ),
+            "⚠️ Risk & Alerts" to listOf(
+                "Waterlogging Risk" to waterloggingRisk,
+                "Flood Risk" to floodRiskLevel,
+                "Heatwave Alert" to heatwaveAlert,
+                "UV Index" to uvIndex,
+                "Air Quality" to aqi
+            )
+        )
+    }
+
     companion object {
         val DEFAULT = LiveWeatherData()
 

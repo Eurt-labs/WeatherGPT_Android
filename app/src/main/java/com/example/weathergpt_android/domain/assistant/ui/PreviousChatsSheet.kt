@@ -89,10 +89,9 @@ fun PreviousChatsSheet(
         AppThemeMode.SYSTEM -> isSystemInDarkTheme()
     }
 
-    val textColor = if (isDark) Color.White else Color(0xFF0F172A)
-    val subtitleColor = if (isDark) Color.White.copy(alpha = 0.65f) else Color(0xFF64748B)
-    val neonPurple = Color(0xFF9333EA)
-    val neonMagenta = Color(0xFFC026D3)
+    val textColor = if (isDark) Color.White else Color(0xFF111113)
+    val subtitleColor = if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A)
+    val accentBeige = if (isDark) Color(0xFFE8E3D5) else Color(0xFFC4BCAF)
     val emeraldGreen = Color(0xFF10B981)
 
     val sessions = remember { mutableStateListOf<ChatSessionSummary>() }
@@ -160,17 +159,23 @@ fun PreviousChatsSheet(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    val historySweep = if (isDark) {
+                        Brush.sweepGradient(listOf(Color(0xFFFFFFFF), Color(0xFFE8E3D5), Color(0xFFA1A1AA), Color(0xFFFFFFFF)))
+                    } else {
+                        Brush.sweepGradient(listOf(Color(0xFF18181B), Color(0xFFC4BCAF), Color(0xFF71717A), Color(0xFF18181B)))
+                    }
+
                     Box(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(CircleShape)
-                            .background(Brush.sweepGradient(listOf(neonMagenta, neonPurple, emeraldGreen, neonMagenta))),
+                            .background(historySweep),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.History,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = if (isDark) Color(0xFF121214) else Color.White,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -190,7 +195,7 @@ fun PreviousChatsSheet(
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(11.dp),
                                     strokeWidth = 1.5.dp,
-                                    color = neonMagenta
+                                    color = accentBeige
                                 )
                             } else {
                                 Icon(
@@ -228,6 +233,9 @@ fun PreviousChatsSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Action: Start New Chat Button
+            val newChatBtnBg = if (isDark) Color(0xFFE8E3D5) else Color(0xFF18181B)
+            val newChatBtnContent = if (isDark) Color(0xFF121214) else Color.White
+
             Button(
                 onClick = {
                     val newId = "session_" + UUID.randomUUID().toString().take(8)
@@ -238,8 +246,8 @@ fun PreviousChatsSheet(
                     .height(48.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = neonPurple,
-                    contentColor = Color.White
+                    containerColor = newChatBtnBg,
+                    contentColor = newChatBtnContent
                 )
             ) {
                 Row(
@@ -249,13 +257,14 @@ fun PreviousChatsSheet(
                     Icon(
                         imageVector = Icons.Rounded.Add,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = newChatBtnContent,
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
                         text = "Start New Chat",
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = newChatBtnContent
                     )
                 }
             }
@@ -336,14 +345,14 @@ fun PreviousChatsSheet(
 
                                     Surface(
                                         shape = RoundedCornerShape(10.dp),
-                                        color = neonMagenta.copy(alpha = 0.18f),
-                                        border = BorderStroke(1.dp, neonMagenta.copy(alpha = 0.4f))
+                                        color = if (isDark) Color(0x25E8E3D5) else Color(0x1518181B),
+                                        border = BorderStroke(1.dp, if (isDark) Color(0xFFE8E3D5).copy(alpha = 0.35f) else Color(0xFFC4BCAF).copy(alpha = 0.5f))
                                     ) {
                                         Text(
                                             text = "${session.messageCount} msgs",
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = neonMagenta,
+                                            color = if (isDark) accentBeige else Color(0xFF18181B),
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                         )
                                     }
@@ -372,7 +381,7 @@ fun PreviousChatsSheet(
                                         text = "Resume Chat →",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = neonPurple
+                                        color = if (isDark) accentBeige else Color(0xFF18181B)
                                     )
                                 }
                             }

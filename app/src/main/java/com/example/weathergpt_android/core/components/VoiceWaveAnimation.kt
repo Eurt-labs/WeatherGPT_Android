@@ -60,24 +60,22 @@ fun VoiceWaveAnimation(
         label = "voice_wave_phase"
     )
 
-    val neonCyan = Color(0xFF06B6D4)
-    val neonSky = Color(0xFF38BDF8)
-    val neonMagenta = Color(0xFFD946EF)
+    val waveGradientColors = if (isDark) {
+        listOf(Color(0xFFFFFFFF), Color(0xFFE8E3D5), Color(0xFFA1A1AA))
+    } else {
+        listOf(Color(0xFF111113), Color(0xFF575553), Color(0xFFC4BCAF))
+    }
+    val iconTint = if (isDark) Color(0xFFE8E3D5) else Color(0xFF111113)
 
     Surface(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onStopClick),
         shape = RoundedCornerShape(12.dp),
-        color = if (isDark) Color(0x2206B6D4) else Color(0x1406B6D4),
+        color = if (isDark) Color(0x1AE8E3D5) else Color(0x25ECE8E1),
         border = BorderStroke(
             1.dp,
-            Brush.horizontalGradient(
-                listOf(
-                    neonCyan.copy(alpha = 0.5f),
-                    neonMagenta.copy(alpha = 0.4f)
-                )
-            )
+            if (isDark) Color(0x35E8E3D5) else Color(0x35B8AE9C)
         )
     ) {
         Row(
@@ -88,7 +86,7 @@ fun VoiceWaveAnimation(
             Icon(
                 imageVector = Icons.Rounded.GraphicEq,
                 contentDescription = null,
-                tint = neonCyan,
+                tint = iconTint,
                 modifier = Modifier.size(15.dp)
             )
 
@@ -120,7 +118,7 @@ fun VoiceWaveAnimation(
 
                     drawRoundRect(
                         brush = Brush.verticalGradient(
-                            colors = listOf(neonCyan, neonSky, neonMagenta),
+                            colors = waveGradientColors,
                             startY = yTop,
                             endY = yTop + barHeight
                         ),

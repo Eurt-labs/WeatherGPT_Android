@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 fun VoiceEdgeLighting(
     modifier: Modifier = Modifier,
     isActive: Boolean = false,
+    isDark: Boolean = true,
     speechEnergy: Float = 0f,
     conversationProgress: Float = 0.12f,
     content: @Composable BoxScope.() -> Unit
@@ -69,10 +70,9 @@ fun VoiceEdgeLighting(
         label = "voice_edge_wave_pulse"
     )
 
-    val neonPurple = Color(0xFF9333EA)
-    val neonMagenta = Color(0xFFD946EF)
-    val neonCyan = Color(0xFF06B6D4)
-    val neonSky = Color(0xFF38BDF8)
+    val edgePrimary = if (isDark) Color(0xFFFFFFFF) else Color(0xFF111113)
+    val edgeAccent = if (isDark) Color(0xFFE8E3D5) else Color(0xFFC4BCAF)
+    val edgeSecondary = if (isDark) Color(0xFFD4D4D8) else Color(0xFF575553)
 
     Box(modifier = modifier.fillMaxSize()) {
         content()
@@ -108,11 +108,11 @@ fun VoiceEdgeLighting(
                 val leftLinearBrush = Brush.verticalGradient(
                     colors = listOf(
                         Color.Transparent,
-                        neonPurple.copy(alpha = 0.40f * alphaAnim),
-                        neonMagenta.copy(alpha = 0.85f * alphaAnim),
-                        Color.White.copy(alpha = 1.0f * alphaAnim), // Center origin spark
-                        neonMagenta.copy(alpha = 0.85f * alphaAnim),
-                        neonPurple.copy(alpha = 0.40f * alphaAnim),
+                        edgeAccent.copy(alpha = 0.35f * alphaAnim),
+                        edgeSecondary.copy(alpha = 0.80f * alphaAnim),
+                        edgePrimary.copy(alpha = 1.0f * alphaAnim), // Center origin spark
+                        edgeSecondary.copy(alpha = 0.80f * alphaAnim),
+                        edgeAccent.copy(alpha = 0.35f * alphaAnim),
                         Color.Transparent
                     ),
                     startY = topY,
@@ -123,7 +123,7 @@ fun VoiceEdgeLighting(
                 drawRoundRect(
                     brush = Brush.horizontalGradient(
                         colors = listOf(
-                            neonMagenta.copy(alpha = 0.35f * alphaAnim),
+                            edgeAccent.copy(alpha = (if (isDark) 0.35f else 0.20f) * alphaAnim),
                             Color.Transparent
                         ),
                         startX = 0f,
@@ -144,7 +144,7 @@ fun VoiceEdgeLighting(
 
                 // Left Origin Emitter Node at center (x=0, y=centerY)
                 drawRoundRect(
-                    color = Color.White.copy(alpha = 0.95f * alphaAnim),
+                    color = edgePrimary.copy(alpha = 0.95f * alphaAnim),
                     topLeft = Offset(0f, centerY - 5.dp.toPx()),
                     size = Size(coreLineWidth + 1.dp.toPx(), 10.dp.toPx()),
                     cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
@@ -156,11 +156,11 @@ fun VoiceEdgeLighting(
                 val rightLinearBrush = Brush.verticalGradient(
                     colors = listOf(
                         Color.Transparent,
-                        neonCyan.copy(alpha = 0.40f * alphaAnim),
-                        neonSky.copy(alpha = 0.85f * alphaAnim),
-                        Color.White.copy(alpha = 1.0f * alphaAnim), // Center origin spark
-                        neonSky.copy(alpha = 0.85f * alphaAnim),
-                        neonCyan.copy(alpha = 0.40f * alphaAnim),
+                        edgeSecondary.copy(alpha = 0.35f * alphaAnim),
+                        edgeAccent.copy(alpha = 0.80f * alphaAnim),
+                        edgePrimary.copy(alpha = 1.0f * alphaAnim), // Center origin spark
+                        edgeAccent.copy(alpha = 0.80f * alphaAnim),
+                        edgeSecondary.copy(alpha = 0.35f * alphaAnim),
                         Color.Transparent
                     ),
                     startY = topY,
@@ -172,7 +172,7 @@ fun VoiceEdgeLighting(
                     brush = Brush.horizontalGradient(
                         colors = listOf(
                             Color.Transparent,
-                            neonSky.copy(alpha = 0.35f * alphaAnim)
+                            edgeAccent.copy(alpha = (if (isDark) 0.35f else 0.20f) * alphaAnim)
                         ),
                         startX = width - tightGlowWidth,
                         endX = width
@@ -192,7 +192,7 @@ fun VoiceEdgeLighting(
 
                 // Right Origin Emitter Node at center (x=width, y=centerY)
                 drawRoundRect(
-                    color = Color.White.copy(alpha = 0.95f * alphaAnim),
+                    color = edgePrimary.copy(alpha = 0.95f * alphaAnim),
                     topLeft = Offset(width - (coreLineWidth + 1.dp.toPx()), centerY - 5.dp.toPx()),
                     size = Size(coreLineWidth + 1.dp.toPx(), 10.dp.toPx()),
                     cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())

@@ -49,28 +49,28 @@ fun ConstellationField(
     strokeWidthDp: Float = 0.85f,
     opacity: Float = 1.0f
 ) {
-    // Theme palette tailored for WeatherGPT Obsidian aesthetic
+    // Theme palette tailored for OLED Monochromatic Dark & Clean Minimal Light themes
     val darkPalette = remember {
         listOf(
-            Color(0xFFA855F7), // Electric Violet
-            Color(0xFFC026D3), // Neon Magenta
-            Color(0xFF9333EA), // Deep Neon Purple
-            Color(0xFF38BDF8), // Cyan Star
-            Color(0xFFE879F9)  // Soft Orchid
+            Color(0xFFFFFFFF), // Pure White Star Core
+            Color(0xFFE8E3D5), // Champagne Beige Star
+            Color(0xFFD4D4D8), // Silver Star
+            Color(0xFFA1A1AA), // Slate Silver Star
+            Color(0xFFBFB8A5)  // Warm Stone Star
         )
     }
 
     val lightPalette = remember {
         listOf(
-            Color(0xFF7C3AED), // Deep Violet
-            Color(0xFF2563EB), // Royal Blue
-            Color(0xFF64748B), // Slate Ink
-            Color(0xFF0D9488)  // Teal
+            Color(0xFF111113), // Deep Pitch Charcoal
+            Color(0xFF575553), // Slate Charcoal
+            Color(0xFF8E8B85), // Cashmere Stone
+            Color(0xFFC4BCAF)  // Warm Beige Node
         )
     }
 
     val palette = if (isDark) darkPalette else lightPalette
-    val linkBaseColor = if (isDark) Color(0xFFA855F7) else Color(0xFF64748B)
+    val linkBaseColor = if (isDark) Color(0xFFE8E3D5) else Color(0xFF8E8B85)
 
     // Node collection
     val particles = remember {

@@ -24,41 +24,41 @@ fun WeatherGPTTheme(
 
     val colorScheme = if (!isDark) {
         lightColorScheme(
-            primary = M3LightPrimary,
+            primary = MinimalTextPrimary,
             onPrimary = Color.White,
-            primaryContainer = M3LightPrimaryContainer,
-            onPrimaryContainer = M3LightOnPrimaryContainer,
-            secondary = M3LightSecondary,
+            primaryContainer = MinimalSurfaceSubtle,
+            onPrimaryContainer = MinimalTextPrimary,
+            secondary = MinimalTextSecondary,
             onSecondary = Color.White,
-            secondaryContainer = M3LightSecondaryContainer,
-            onSecondaryContainer = M3LightTextPrimary,
-            tertiary = WeatherEmerald,
+            secondaryContainer = MinimalSurfaceVariant,
+            onSecondaryContainer = MinimalTextPrimary,
+            tertiary = MinimalBeigeHighlight,
             onTertiary = Color.White,
-            background = M3LightBackground,
-            onBackground = M3LightTextPrimary,
-            surface = M3LightSurface,
-            onSurface = M3LightTextPrimary,
-            surfaceVariant = M3LightSurfaceVariant,
-            onSurfaceVariant = M3LightTextSecondary
+            background = MinimalWarmBackground,
+            onBackground = MinimalTextPrimary,
+            surface = MinimalSurface,
+            onSurface = MinimalTextPrimary,
+            surfaceVariant = MinimalSurfaceVariant,
+            onSurfaceVariant = MinimalTextSecondary
         )
     } else {
         darkColorScheme(
-            primary = DarkBronzeAccent,
-            onPrimary = Color.White,
-            primaryContainer = DarkBronzeAccent.copy(alpha = 0.3f),
-            onPrimaryContainer = DarkCreamStone,
-            secondary = DarkHighlight,
-            onSecondary = Color.White,
-            secondaryContainer = DarkSubtleSurface,
-            onSecondaryContainer = DarkCreamStone,
-            tertiary = WeatherEmerald,
-            onTertiary = Color.White,
-            background = DarkSlateBase,
-            onBackground = DarkCreamStone,
-            surface = DarkCharcoalCard,
-            onSurface = DarkCreamStone,
-            surfaceVariant = DarkSubtleSurface,
-            onSurfaceVariant = DarkMutedStone
+            primary = OledTextPrimary,
+            onPrimary = OledBlack,
+            primaryContainer = OledDarkSubtleSurface,
+            onPrimaryContainer = OledBeigeAccent,
+            secondary = OledBeigeAccent,
+            onSecondary = OledBlack,
+            secondaryContainer = OledDarkSurfaceVariant,
+            onSecondaryContainer = OledTextPrimary,
+            tertiary = OledBeigeSubtle,
+            onTertiary = OledBlack,
+            background = OledBlack,
+            onBackground = OledTextPrimary,
+            surface = OledDarkSurface,
+            onSurface = OledTextPrimary,
+            surfaceVariant = OledDarkSurfaceVariant,
+            onSurfaceVariant = OledTextSecondary
         )
     }
 
