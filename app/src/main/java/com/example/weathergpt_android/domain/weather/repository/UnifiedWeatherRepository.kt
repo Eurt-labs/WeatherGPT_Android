@@ -2,22 +2,37 @@ package com.example.weathergpt_android.domain.weather.repository
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.example.weathergpt_android.core.network.NetworkMonitor
+import com.example.weathergpt_android.domain.weather.cache.WeatherCache
 import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 
 /**
  * 100% Pure Open-Meteo Unified Weather Repository.
  * Zero external keys required, 10,000 free high-resolution calls/day,
  * CPCB AQI, soil moisture, flood risk, and aviation metrics.
+ *
+ * Automatically updates both RAM state flows and disk offline caches
+ * whenever connected to the internet.
  */
 class UnifiedWeatherRepository(private val context: Context) {
     private val openMeteoRepo = OpenMeteoRepository()
+    private val diskCache = WeatherCache(context)
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences("weathergpt_live_cache", Context.MODE_PRIVATE)
 
+    private val _weatherFlow = MutableStateFlow(diskCache.getCachedWeather() ?: getCachedWeather())
+    val weatherFlow: StateFlow<LiveWeatherData> = _weatherFlow.asStateFlow()
+
     fun getCachedWeather(): LiveWeatherData {
+        val disk = diskCache.getCachedWeather()
+        if (disk != null) return disk
+
         val temp = prefs.getString("cached_temp", "29°") ?: "29°"
         val cond = prefs.getString("cached_cond", "Partly Cloudy") ?: "Partly Cloudy"
         val hl = prefs.getString("cached_hl", "H: 32°  L: 24°") ?: "H: 32°  L: 24°"
@@ -100,6 +115,28 @@ class UnifiedWeatherRepository(private val context: Context) {
             .apply()
     }
 
+    /**
+     * Ensures fresh meteorological data is available.
+     * When internet connectivity is available, fetches real-time Open-Meteo telemetry
+     * and persists it to the on-device offline disk cache immediately.
+     */
+    suspend fun ensureFreshWeather(
+        latitude: Double,
+        longitude: Double,
+        forceRefresh: Boolean = false
+    ): LiveWeatherData = withContext(Dispatchers.IO) {
+        val isOnline = NetworkMonitor.isOnline(context)
+        val isCacheFresh = diskCache.isCacheFresh(maxAgeMinutes = 15)
+
+        if (isOnline && (!isCacheFresh || forceRefresh)) {
+            val result = fetchLiveWeather(latitude, longitude)
+            result.getOrNull()?.let { return@withContext it }
+        }
+
+        // Return latest cached or in-memory weather
+        diskCache.getCachedWeather() ?: _weatherFlow.value
+    }
+
     suspend fun fetchLiveWeather(
         latitude: Double,
         longitude: Double
@@ -107,7 +144,8 @@ class UnifiedWeatherRepository(private val context: Context) {
         val result = openMeteoRepo.fetchWeather(latitude, longitude)
         result.onSuccess { data ->
             cacheWeather(data)
-            com.example.weathergpt_android.domain.weather.cache.WeatherCache(context).saveWeatherSnapshot(data)
+            diskCache.saveWeatherSnapshot(data)
+            _weatherFlow.value = data
         }
         result
     }

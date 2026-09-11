@@ -94,8 +94,11 @@ import com.example.weathergpt_android.domain.auth.data.UserPreferences
 import com.example.weathergpt_android.domain.auth.model.UserSector
 import com.example.weathergpt_android.domain.location.model.LocationData
 import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
+import com.example.weathergpt_android.domain.weather.repository.UnifiedWeatherRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -127,6 +130,7 @@ fun GptChatScreen(
     val dbHelper = remember { ChatDatabaseHelper.getInstance(context) }
     val syncService = remember { ChatSyncService(context) }
     val userProfile = remember { UserPreferences.getProfile(context) }
+    val weatherRepo = remember { UnifiedWeatherRepository(context) }
     val scope = rememberCoroutineScope()
 
     val isDark = when (currentTheme) {
@@ -263,7 +267,10 @@ fun GptChatScreen(
                 .takeLast(6)
                 .map { (if (it.isUser) "user" else "assistant") to it.text }
 
-            val weatherContext = liveWeatherData.toDenseMeteorologicalContext()
+            val currentFreshWeather = withContext(Dispatchers.IO) {
+                weatherRepo.ensureFreshWeather(locationData.latitude, locationData.longitude)
+            }
+            val weatherContext = currentFreshWeather.toDenseMeteorologicalContext()
 
             var accumulatedResponse = ""
 
@@ -411,7 +418,6 @@ fun GptChatScreen(
                     val activeMode by inferenceRouter.getActiveModeFlow().collectAsState(initial = inferenceRouter.getActiveMode())
                     val (modeLabel, modeColor) = when (activeMode) {
                         InferenceMode.ON_DEVICE -> "📱 On-Device (Offline)" to Color(0xFFF59E0B)
-                        InferenceMode.PC_SERVER -> "💻 PC Local Server" to Color(0xFF3B82F6)
                         InferenceMode.CLOUD -> "☁️ Gemini 3.6 Flash" to Color(0xFF10B981)
                     }
                     Text(
