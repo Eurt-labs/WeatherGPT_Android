@@ -62,6 +62,7 @@ import com.example.weathergpt_android.core.components.ConcentricPulsingOrb
 import com.example.weathergpt_android.core.components.FrostedIconButton
 import com.example.weathergpt_android.core.components.VoiceEdgeLighting
 import com.example.weathergpt_android.core.network.OpenRouterService
+import com.example.weathergpt_android.domain.inference.router.InferenceRouter
 import com.example.weathergpt_android.domain.assistant.data.ChatDatabaseHelper
 import com.example.weathergpt_android.domain.assistant.model.ChatMessage
 import com.example.weathergpt_android.domain.auth.data.UserPreferences
@@ -98,7 +99,8 @@ fun ImmersiveVoiceScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val openRouterService = remember { OpenRouterService(context) }
+    val inferenceRouter = remember { InferenceRouter(context) }
+    val openRouterService = remember { inferenceRouter.openRouterService }
     val dbHelper = remember { ChatDatabaseHelper.getInstance(context) }
     val userProfile = remember { UserPreferences.getProfile(context) }
 
@@ -209,7 +211,7 @@ fun ImmersiveVoiceScreen(
 
         voiceJob = scope.launch {
             var fullAnswer = ""
-            openRouterService.streamChatCompletion(
+            inferenceRouter.streamChat(
                 userMessage = query,
                 locationContext = locationData.denseLocationContext,
                 weatherContext = weatherContext,

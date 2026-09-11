@@ -75,6 +75,8 @@ import androidx.compose.ui.unit.sp
 import com.example.weathergpt_android.core.components.AmbientGlowBackground
 import com.example.weathergpt_android.core.components.FrostedIconButton
 import com.example.weathergpt_android.core.network.OpenRouterService
+import com.example.weathergpt_android.domain.inference.router.InferenceRouter
+import com.example.weathergpt_android.domain.inference.model.InferenceMode
 import com.example.weathergpt_android.core.theme.AppThemeMode
 import com.example.weathergpt_android.core.theme.FrostedGlassTokens
 import com.example.weathergpt_android.domain.assistant.data.ChatDatabaseHelper
@@ -112,7 +114,8 @@ fun GptChatScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val openRouterService = remember { OpenRouterService(context) }
+    val inferenceRouter = remember { InferenceRouter(context) }
+    val openRouterService = remember { inferenceRouter.openRouterService }
     val dbHelper = remember { ChatDatabaseHelper.getInstance(context) }
     val syncService = remember { ChatSyncService(context) }
     val userProfile = remember { UserPreferences.getProfile(context) }
@@ -256,7 +259,7 @@ fun GptChatScreen(
 
             var accumulatedResponse = ""
 
-            openRouterService.streamChatCompletion(
+            inferenceRouter.streamChat(
                 userMessage = userText,
                 locationContext = locationData.denseLocationContext,
                 weatherContext = weatherContext,
@@ -397,10 +400,16 @@ fun GptChatScreen(
                             color = textColor
                         )
                     }
+                    val activeMode = remember(isGenerating) { inferenceRouter.getActiveMode() }
+                    val (modeLabel, modeColor) = when (activeMode) {
+                        InferenceMode.ON_DEVICE -> "📱 On-Device (Offline)" to Color(0xFFF59E0B)
+                        InferenceMode.PC_SERVER -> "💻 PC Local Server" to Color(0xFF3B82F6)
+                        InferenceMode.CLOUD -> "☁️ Gemini 3.6 Flash" to Color(0xFF10B981)
+                    }
                     Text(
-                        text = "Weather Intelligence • ${locationData.cityName}",
+                        text = "${locationData.cityName} • $modeLabel",
                         fontSize = 11.sp,
-                        color = subtitleColor
+                        color = modeColor
                     )
                 }
 

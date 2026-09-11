@@ -49,11 +49,22 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.runtime.collectAsState
+import com.example.weathergpt_android.domain.inference.download.ModelDownloadManager
+import com.example.weathergpt_android.domain.inference.download.DownloadState
+import com.example.weathergpt_android.domain.inference.model.OnDeviceModelConfig
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import android.content.Context
@@ -136,6 +147,9 @@ fun FrostedSettingsSheet(
     var isTestingAiKey by remember { mutableStateOf(false) }
     var backendMode by remember { mutableStateOf(BackendConfig.getBackendMode(context)) }
     var customLocalUrl by remember { mutableStateOf(BackendConfig.getCustomUrl(context)) }
+    val downloadManager = remember { ModelDownloadManager(context) }
+    val downloadState by downloadManager.downloadState.collectAsState()
+    var isAutoFallback by remember { mutableStateOf(BackendConfig.isAutoFallbackEnabled(context)) }
 
     LaunchedEffect(Unit) {
         totalTokens = dbHelper.getTotalTokens()
@@ -448,45 +462,71 @@ fun FrostedSettingsSheet(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
+                                val (headerIcon, headerTint, headerTitle) = when (backendMode) {
+                                    BackendConfig.MODE_CLOUD -> Triple(Icons.Rounded.CloudDone, Color(0xFF10B981), "FastAPI on Render")
+                                    BackendConfig.MODE_ON_DEVICE -> Triple(Icons.Rounded.PhoneAndroid, Color(0xFFF59E0B), "On-Device SLM (Phone)")
+                                    else -> Triple(Icons.Rounded.Memory, Color(0xFF6366F1), "WeatherGPT Local PC")
+                                }
                                 Icon(
-                                    imageVector = if (backendMode == BackendConfig.MODE_CLOUD) Icons.Rounded.CloudDone else Icons.Rounded.Memory,
+                                    imageVector = headerIcon,
                                     contentDescription = null,
-                                    tint = if (backendMode == BackendConfig.MODE_CLOUD) Color(0xFF10B981) else Color(0xFF6366F1),
+                                    tint = headerTint,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Text(
-                                    text = if (backendMode == BackendConfig.MODE_CLOUD) "FastAPI on Render" else "WeatherGPT Local PC",
+                                    text = headerTitle,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = textColor
                                 )
                             }
+                            val badgeBg = when (backendMode) {
+                                BackendConfig.MODE_CLOUD -> Color(0x2010B981)
+                                BackendConfig.MODE_ON_DEVICE -> Color(0x20F59E0B)
+                                else -> Color(0x206366F1)
+                            }
+                            val badgeBorder = when (backendMode) {
+                                BackendConfig.MODE_CLOUD -> Color(0xFF10B981).copy(alpha = 0.4f)
+                                BackendConfig.MODE_ON_DEVICE -> Color(0xFFF59E0B).copy(alpha = 0.4f)
+                                else -> Color(0xFF6366F1).copy(alpha = 0.4f)
+                            }
+                            val badgeText = when (backendMode) {
+                                BackendConfig.MODE_CLOUD -> "Cloud Active"
+                                BackendConfig.MODE_ON_DEVICE -> "100% Offline"
+                                else -> "Offline Edge PC"
+                            }
+                            val badgeTextColor = when (backendMode) {
+                                BackendConfig.MODE_CLOUD -> Color(0xFF10B981)
+                                BackendConfig.MODE_ON_DEVICE -> Color(0xFFF59E0B)
+                                else -> Color(0xFF818CF8)
+                            }
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = if (backendMode == BackendConfig.MODE_CLOUD) Color(0x2010B981) else Color(0x206366F1),
-                                border = BorderStroke(1.dp, if (backendMode == BackendConfig.MODE_CLOUD) Color(0xFF10B981).copy(alpha = 0.4f) else Color(0xFF6366F1).copy(alpha = 0.4f))
+                                color = badgeBg,
+                                border = BorderStroke(1.dp, badgeBorder)
                             ) {
                                 Text(
-                                    text = if (backendMode == BackendConfig.MODE_CLOUD) "Cloud Active" else "Offline Edge PC",
+                                    text = badgeText,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = if (backendMode == BackendConfig.MODE_CLOUD) Color(0xFF10B981) else Color(0xFF818CF8),
+                                    color = badgeTextColor,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
                             }
                         }
 
                         Text(
-                            text = if (backendMode == BackendConfig.MODE_CLOUD)
-                                "Streaming via high-speed Render cloud backend with Google Gemini reasoning."
-                            else
-                                "Streaming via offline local PC AI engine (Qwen 2.5 GGUF) with zero cloud dependencies.",
+                            text = when (backendMode) {
+                                BackendConfig.MODE_CLOUD -> "Streaming via high-speed Render cloud backend with Google Gemini reasoning."
+                                BackendConfig.MODE_ON_DEVICE -> "Running 100% offline directly on phone ARM64 silicon via llama.cpp (zero network dependency)."
+                                else -> "Streaming via offline local PC AI engine (Qwen 2.5 GGUF) with zero cloud dependencies."
+                            },
                             fontSize = 12.sp,
                             lineHeight = 16.sp,
                             color = subtitleColor
                         )
 
-                        // Mode Selector Chips
+                        // Mode Selector Chips - Row 1: Primary Production Modes
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -506,7 +546,7 @@ fun FrostedSettingsSheet(
                                 border = BorderStroke(1.dp, if (isCloud) accentColor else FrostedGlassTokens.borderSubtle(isDark))
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                                    modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp),
                                     horizontalArrangement = Arrangement.Center,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -514,11 +554,11 @@ fun FrostedSettingsSheet(
                                         imageVector = Icons.Rounded.CloudQueue,
                                         contentDescription = null,
                                         tint = if (isCloud) (if (isDark) Color(0xFF121214) else Color.White) else subtitleColor,
-                                        modifier = Modifier.size(13.dp)
+                                        modifier = Modifier.size(14.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = "Cloud",
+                                        text = "Cloud (Gemini)",
                                         fontSize = 11.sp,
                                         fontWeight = if (isCloud) FontWeight.Bold else FontWeight.Medium,
                                         color = if (isCloud) (if (isDark) Color(0xFF121214) else Color.White) else textColor
@@ -526,7 +566,48 @@ fun FrostedSettingsSheet(
                                 }
                             }
 
-                            // Option 2: Local PC USB
+                            // Option 2: On-Device (Offline Mobile)
+                            val isOnDevice = backendMode == BackendConfig.MODE_ON_DEVICE
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable {
+                                        backendMode = BackendConfig.MODE_ON_DEVICE
+                                        BackendConfig.setBackendMode(context, BackendConfig.MODE_ON_DEVICE)
+                                        keyStatusMessage = null
+                                    },
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isOnDevice) Color(0xFFF59E0B) else FrostedGlassTokens.surfaceSubtle(isDark),
+                                border = BorderStroke(1.dp, if (isOnDevice) Color(0xFFF59E0B) else FrostedGlassTokens.borderSubtle(isDark))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.PhoneAndroid,
+                                        contentDescription = null,
+                                        tint = if (isOnDevice) Color.Black else subtitleColor,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "On-Device (Offline)",
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isOnDevice) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isOnDevice) Color.Black else textColor
+                                    )
+                                }
+                            }
+                        }
+
+                        // Mode Selector Chips - Row 2: Developer PC Testing Modes
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // PC USB
                             val isUsb = backendMode == BackendConfig.MODE_LOCAL_USB
                             Surface(
                                 modifier = Modifier
@@ -546,22 +627,22 @@ fun FrostedSettingsSheet(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Rounded.PhoneAndroid,
+                                        imageVector = Icons.Rounded.Bolt,
                                         contentDescription = null,
                                         tint = if (isUsb) Color.White else subtitleColor,
                                         modifier = Modifier.size(13.dp)
                                     )
                                     Spacer(modifier = Modifier.width(3.dp))
                                     Text(
-                                        text = "PC (USB)",
-                                        fontSize = 11.sp,
+                                        text = "Dev: PC (USB)",
+                                        fontSize = 10.sp,
                                         fontWeight = if (isUsb) FontWeight.Bold else FontWeight.Medium,
                                         color = if (isUsb) Color.White else textColor
                                     )
                                 }
                             }
 
-                            // Option 3: Local PC Wi-Fi
+                            // PC Wi-Fi
                             val isWifi = backendMode == BackendConfig.MODE_LOCAL_CUSTOM
                             Surface(
                                 modifier = Modifier
@@ -588,10 +669,221 @@ fun FrostedSettingsSheet(
                                     )
                                     Spacer(modifier = Modifier.width(3.dp))
                                     Text(
-                                        text = "PC (Wi-Fi)",
-                                        fontSize = 11.sp,
+                                        text = "Dev: PC (Wi-Fi)",
+                                        fontSize = 10.sp,
                                         fontWeight = if (isWifi) FontWeight.Bold else FontWeight.Medium,
                                         color = if (isWifi) Color.White else textColor
+                                    )
+                                }
+                            }
+                        }
+
+                        // ═══════════════════════════════════════════════════════════════
+                        // ON-DEVICE SLM ENGINE CARD (Model Management & Offline Controls)
+                        // ═══════════════════════════════════════════════════════════════
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (isDark) Color(0xFF141417) else Color(0xFFF4F4F6),
+                            border = BorderStroke(1.dp, if (backendMode == BackendConfig.MODE_ON_DEVICE) Color(0xFFF59E0B).copy(alpha = 0.5f) else FrostedGlassTokens.borderSubtle(isDark))
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = "On-Device SLM: Qwen 2.5 1.5B",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = textColor
+                                        )
+                                        Text(
+                                            text = "Quantized GGUF Q4_K_M (Zero RAM/Cloud requirement on PC)",
+                                            fontSize = 10.sp,
+                                            color = subtitleColor
+                                        )
+                                    }
+                                    if (downloadState is DownloadState.Completed) {
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = Color(0x2510B981)
+                                        ) {
+                                            Text(
+                                                text = "Ready ✓",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF10B981),
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Download Manager Status & Controls
+                                when (val state = downloadState) {
+                                    is DownloadState.Completed -> {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "Model file: ${downloadManager.getModelFileSizeMB()} MB in internal storage",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFF10B981)
+                                            )
+                                            OutlinedButton(
+                                                onClick = {
+                                                    downloadManager.deleteModel()
+                                                    if (backendMode == BackendConfig.MODE_ON_DEVICE) {
+                                                        backendMode = BackendConfig.MODE_CLOUD
+                                                        BackendConfig.setBackendMode(context, BackendConfig.MODE_CLOUD)
+                                                    }
+                                                },
+                                                shape = RoundedCornerShape(8.dp),
+                                                border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f)),
+                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444))
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Delete,
+                                                    contentDescription = "Delete",
+                                                    modifier = Modifier.size(13.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Delete", fontSize = 10.sp)
+                                            }
+                                        }
+                                    }
+                                    is DownloadState.Downloading -> {
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Text(
+                                                    text = "Downloading: ${state.downloadedBytes / (1024 * 1024)} MB / ${state.totalBytes / (1024 * 1024)} MB (${state.progressPercent}%)",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = textColor
+                                                )
+                                                Text(
+                                                    text = "${"%.1f".format(state.downloadSpeedMBs)} MB/s",
+                                                    fontSize = 11.sp,
+                                                    color = subtitleColor
+                                                )
+                                            }
+                                            LinearProgressIndicator(
+                                                progress = { state.progressPercent / 100f },
+                                                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                                                color = Color(0xFFF59E0B),
+                                                trackColor = Color(0x30F59E0B)
+                                            )
+                                            OutlinedButton(
+                                                onClick = { downloadManager.pauseDownload() },
+                                                shape = RoundedCornerShape(8.dp),
+                                                modifier = Modifier.fillMaxWidth(),
+                                                border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
+                                            ) {
+                                                Icon(Icons.Rounded.Pause, contentDescription = null, modifier = Modifier.size(13.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Pause Download", fontSize = 11.sp, color = textColor)
+                                            }
+                                        }
+                                    }
+                                    is DownloadState.CheckingSpace, is DownloadState.Verifying -> {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color(0xFFF59E0B))
+                                            Text(
+                                                text = if (state is DownloadState.CheckingSpace) "Verifying internal storage..." else "Verifying model file integrity...",
+                                                fontSize = 11.sp,
+                                                color = textColor
+                                            )
+                                        }
+                                    }
+                                    is DownloadState.Failed -> {
+                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            Text(
+                                                text = "⚠️ ${state.error}",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFFEF4444)
+                                            )
+                                            Button(
+                                                onClick = { downloadManager.startDownload(scope) },
+                                                shape = RoundedCornerShape(8.dp),
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B))
+                                            ) {
+                                                Text("Retry Download", fontSize = 11.sp, color = Color.Black)
+                                            }
+                                        }
+                                    }
+                                    is DownloadState.Idle -> {
+                                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Text(
+                                                text = "Model not downloaded (~1.1 GB required for 100% offline inference on phone).",
+                                                fontSize = 11.sp,
+                                                color = subtitleColor
+                                            )
+                                            Button(
+                                                onClick = { downloadManager.startDownload(scope) },
+                                                shape = RoundedCornerShape(10.dp),
+                                                modifier = Modifier.fillMaxWidth(),
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B))
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Download,
+                                                    contentDescription = null,
+                                                    tint = Color.Black,
+                                                    modifier = Modifier.size(15.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text("Download On-Device Model (1.1 GB)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Auto-Fallback Toggle
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                        Text(
+                                            text = "Auto-fallback to On-Device",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = textColor
+                                        )
+                                        Text(
+                                            text = "Transparently switches from Cloud to Phone SLM if network drops.",
+                                            fontSize = 10.sp,
+                                            lineHeight = 14.sp,
+                                            color = subtitleColor
+                                        )
+                                    }
+                                    Switch(
+                                        checked = isAutoFallback,
+                                        onCheckedChange = {
+                                            isAutoFallback = it
+                                            BackendConfig.setAutoFallback(context, it)
+                                        },
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = Color.White,
+                                            checkedTrackColor = Color(0xFFF59E0B)
+                                        )
                                     )
                                 }
                             }
