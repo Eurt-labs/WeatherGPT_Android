@@ -25,35 +25,44 @@ class NetworkMonitor private constructor(context: Context) {
     }
 
     private fun checkInitialConnectivity(): Boolean {
-        val cm = connectivityManager ?: return false
-        val active = cm.activeNetwork ?: return false
-        val caps = cm.getNetworkCapabilities(active) ?: return false
-        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        return try {
+            val cm = connectivityManager ?: return true
+            val active = cm.activeNetwork ?: return true
+            val caps = cm.getNetworkCapabilities(active) ?: return true
+            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        } catch (e: Throwable) {
+            android.util.Log.w("NetworkMonitor", "Could not query network capabilities", e)
+            true
+        }
     }
 
     private fun registerNetworkCallback() {
         val cm = connectivityManager ?: return
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
+        try {
+            val request = NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build()
 
-        cm.registerNetworkCallback(request, object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                _isOnline.value = true
-            }
+            cm.registerNetworkCallback(request, object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    _isOnline.value = true
+                }
 
-            override fun onLost(network: Network) {
-                _isOnline.value = checkInitialConnectivity()
-            }
+                override fun onLost(network: Network) {
+                    _isOnline.value = checkInitialConnectivity()
+                }
 
-            override fun onCapabilitiesChanged(
-                network: Network,
-                networkCapabilities: NetworkCapabilities
-            ) {
-                val hasInternet = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                _isOnline.value = hasInternet
-            }
-        })
+                override fun onCapabilitiesChanged(
+                    network: Network,
+                    networkCapabilities: NetworkCapabilities
+                ) {
+                    val hasInternet = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    _isOnline.value = hasInternet
+                }
+            })
+        } catch (e: Throwable) {
+            android.util.Log.w("NetworkMonitor", "Could not register network callback", e)
+        }
     }
 
     companion object {
@@ -62,7 +71,7 @@ class NetworkMonitor private constructor(context: Context) {
 
         fun getInstance(context: Context): NetworkMonitor {
             return instance ?: synchronized(this) {
-                instance ?: NetworkMonitor(context).also { instance = it }
+                instance ?: NetworkMonitor(context.applicationContext).also { instance = it }
             }
         }
 

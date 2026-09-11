@@ -76,15 +76,19 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Initialize backend configuration state
-        BackendConfig.init(this)
+        // Safely initialize backend configuration state and pre-warm model if needed
+        try {
+            BackendConfig.init(this)
 
-        // If user has selected Offline (On-Device) mode, pre-warm model ASAP into RAM on launch
-        if (BackendConfig.getBackendMode(this) == BackendConfig.MODE_ON_DEVICE) {
-            val engine = OnDeviceEngine.getInstance(this)
-            if (engine.isModelReady) {
-                engine.ensureModelLoaded()
+            // If user has selected Offline (On-Device) mode, pre-warm model ASAP into RAM on launch
+            if (BackendConfig.getBackendMode(this) == BackendConfig.MODE_ON_DEVICE) {
+                val engine = OnDeviceEngine.getInstance(this)
+                if (engine.isModelReady) {
+                    engine.ensureModelLoaded()
+                }
             }
+        } catch (e: Throwable) {
+            android.util.Log.e("MainActivity", "Failed initializing backend or pre-warming model on launch", e)
         }
 
         setContent {
@@ -105,16 +109,24 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Release on-device LLM from RAM when activity is destroyed or cleared from Recents
-        OnDeviceEngine.getInstance(this).unloadModel()
+        // Safely release on-device LLM from RAM when activity is destroyed or cleared from Recents
+        try {
+            OnDeviceEngine.getInstance(this).unloadModel()
+        } catch (e: Throwable) {
+            android.util.Log.e("MainActivity", "Error unloading on-device model on destroy", e)
+        }
     }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (level >= TRIM_MEMORY_UI_HIDDEN) {
             // App went to background; free on-device model weights if in cloud mode
-            if (BackendConfig.getBackendMode(this) == BackendConfig.MODE_CLOUD) {
-                OnDeviceEngine.getInstance(this).unloadModel()
+            try {
+                if (BackendConfig.getBackendMode(this) == BackendConfig.MODE_CLOUD) {
+                    OnDeviceEngine.getInstance(this).unloadModel()
+                }
+            } catch (e: Throwable) {
+                android.util.Log.e("MainActivity", "Error unloading model on trim memory", e)
             }
         }
     }
@@ -153,8 +165,12 @@ fun WeatherGPTApp(
     val flowWeather by weatherRepository.weatherFlow.collectAsState()
 
     LaunchedEffect(flowLocation) {
-        locationData = flowLocation
-        weatherRepository.ensureFreshWeather(flowLocation.latitude, flowLocation.longitude, forceRefresh = false)
+        try {
+            locationData = flowLocation
+            weatherRepository.ensureFreshWeather(flowLocation.latitude, flowLocation.longitude, forceRefresh = false)
+        } catch (e: Throwable) {
+            android.util.Log.e("MainActivity", "Error ensuring fresh weather for location", e)
+        }
     }
 
     LaunchedEffect(flowWeather) {
@@ -163,11 +179,19 @@ fun WeatherGPTApp(
 
     // Monitor connectivity: whenever connected, refresh telemetry & update offline disk cache
     LaunchedEffect(Unit) {
-        NetworkMonitor.isOnlineFlow(context).collect { isOnline ->
-            if (isOnline) {
-                locationProvider.requestFreshLocation()
-                weatherRepository.ensureFreshWeather(locationData.latitude, locationData.longitude, forceRefresh = true)
+        try {
+            NetworkMonitor.isOnlineFlow(context).collect { isOnline ->
+                if (isOnline) {
+                    try {
+                        locationProvider.requestFreshLocation()
+                        weatherRepository.ensureFreshWeather(locationData.latitude, locationData.longitude, forceRefresh = true)
+                    } catch (e: Throwable) {
+                        android.util.Log.e("MainActivity", "Error refreshing weather on network reconnect", e)
+                    }
+                }
             }
+        } catch (e: Throwable) {
+            android.util.Log.e("MainActivity", "Error collecting network monitor flow", e)
         }
     }
 
