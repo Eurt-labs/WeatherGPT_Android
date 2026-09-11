@@ -16,13 +16,27 @@ data class LocationData(
             else -> "Detecting Location..."
         }
 
+    val denseLocationContext: String
+        get() = buildString {
+            append(cityName)
+            if (region.isNotBlank() && !cityName.contains(region)) {
+                append(", $region")
+            }
+            if (country.isNotBlank()) {
+                append(", $country")
+            }
+            if (latitude != 0.0 || longitude != 0.0) {
+                append(" (Lat: ${"%.4f".format(latitude)}, Lon: ${"%.4f".format(longitude)})")
+            }
+        }
+
     companion object {
         val DEFAULT = LocationData(
-            cityName = "San Francisco",
-            region = "CA",
-            country = "USA",
-            latitude = 37.7749,
-            longitude = -122.4194,
+            cityName = "New Delhi",
+            region = "Delhi",
+            country = "India",
+            latitude = 28.6139,
+            longitude = 77.2090,
             isFromCache = true
         )
     }

@@ -258,7 +258,7 @@ fun GptChatScreen(
 
             openRouterService.streamChatCompletion(
                 userMessage = userText,
-                locationContext = "${locationData.cityName}, ${locationData.country}",
+                locationContext = locationData.denseLocationContext,
                 weatherContext = weatherContext,
                 history = history,
                 isVoiceMode = false

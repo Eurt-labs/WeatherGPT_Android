@@ -46,7 +46,7 @@ class SherpaVoicePipeline(
 
             openRouterService.streamChatCompletion(
                 userMessage = userPrompt,
-                locationContext = locationData.formattedLocation,
+                locationContext = locationData.denseLocationContext,
                 weatherContext = weatherContextSummary,
                 isVoiceMode = true
             ).catch { e ->

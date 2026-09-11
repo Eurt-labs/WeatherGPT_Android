@@ -211,7 +211,7 @@ fun ImmersiveVoiceScreen(
             var fullAnswer = ""
             openRouterService.streamChatCompletion(
                 userMessage = query,
-                locationContext = "${locationData.cityName}, ${locationData.country}",
+                locationContext = locationData.denseLocationContext,
                 weatherContext = weatherContext,
                 isVoiceMode = true
             ).catch { err ->

@@ -62,19 +62,20 @@ class LocationProvider(
                 override fun onProviderDisabled(provider: String) {}
             }
 
+            // Register listeners on both GPS (pinpoint meter accuracy) and Network (fast initial fix)
+            val activeProviders = mutableListOf<String>()
+            if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                activeProviders.add(LocationManager.GPS_PROVIDER)
+            }
             if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+                activeProviders.add(LocationManager.NETWORK_PROVIDER)
+            }
+
+            for (prov in activeProviders) {
                 locationManager.requestLocationUpdates(
-                    LocationManager.NETWORK_PROVIDER,
-                    5000L,
-                    10f,
-                    singleUpdateListener,
-                    context.mainLooper
-                )
-            } else if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                locationManager.requestLocationUpdates(
-                    LocationManager.GPS_PROVIDER,
-                    5000L,
-                    10f,
+                    prov,
+                    3000L,
+                    5f,
                     singleUpdateListener,
                     context.mainLooper
                 )
@@ -97,6 +98,16 @@ class LocationProvider(
             var regionName = ""
             var countryName = ""
 
+            fun extractCityName(address: Address?): String {
+                if (address == null) return ""
+                return address.locality
+                    ?: address.subLocality
+                    ?: address.subAdminArea
+                    ?: address.adminArea
+                    ?: address.featureName
+                    ?: ""
+            }
+
             try {
                 if (Geocoder.isPresent()) {
                     val geocoder = Geocoder(context, Locale.getDefault())
@@ -104,12 +115,13 @@ class LocationProvider(
                         geocoder.getFromLocation(location.latitude, location.longitude, 1) { addresses ->
                             val address = addresses.firstOrNull()
                             if (address != null) {
-                                cityName = address.locality ?: address.subAdminArea ?: address.featureName ?: "Local City"
-                                regionName = address.adminArea ?: ""
+                                cityName = extractCityName(address)
+                                regionName = address.adminArea ?: address.subAdminArea ?: ""
                                 countryName = address.countryName ?: ""
                             }
+                            val fallbackName = "Loc (${"%.2f".format(location.latitude)}, ${"%.2f".format(location.longitude)})"
                             val resolved = LocationData(
-                                cityName = cityName.ifBlank { "Local Area" },
+                                cityName = cityName.ifBlank { fallbackName },
                                 region = regionName,
                                 country = countryName,
                                 latitude = location.latitude,
@@ -128,19 +140,19 @@ class LocationProvider(
                         val addresses: List<Address>? = geocoder.getFromLocation(location.latitude, location.longitude, 1)
                         val address = addresses?.firstOrNull()
                         if (address != null) {
-                            cityName = address.locality ?: address.subAdminArea ?: address.featureName ?: "Local City"
-                            regionName = address.adminArea ?: ""
+                            cityName = extractCityName(address)
+                            regionName = address.adminArea ?: address.subAdminArea ?: ""
                             countryName = address.countryName ?: ""
                         }
                     }
                 }
             } catch (e: Exception) {
-                // In case network geocode fails, use fallback with lat/long
-                cityName = "My Location"
+                cityName = ""
             }
 
+            val fallbackName = "Loc (${"%.2f".format(location.latitude)}, ${"%.2f".format(location.longitude)})"
             val resolved = LocationData(
-                cityName = cityName.ifBlank { "Current Location" },
+                cityName = cityName.ifBlank { fallbackName },
                 region = regionName,
                 country = countryName,
                 latitude = location.latitude,

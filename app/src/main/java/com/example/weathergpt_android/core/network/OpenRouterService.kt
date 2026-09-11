@@ -155,9 +155,9 @@ class OpenRouterService(private val context: Context) {
     ): Flow<String> = flow {
         val profile = UserPreferences.getProfile(context)
         val enrichedContext = if (profile.sector == UserSector.FARMER) {
-            "$weatherContext\nUser Profile: Sector: Farmer | Primary Crops: ${profile.crops} | Land Area: ${profile.landArea} | Language: ${profile.preferredLanguage}"
+            "LIVE OPEN-METEO TELEMETRY:\n$weatherContext\n\nUSER PROFILE:\nSector: Farmer | Primary Crops: ${profile.crops} | Land Area: ${profile.landArea} | Language: ${profile.preferredLanguage}"
         } else {
-            "$weatherContext\nUser Profile: Sector: ${profile.sector.title} | Region: ${profile.monitoredRegion} | Language: ${profile.preferredLanguage}"
+            "LIVE OPEN-METEO TELEMETRY:\n$weatherContext\n\nUSER PROFILE:\nSector: ${profile.sector.title} | Monitored Region: ${profile.monitoredRegion} | Language: ${profile.preferredLanguage}"
         }
 
         val endpoint = "/api/ai/chat-stream"
