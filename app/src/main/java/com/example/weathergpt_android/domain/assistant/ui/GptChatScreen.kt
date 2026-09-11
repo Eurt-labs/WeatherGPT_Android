@@ -1,10 +1,17 @@
 package com.example.weathergpt_android.domain.assistant.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -794,12 +801,28 @@ private fun ChatBubbleItem(
                         }
                     }
 
-                    Text(
-                        text = if (message.text.isEmpty()) "..." else message.text,
-                        color = if (isDark) Color.White.copy(alpha = 0.95f) else Color(0xFF0F172A),
-                        fontSize = 14.sp,
-                        lineHeight = 22.sp
-                    )
+                    if (message.text.isEmpty()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        ) {
+                            ThinkingDotsAnimation(isDark = isDark)
+                            Text(
+                                text = "Thinking...",
+                                color = if (isDark) Color.White.copy(alpha = 0.65f) else Color(0xFF64748B),
+                                fontSize = 13.sp,
+                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = message.text,
+                            color = if (isDark) Color.White.copy(alpha = 0.95f) else Color(0xFF0F172A),
+                            fontSize = 14.sp,
+                            lineHeight = 22.sp
+                        )
+                    }
 
                     // Dynamic animated audio wave (tap to stop)
                     if (isSpeaking) {
@@ -819,3 +842,65 @@ private fun ChatBubbleItem(
         }
     }
 }
+
+@Composable
+private fun ThinkingDotsAnimation(isDark: Boolean) {
+    val transition = rememberInfiniteTransition(label = "thinking_dots")
+    val dotColor = if (isDark) Color(0xFFE8E3D5) else Color(0xFF18181B)
+
+    val scale1 by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(550, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "dot1"
+    )
+    val scale2 by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(550, delayMillis = 180, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "dot2"
+    )
+    val scale3 by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(550, delayMillis = 360, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "dot3"
+    )
+
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .graphicsLayer { scaleX = scale1; scaleY = scale1; alpha = scale1 }
+                .clip(CircleShape)
+                .background(dotColor)
+        )
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .graphicsLayer { scaleX = scale2; scaleY = scale2; alpha = scale2 }
+                .clip(CircleShape)
+                .background(dotColor)
+        )
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .graphicsLayer { scaleX = scale3; scaleY = scale3; alpha = scale3 }
+                .clip(CircleShape)
+                .background(dotColor)
+        )
+    }
+}
+

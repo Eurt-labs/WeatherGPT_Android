@@ -67,6 +67,7 @@ import com.example.weathergpt_android.domain.inference.download.ModelDownloadMan
 import com.example.weathergpt_android.domain.inference.download.ModelDownloadService
 import com.example.weathergpt_android.domain.inference.download.DownloadState
 import com.example.weathergpt_android.domain.inference.engine.OnDeviceEngine
+import com.example.weathergpt_android.domain.inference.engine.EngineLoadState
 import com.example.weathergpt_android.domain.inference.model.OnDeviceModelConfig
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -153,6 +154,7 @@ fun FrostedSettingsSheet(
     val downloadManager = remember { ModelDownloadManager.getInstance(context) }
     val onDeviceEngine = remember { OnDeviceEngine.getInstance(context) }
     val downloadState by downloadManager.downloadState.collectAsState()
+    val engineState by onDeviceEngine.engineState.collectAsState()
     var isMemoryLoaded by remember { mutableStateOf(onDeviceEngine.isMemoryLoaded) }
     var isAutoFallback by remember { mutableStateOf(BackendConfig.isAutoFallbackEnabled(context)) }
 
@@ -545,6 +547,7 @@ fun FrostedSettingsSheet(
                                         backendMode = BackendConfig.MODE_CLOUD
                                         BackendConfig.setBackendMode(context, BackendConfig.MODE_CLOUD)
                                         keyStatusMessage = null
+                                        onDeviceEngine.checkOnlineIdleThreshold()
                                     },
                                 shape = RoundedCornerShape(10.dp),
                                 color = if (isCloud) accentColor else FrostedGlassTokens.surfaceSubtle(isDark),
@@ -580,6 +583,11 @@ fun FrostedSettingsSheet(
                                         backendMode = BackendConfig.MODE_ON_DEVICE
                                         BackendConfig.setBackendMode(context, BackendConfig.MODE_ON_DEVICE)
                                         keyStatusMessage = null
+                                        if (downloadManager.isModelDownloaded()) {
+                                            onDeviceEngine.ensureModelLoaded { success ->
+                                                isMemoryLoaded = success
+                                            }
+                                        }
                                     },
                                 shape = RoundedCornerShape(10.dp),
                                 color = if (isOnDevice) Color(0xFFF59E0B) else FrostedGlassTokens.surfaceSubtle(isDark),
@@ -732,6 +740,9 @@ fun FrostedSettingsSheet(
                                 // Download Manager Status & Controls
                                 when (val state = downloadState) {
                                     is DownloadState.Completed -> {
+                                        val isEngineReady = onDeviceEngine.isMemoryLoaded || engineState is EngineLoadState.Ready
+                                        val isEngineLoading = engineState is EngineLoadState.Loading
+
                                         Column(
                                             modifier = Modifier.fillMaxWidth(),
                                             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -749,9 +760,19 @@ fun FrostedSettingsSheet(
                                                         fontWeight = FontWeight.Medium
                                                     )
                                                     Text(
-                                                        text = if (isMemoryLoaded) "Status: Loaded in Memory (~1.3 GB RAM)" else "Status: In Storage (Loads on demand)",
+                                                        text = when {
+                                                            isEngineLoading -> "Status: Loading weights into RAM..."
+                                                            isEngineReady -> "Status: Active in RAM (~1.3 GB) • Instant Offline AI"
+                                                            engineState is EngineLoadState.Failed -> "Status: Load Error: ${(engineState as EngineLoadState.Failed).error}"
+                                                            else -> "Status: Stored on Disk (Loads on Offline selection)"
+                                                        },
                                                         fontSize = 10.sp,
-                                                        color = if (isMemoryLoaded) Color(0xFFF59E0B) else subtitleColor
+                                                        color = when {
+                                                            isEngineLoading -> Color(0xFFF59E0B)
+                                                            isEngineReady -> Color(0xFF10B981)
+                                                            engineState is EngineLoadState.Failed -> Color(0xFFEF4444)
+                                                            else -> subtitleColor
+                                                        }
                                                     )
                                                 }
 
@@ -779,7 +800,24 @@ fun FrostedSettingsSheet(
                                                 }
                                             }
 
-                                            if (isMemoryLoaded) {
+                                            if (isEngineLoading) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(14.dp),
+                                                        strokeWidth = 2.dp,
+                                                        color = Color(0xFFF59E0B)
+                                                    )
+                                                    Text(
+                                                        text = "Allocating model weights in device RAM...",
+                                                        fontSize = 11.sp,
+                                                        color = Color(0xFFF59E0B)
+                                                    )
+                                                }
+                                            } else if (isEngineReady) {
                                                 OutlinedButton(
                                                     onClick = {
                                                         onDeviceEngine.unloadModel()
@@ -791,6 +829,21 @@ fun FrostedSettingsSheet(
                                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFF59E0B))
                                                 ) {
                                                     Text("Unload Model to Free RAM", fontSize = 11.sp)
+                                                }
+                                            } else {
+                                                Button(
+                                                    onClick = {
+                                                        onDeviceEngine.ensureModelLoaded { success ->
+                                                            isMemoryLoaded = success
+                                                        }
+                                                    },
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B))
+                                                ) {
+                                                    Icon(Icons.Rounded.Memory, contentDescription = null, tint = Color.Black, modifier = Modifier.size(14.dp))
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text("Load Model into RAM Now", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                                                 }
                                             }
                                         }

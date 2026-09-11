@@ -72,6 +72,15 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // If user has selected Offline (On-Device) mode, pre-warm model ASAP into RAM on launch
+        if (BackendConfig.getBackendMode(this) == BackendConfig.MODE_ON_DEVICE) {
+            val engine = OnDeviceEngine.getInstance(this)
+            if (engine.isModelReady) {
+                engine.ensureModelLoaded()
+            }
+        }
+
         setContent {
             val context = LocalContext.current
             var themeMode by remember { mutableStateOf(ThemePreferences.getSavedTheme(context)) }
