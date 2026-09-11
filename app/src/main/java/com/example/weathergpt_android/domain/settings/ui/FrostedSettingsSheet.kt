@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -165,8 +166,10 @@ fun FrostedSettingsSheet(
     val cardBackground = FrostedGlassTokens.surfaceRaised(isDark)
     val cardBorder = FrostedGlassTokens.border(isDark)
     val textColor = if (isDark) Color.White else Color(0xFF111113)
-    val subtitleColor = if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A)
+    val subtitleColor = if (isDark) Color(0xFFA1A1AA) else Color(0xFF52525B)
     val accentColor = if (isDark) Color(0xFFE8E3D5) else Color(0xFF18181B)
+    val innerCardBg = if (isDark) FrostedGlassTokens.surface(true) else Color(0xFFF6F6F8)
+    val innerCardBorder = if (isDark) FrostedGlassTokens.borderSubtle(true) else Color(0xFFE4E4E7)
 
     Surface(
         modifier = modifier
@@ -752,7 +755,10 @@ fun FrostedSettingsSheet(
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                Column(
+                                                    modifier = Modifier.weight(1f).padding(end = 8.dp),
+                                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                                ) {
                                                     Text(
                                                         text = "Model file: ${downloadManager.getModelFileSizeMB()} MB in internal storage",
                                                         fontSize = 11.sp,
@@ -786,49 +792,97 @@ fun FrostedSettingsSheet(
                                                             BackendConfig.setBackendMode(context, BackendConfig.MODE_CLOUD)
                                                         }
                                                     },
+                                                    modifier = Modifier.height(32.dp),
+                                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                                                     shape = RoundedCornerShape(8.dp),
-                                                    border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f)),
+                                                    border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.6f)),
                                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444))
                                                 ) {
                                                     Icon(
-                                                        imageVector = Icons.Rounded.Delete,
+                                                        imageVector = Icons.Rounded.DeleteOutline,
                                                         contentDescription = "Delete",
+                                                        tint = Color(0xFFEF4444),
                                                         modifier = Modifier.size(13.dp)
                                                     )
                                                     Spacer(modifier = Modifier.width(4.dp))
-                                                    Text("Delete", fontSize = 10.sp)
+                                                    Text(
+                                                        text = "Delete",
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = Color(0xFFEF4444)
+                                                    )
                                                 }
                                             }
 
                                             if (isEngineLoading) {
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                Surface(
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    color = if (isDark) Color(0x18F59E0B) else Color(0x20FEF3C7),
+                                                    border = BorderStroke(1.dp, Color(0x40F59E0B)),
+                                                    modifier = Modifier.fillMaxWidth()
                                                 ) {
-                                                    CircularProgressIndicator(
-                                                        modifier = Modifier.size(14.dp),
-                                                        strokeWidth = 2.dp,
-                                                        color = Color(0xFFF59E0B)
-                                                    )
-                                                    Text(
-                                                        text = "Allocating model weights in device RAM...",
-                                                        fontSize = 11.sp,
-                                                        color = Color(0xFFF59E0B)
-                                                    )
+                                                    Row(
+                                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                    ) {
+                                                        CircularProgressIndicator(
+                                                            modifier = Modifier.size(13.dp),
+                                                            strokeWidth = 2.dp,
+                                                            color = Color(0xFFF59E0B)
+                                                        )
+                                                        Text(
+                                                            text = "Allocating model weights in device RAM...",
+                                                            fontSize = 11.sp,
+                                                            color = if (isDark) Color(0xFFF59E0B) else Color(0xFFB45309),
+                                                            fontWeight = FontWeight.Medium
+                                                        )
+                                                    }
                                                 }
                                             } else if (isEngineReady) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    color = if (isDark) Color(0x1810B981) else Color(0x20D1FAE5),
+                                                    border = BorderStroke(1.dp, if (isDark) Color(0x4010B981) else Color(0xFF10B981).copy(alpha = 0.5f)),
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Rounded.CheckCircle,
+                                                            contentDescription = null,
+                                                            tint = Color(0xFF10B981),
+                                                            modifier = Modifier.size(14.dp)
+                                                        )
+                                                        Text(
+                                                            text = "Active in RAM (~1.3 GB) • Instant Offline AI",
+                                                            fontSize = 11.sp,
+                                                            color = if (isDark) Color(0xFF10B981) else Color(0xFF047857),
+                                                            fontWeight = FontWeight.SemiBold
+                                                        )
+                                                    }
+                                                }
+
                                                 OutlinedButton(
                                                     onClick = {
                                                         onDeviceEngine.unloadModel()
                                                         isMemoryLoaded = false
                                                     },
                                                     shape = RoundedCornerShape(8.dp),
-                                                    modifier = Modifier.fillMaxWidth(),
+                                                    modifier = Modifier.fillMaxWidth().height(34.dp),
+                                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                                                     border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.5f)),
                                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFF59E0B))
                                                 ) {
-                                                    Text("Unload Model to Free RAM", fontSize = 11.sp)
+                                                    Text(
+                                                        text = "Unload Model to Free RAM",
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Medium,
+                                                        color = if (isDark) Color(0xFFF59E0B) else Color(0xFFB45309)
+                                                    )
                                                 }
                                             } else {
                                                 Button(
@@ -838,7 +892,8 @@ fun FrostedSettingsSheet(
                                                         }
                                                     },
                                                     shape = RoundedCornerShape(8.dp),
-                                                    modifier = Modifier.fillMaxWidth(),
+                                                    modifier = Modifier.fillMaxWidth().height(36.dp),
+                                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B))
                                                 ) {
                                                     Icon(Icons.Rounded.Memory, contentDescription = null, tint = Color.Black, modifier = Modifier.size(14.dp))
@@ -1115,13 +1170,13 @@ fun FrostedSettingsSheet(
                             ) {
                                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                     Text(
-                                        text = "Target Endpoint",
+                                        text = if (backendMode == BackendConfig.MODE_ON_DEVICE) "Runtime Engine" else "Target Endpoint",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = subtitleColor
                                     )
                                     Text(
-                                        text = BackendConfig.getBaseUrl(context),
+                                        text = if (backendMode == BackendConfig.MODE_ON_DEVICE) "Direct On-Device NPU/CPU Kernel" else BackendConfig.getBaseUrl(context),
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium,
                                         color = textColor
@@ -1133,16 +1188,20 @@ fun FrostedSettingsSheet(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Protocol / Security",
+                                        text = if (backendMode == BackendConfig.MODE_ON_DEVICE) "Offline Isolation" else "Protocol / Security",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = subtitleColor
                                     )
                                     Text(
-                                        text = if (backendMode == BackendConfig.MODE_CLOUD) "Dynamic HMAC-SHA256" else "Direct Local Subnet",
+                                        text = when (backendMode) {
+                                            BackendConfig.MODE_ON_DEVICE -> "Air-Gapped (Zero Network)"
+                                            BackendConfig.MODE_CLOUD -> "Dynamic HMAC-SHA256"
+                                            else -> "Direct Local Subnet"
+                                        },
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium,
-                                        color = if (backendMode == BackendConfig.MODE_CLOUD) Color(0xFF10B981) else Color(0xFF818CF8)
+                                        color = if (backendMode == BackendConfig.MODE_ON_DEVICE) Color(0xFF10B981) else if (backendMode == BackendConfig.MODE_CLOUD) Color(0xFF10B981) else Color(0xFF818CF8)
                                     )
                                 }
                                 Row(
@@ -1157,7 +1216,11 @@ fun FrostedSettingsSheet(
                                         color = subtitleColor
                                     )
                                     Text(
-                                        text = if (backendMode == BackendConfig.MODE_CLOUD) "Google Gemini 3.6 Flash" else "Qwen 2.5 GGUF (Local Engine)",
+                                        text = when (backendMode) {
+                                            BackendConfig.MODE_ON_DEVICE -> "SmolLM2 360M Q4_K_M (Local)"
+                                            BackendConfig.MODE_CLOUD -> "Google Gemini 3.6 Flash"
+                                            else -> "Qwen 2.5 GGUF (Local Engine)"
+                                        },
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium,
                                         color = textColor
@@ -1166,19 +1229,42 @@ fun FrostedSettingsSheet(
                             }
                         }
 
-                        // Test Backend Connection Button
+                        // Test Backend / Engine Connection Button
+                        val btnBgColor = when (backendMode) {
+                            BackendConfig.MODE_ON_DEVICE -> Color(0xFF10B981)
+                            BackendConfig.MODE_CLOUD -> accentColor
+                            else -> Color(0xFF6366F1)
+                        }
+                        val btnContentColor = if (backendMode == BackendConfig.MODE_CLOUD && isDark) Color(0xFF121214) else Color.White
+
                         Button(
                             onClick = {
                                 isTestingAiKey = true
-                                val targetName = if (backendMode == BackendConfig.MODE_CLOUD) "Render Cloud" else "Local PC Server"
-                                keyStatusMessage = "Testing $targetName connection..."
+                                val targetName = when (backendMode) {
+                                    BackendConfig.MODE_ON_DEVICE -> "On-Device Engine"
+                                    BackendConfig.MODE_CLOUD -> "Render Cloud"
+                                    else -> "Local PC Server"
+                                }
+                                keyStatusMessage = "Testing $targetName..."
                                 scope.launch {
-                                    val res = openRouterService.generateChatCompletion("Ping test: confirm connection")
-                                    isTestingAiKey = false
-                                    keyStatusMessage = if (res.isSuccess) {
-                                        "✓ $targetName Online! Response: ${res.getOrNull()}"
+                                    if (backendMode == BackendConfig.MODE_ON_DEVICE) {
+                                        val isLoaded = onDeviceEngine.isMemoryLoaded
+                                        isTestingAiKey = false
+                                        keyStatusMessage = if (isLoaded) {
+                                            "✓ On-Device Model Active in RAM (${onDeviceEngine.config.modelDisplayName})"
+                                        } else if (downloadManager.isModelDownloaded()) {
+                                            "✓ On-Device Model Ready on Disk (Kernel mmap ready)"
+                                        } else {
+                                            "✗ Model not downloaded. Please download above."
+                                        }
                                     } else {
-                                        "✗ ${res.exceptionOrNull()?.localizedMessage}"
+                                        val res = openRouterService.generateChatCompletion("Ping test: confirm connection")
+                                        isTestingAiKey = false
+                                        keyStatusMessage = if (res.isSuccess) {
+                                            "✓ $targetName Online! Response: ${res.getOrNull()}"
+                                        } else {
+                                            "✗ ${res.exceptionOrNull()?.localizedMessage}"
+                                        }
                                     }
                                 }
                             },
@@ -1186,33 +1272,44 @@ fun FrostedSettingsSheet(
                             modifier = Modifier.fillMaxWidth().height(42.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (backendMode == BackendConfig.MODE_CLOUD) accentColor else Color(0xFF6366F1),
-                                contentColor = if (backendMode == BackendConfig.MODE_CLOUD) (if (isDark) Color(0xFF121214) else Color.White) else Color.White
+                                containerColor = btnBgColor,
+                                contentColor = btnContentColor
                             )
                         ) {
                             if (isTestingAiKey) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(16.dp),
                                     strokeWidth = 2.dp,
-                                    color = Color.White
+                                    color = btnContentColor
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    if (backendMode == BackendConfig.MODE_CLOUD) "Connecting to Render..." else "Connecting to Local PC...",
+                                    when (backendMode) {
+                                        BackendConfig.MODE_ON_DEVICE -> "Testing Kernel..."
+                                        BackendConfig.MODE_CLOUD -> "Connecting to Render..."
+                                        else -> "Connecting to Local PC..."
+                                    },
                                     fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    color = btnContentColor
                                 )
                             } else {
                                 Icon(
                                     imageVector = Icons.Rounded.Refresh,
                                     contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(16.dp),
+                                    tint = btnContentColor
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    if (backendMode == BackendConfig.MODE_CLOUD) "Test Render Backend Connection" else "Test Local PC Server Connection",
+                                    when (backendMode) {
+                                        BackendConfig.MODE_ON_DEVICE -> "Test On-Device AI Engine"
+                                        BackendConfig.MODE_CLOUD -> "Test Render Backend Connection"
+                                        else -> "Test Local PC Server Connection"
+                                    },
                                     fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    color = btnContentColor
                                 )
                             }
                         }
@@ -1366,7 +1463,7 @@ fun FrostedSettingsSheet(
                                                 text = "The following is not working: ${failedList.joinToString(" • ")}",
                                                 fontSize = 11.sp,
                                                 lineHeight = 15.sp,
-                                                color = Color(0xFFFCA5A5)
+                                                color = if (isDark) Color(0xFFFCA5A5) else Color(0xFF991B1B)
                                             )
                                         }
                                     }
@@ -1415,15 +1512,28 @@ fun FrostedSettingsSheet(
 
                                     // 3. AI Intelligence Check
                                     try {
-                                        val geminiRes = openRouterService.generateChatCompletion("Ping test: confirm connection")
-                                        if (geminiRes.isSuccess) {
-                                            geminiStatus = DiagnosticStatus.SUCCESS
-                                            val target = if (BackendConfig.isLocalMode(context)) "Local PC Engine" else "FastAPI Render"
-                                            geminiDetail = "$target Online ✓"
+                                        if (backendMode == BackendConfig.MODE_ON_DEVICE) {
+                                            if (onDeviceEngine.isMemoryLoaded) {
+                                                geminiStatus = DiagnosticStatus.SUCCESS
+                                                geminiDetail = "Active in RAM (${onDeviceEngine.config.modelDisplayName}) ✓"
+                                            } else if (downloadManager.isModelDownloaded()) {
+                                                geminiStatus = DiagnosticStatus.SUCCESS
+                                                geminiDetail = "Model Stored on Disk (Ready) ✓"
+                                            } else {
+                                                geminiStatus = DiagnosticStatus.FAILED
+                                                geminiDetail = "Model Not Downloaded"
+                                            }
                                         } else {
-                                            val err = geminiRes.exceptionOrNull()?.localizedMessage ?: "AI Service unavailable"
-                                            geminiStatus = DiagnosticStatus.FAILED
-                                            geminiDetail = err
+                                            val geminiRes = openRouterService.generateChatCompletion("Ping test: confirm connection")
+                                            if (geminiRes.isSuccess) {
+                                                geminiStatus = DiagnosticStatus.SUCCESS
+                                                val target = if (BackendConfig.isLocalMode(context)) "Local PC Engine" else "FastAPI Render"
+                                                geminiDetail = "$target Online ✓"
+                                            } else {
+                                                val err = geminiRes.exceptionOrNull()?.localizedMessage ?: "AI Service unavailable"
+                                                geminiStatus = DiagnosticStatus.FAILED
+                                                geminiDetail = err
+                                            }
                                         }
                                     } catch (e: Exception) {
                                         geminiStatus = DiagnosticStatus.FAILED
@@ -1599,8 +1709,8 @@ private fun ThemeOptionButton(
 ) {
     val activeBg = if (isDark) Color(0x35E8E3D5) else Color(0xFF18181B)
     val activeBorder = if (isDark) Color(0xFFE8E3D5) else Color(0xFF18181B)
-    val inactiveBg = FrostedGlassTokens.surfaceSubtle(isDark)
-    val inactiveBorder = FrostedGlassTokens.borderSubtle(isDark)
+    val inactiveBg = if (isDark) FrostedGlassTokens.surfaceSubtle(isDark) else Color(0xFFF4F4F6)
+    val inactiveBorder = if (isDark) FrostedGlassTokens.borderSubtle(isDark) else Color(0xFFE4E4E7)
 
     Surface(
         modifier = modifier
@@ -1619,15 +1729,15 @@ private fun ThemeOptionButton(
                 imageVector = icon,
                 contentDescription = title,
                 tint = if (isSelected) (if (isDark) Color(0xFFE8E3D5) else Color.White)
-                       else (if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A)),
+                       else (if (isDark) Color(0xFFA1A1AA) else Color(0xFF52525B)),
                 modifier = Modifier.size(17.dp)
             )
             Text(
                 text = title,
                 fontSize = 11.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) (if (isDark) Color.White else Color.White)
-                        else (if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A))
+                color = if (isSelected) Color.White
+                        else (if (isDark) Color(0xFFA1A1AA) else Color(0xFF27272A))
             )
         }
     }
@@ -1772,11 +1882,11 @@ private fun LanguageOptionCard(
         color = if (isSelected) {
             if (isDark) Color(0x28E8E3D5) else Color(0xFF18181B)
         } else {
-            FrostedGlassTokens.surfaceSubtle(isDark)
+            if (isDark) FrostedGlassTokens.surfaceSubtle(isDark) else Color(0xFFF4F4F6)
         },
         border = BorderStroke(
             if (isSelected) 1.5.dp else 1.dp,
-            if (isSelected) activeBorder else FrostedGlassTokens.borderSubtle(isDark)
+            if (isSelected) activeBorder else (if (isDark) FrostedGlassTokens.borderSubtle(isDark) else Color(0xFFE4E4E7))
         )
     ) {
         Row(
@@ -1791,28 +1901,31 @@ private fun LanguageOptionCard(
                     text = nativeName,
                     fontSize = 13.sp,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                    color = if (isSelected) (if (isDark) Color.White else Color.White)
-                            else (if (isDark) Color(0xFFE4E4E7) else Color(0xFF27272A))
+                    color = if (isSelected) Color.White
+                            else (if (isDark) Color(0xFFE4E4E7) else Color(0xFF18181B))
                 )
                 Text(
                     text = englishName,
                     fontSize = 10.sp,
-                    color = if (isSelected) accentBeige else (if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A))
+                    color = if (isSelected) (if (isDark) accentBeige else Color(0xFFA1A1AA))
+                            else (if (isDark) Color(0xFFA1A1AA) else Color(0xFF52525B))
                 )
             }
 
             if (isSelected) {
+                val checkBg = if (isDark) accentBeige else Color(0xFF27272A)
+                val checkTint = if (isDark) Color(0xFF121214) else Color.White
                 Box(
                     modifier = Modifier
                         .size(16.dp)
                         .clip(CircleShape)
-                        .background(accentBeige),
+                        .background(checkBg),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Check,
                         contentDescription = null,
-                        tint = if (isDark) Color(0xFF121214) else Color(0xFF18181B),
+                        tint = checkTint,
                         modifier = Modifier.size(11.dp)
                     )
                 }
