@@ -11,6 +11,7 @@ import com.example.weathergpt_android.domain.inference.model.InferenceMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 
 /**
  * Unified AI routing engine for WeatherGPT.
@@ -27,16 +28,14 @@ class InferenceRouter(private val context: Context) {
                 ?: return false
             val network = cm.activeNetwork ?: return false
             val caps = cm.getNetworkCapabilities(network) ?: return false
-            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
         } catch (_: Exception) {
             false
         }
     }
 
     /**
-     * Determines the active inference mode based on user preferences,
-     * network connectivity, and model availability.
+     * Determines the active inference mode based on user preferences.
      */
     fun getActiveMode(): InferenceMode {
         val configuredMode = BackendConfig.getBackendMode(context)
@@ -46,17 +45,16 @@ class InferenceRouter(private val context: Context) {
             BackendConfig.MODE_LOCAL_USB,
             BackendConfig.MODE_LOCAL_EMULATOR,
             BackendConfig.MODE_LOCAL_CUSTOM -> InferenceMode.PC_SERVER
-            else -> {
-                // Cloud mode configured: check if auto-fallback should trigger
-                if (!isNetworkAvailable() &&
-                    BackendConfig.isAutoFallbackEnabled(context) &&
-                    onDeviceEngine.isModelReady
-                ) {
-                    InferenceMode.ON_DEVICE
-                } else {
-                    InferenceMode.CLOUD
-                }
-            }
+            else -> InferenceMode.CLOUD
+        }
+    }
+
+    /**
+     * Reactive flow that emits immediately whenever backend mode is changed in Settings.
+     */
+    fun getActiveModeFlow(): Flow<InferenceMode> {
+        return BackendConfig.backendModeFlow.map {
+            getActiveMode()
         }
     }
 

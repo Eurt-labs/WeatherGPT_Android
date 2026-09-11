@@ -73,6 +73,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // Initialize backend configuration state
+        BackendConfig.init(this)
+
         // If user has selected Offline (On-Device) mode, pre-warm model ASAP into RAM on launch
         if (BackendConfig.getBackendMode(this) == BackendConfig.MODE_ON_DEVICE) {
             val engine = OnDeviceEngine.getInstance(this)

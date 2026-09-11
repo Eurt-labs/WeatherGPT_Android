@@ -63,6 +63,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.weathergpt_android.core.components.VoiceWaveAnimation
 import com.example.weathergpt_android.domain.voice.sherpa.engine.SherpaOnnxEngine
@@ -407,7 +408,7 @@ fun GptChatScreen(
                             color = textColor
                         )
                     }
-                    val activeMode = remember(isGenerating) { inferenceRouter.getActiveMode() }
+                    val activeMode by inferenceRouter.getActiveModeFlow().collectAsState(initial = inferenceRouter.getActiveMode())
                     val (modeLabel, modeColor) = when (activeMode) {
                         InferenceMode.ON_DEVICE -> "📱 On-Device (Offline)" to Color(0xFFF59E0B)
                         InferenceMode.PC_SERVER -> "💻 PC Local Server" to Color(0xFF3B82F6)

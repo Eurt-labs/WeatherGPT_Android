@@ -1,6 +1,9 @@
 package com.example.weathergpt_android.core.network
 
 import android.content.Context
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 object BackendConfig {
     const val CLOUD_URL = "https://weathergpt-backend-m5kk.onrender.com"
@@ -23,6 +26,15 @@ object BackendConfig {
     private const val KEY_CUSTOM_URL = "custom_local_url"
     private const val KEY_AUTO_FALLBACK = "auto_fallback_enabled"
 
+    private val _backendModeFlow = MutableStateFlow(MODE_CLOUD)
+    val backendModeFlow: StateFlow<String> = _backendModeFlow.asStateFlow()
+
+    fun init(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val saved = prefs.getString(KEY_BACKEND_MODE, MODE_CLOUD) ?: MODE_CLOUD
+        _backendModeFlow.value = saved
+    }
+
     fun getBaseUrl(context: Context? = null): String {
         if (context == null) return BASE_URL
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -39,7 +51,11 @@ object BackendConfig {
 
     fun getBackendMode(context: Context): String {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getString(KEY_BACKEND_MODE, MODE_CLOUD) ?: MODE_CLOUD
+        val mode = prefs.getString(KEY_BACKEND_MODE, MODE_CLOUD) ?: MODE_CLOUD
+        if (_backendModeFlow.value != mode) {
+            _backendModeFlow.value = mode
+        }
+        return mode
     }
 
     fun setBackendMode(context: Context, mode: String, customUrl: String? = null) {
@@ -51,6 +67,7 @@ object BackendConfig {
             }
             apply()
         }
+        _backendModeFlow.value = mode
     }
 
     fun getCustomUrl(context: Context): String {
