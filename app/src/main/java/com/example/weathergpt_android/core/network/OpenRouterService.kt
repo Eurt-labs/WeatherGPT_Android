@@ -161,7 +161,7 @@ class OpenRouterService(private val context: Context) {
         }
 
         val endpoint = "/api/ai/chat-stream"
-        val backendUrl = "${BackendConfig.BASE_URL}$endpoint"
+        val backendUrl = "${BackendConfig.getBaseUrl(context)}$endpoint"
         val isDetailMode = isDetailRequest(userMessage)
 
         val historyArray = JSONArray().apply {
@@ -275,7 +275,7 @@ class OpenRouterService(private val context: Context) {
         history: List<Pair<String, String>> = emptyList()
     ): Result<String> = withContext(Dispatchers.IO) {
         val endpoint = "/api/ai/chat-stream"
-        val backendUrl = "${BackendConfig.BASE_URL}$endpoint"
+        val backendUrl = "${BackendConfig.getBaseUrl(context)}$endpoint"
         val profile = UserPreferences.getProfile(context)
 
         val jsonBody = JSONObject().apply {

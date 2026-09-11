@@ -134,6 +134,8 @@ fun FrostedSettingsSheet(
     var currentLanguageCode by remember(userProfile.preferredLanguage) { mutableStateOf(userProfile.preferredLanguage) }
     var keyStatusMessage by remember { mutableStateOf<String?>(null) }
     var isTestingAiKey by remember { mutableStateOf(false) }
+    var backendMode by remember { mutableStateOf(BackendConfig.getBackendMode(context)) }
+    var customLocalUrl by remember { mutableStateOf(BackendConfig.getCustomUrl(context)) }
 
     LaunchedEffect(Unit) {
         totalTokens = dbHelper.getTotalTokens()
@@ -447,13 +449,13 @@ fun FrostedSettingsSheet(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.CloudDone,
+                                    imageVector = if (backendMode == BackendConfig.MODE_CLOUD) Icons.Rounded.CloudDone else Icons.Rounded.Memory,
                                     contentDescription = null,
-                                    tint = Color(0xFF10B981),
+                                    tint = if (backendMode == BackendConfig.MODE_CLOUD) Color(0xFF10B981) else Color(0xFF6366F1),
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Text(
-                                    text = "FastAPI on Render",
+                                    text = if (backendMode == BackendConfig.MODE_CLOUD) "FastAPI on Render" else "WeatherGPT Local PC",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = textColor
@@ -461,25 +463,183 @@ fun FrostedSettingsSheet(
                             }
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = Color(0x2010B981),
-                                border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.4f))
+                                color = if (backendMode == BackendConfig.MODE_CLOUD) Color(0x2010B981) else Color(0x206366F1),
+                                border = BorderStroke(1.dp, if (backendMode == BackendConfig.MODE_CLOUD) Color(0xFF10B981).copy(alpha = 0.4f) else Color(0xFF6366F1).copy(alpha = 0.4f))
                             ) {
                                 Text(
-                                    text = "Strict Render Mode",
+                                    text = if (backendMode == BackendConfig.MODE_CLOUD) "Cloud Active" else "Offline Edge PC",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF10B981),
+                                    color = if (backendMode == BackendConfig.MODE_CLOUD) Color(0xFF10B981) else Color(0xFF818CF8),
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
                             }
                         }
 
                         Text(
-                            text = "All AI conversations and voice queries stream directly through your FastAPI backend. All client-side fallbacks have been removed.",
+                            text = if (backendMode == BackendConfig.MODE_CLOUD)
+                                "Streaming via high-speed Render cloud backend with Google Gemini reasoning."
+                            else
+                                "Streaming via offline local PC AI engine (Qwen 2.5 GGUF) with zero cloud dependencies.",
                             fontSize = 12.sp,
                             lineHeight = 16.sp,
                             color = subtitleColor
                         )
+
+                        // Mode Selector Chips
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Option 1: Cloud
+                            val isCloud = backendMode == BackendConfig.MODE_CLOUD
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable {
+                                        backendMode = BackendConfig.MODE_CLOUD
+                                        BackendConfig.setBackendMode(context, BackendConfig.MODE_CLOUD)
+                                        keyStatusMessage = null
+                                    },
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isCloud) accentColor else FrostedGlassTokens.surfaceSubtle(isDark),
+                                border = BorderStroke(1.dp, if (isCloud) accentColor else FrostedGlassTokens.borderSubtle(isDark))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.CloudQueue,
+                                        contentDescription = null,
+                                        tint = if (isCloud) (if (isDark) Color(0xFF121214) else Color.White) else subtitleColor,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        text = "Cloud",
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isCloud) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isCloud) (if (isDark) Color(0xFF121214) else Color.White) else textColor
+                                    )
+                                }
+                            }
+
+                            // Option 2: Local PC USB
+                            val isUsb = backendMode == BackendConfig.MODE_LOCAL_USB
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable {
+                                        backendMode = BackendConfig.MODE_LOCAL_USB
+                                        BackendConfig.setBackendMode(context, BackendConfig.MODE_LOCAL_USB)
+                                        keyStatusMessage = null
+                                    },
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isUsb) Color(0xFF6366F1) else FrostedGlassTokens.surfaceSubtle(isDark),
+                                border = BorderStroke(1.dp, if (isUsb) Color(0xFF6366F1) else FrostedGlassTokens.borderSubtle(isDark))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.PhoneAndroid,
+                                        contentDescription = null,
+                                        tint = if (isUsb) Color.White else subtitleColor,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        text = "PC (USB)",
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isUsb) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isUsb) Color.White else textColor
+                                    )
+                                }
+                            }
+
+                            // Option 3: Local PC Wi-Fi
+                            val isWifi = backendMode == BackendConfig.MODE_LOCAL_CUSTOM
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable {
+                                        backendMode = BackendConfig.MODE_LOCAL_CUSTOM
+                                        BackendConfig.setBackendMode(context, BackendConfig.MODE_LOCAL_CUSTOM, customLocalUrl)
+                                        keyStatusMessage = null
+                                    },
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isWifi) Color(0xFF8B5CF6) else FrostedGlassTokens.surfaceSubtle(isDark),
+                                border = BorderStroke(1.dp, if (isWifi) Color(0xFF8B5CF6) else FrostedGlassTokens.borderSubtle(isDark))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Memory,
+                                        contentDescription = null,
+                                        tint = if (isWifi) Color.White else subtitleColor,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        text = "PC (Wi-Fi)",
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isWifi) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isWifi) Color.White else textColor
+                                    )
+                                }
+                            }
+                        }
+
+                        // If Local PC USB selected: Show quick command hint
+                        if (backendMode == BackendConfig.MODE_LOCAL_USB) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color(0x156366F1),
+                                border = BorderStroke(1.dp, Color(0xFF6366F1).copy(alpha = 0.3f))
+                            ) {
+                                Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
+                                    Text(
+                                        text = "USB Zero-Latency Setup:",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF818CF8)
+                                    )
+                                    Text(
+                                        text = "Run: adb reverse tcp:8000 tcp:8000 on your PC terminal, then start run_pc_server.bat",
+                                        fontSize = 10.sp,
+                                        color = subtitleColor
+                                    )
+                                }
+                            }
+                        }
+
+                        // If Local PC Wi-Fi selected: Show IP editor
+                        if (backendMode == BackendConfig.MODE_LOCAL_CUSTOM) {
+                            OutlinedTextField(
+                                value = customLocalUrl,
+                                onValueChange = {
+                                    customLocalUrl = it
+                                    BackendConfig.setBackendMode(context, BackendConfig.MODE_LOCAL_CUSTOM, it)
+                                },
+                                label = { Text("PC Local URL (e.g. http://192.168.1.15:8000)") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFF8B5CF6),
+                                    unfocusedBorderColor = FrostedGlassTokens.borderSubtle(isDark),
+                                    focusedTextColor = textColor,
+                                    unfocusedTextColor = textColor
+                                )
+                            )
+                        }
 
                         // Endpoint & Protocol Info Card
                         Surface(
@@ -499,7 +659,7 @@ fun FrostedSettingsSheet(
                                         color = subtitleColor
                                     )
                                     Text(
-                                        text = "https://weathergpt-backend-m5kk.onrender.com",
+                                        text = BackendConfig.getBaseUrl(context),
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium,
                                         color = textColor
@@ -511,16 +671,16 @@ fun FrostedSettingsSheet(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Security Protocol",
+                                        text = "Protocol / Security",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = subtitleColor
                                     )
                                     Text(
-                                        text = "Dynamic HMAC-SHA256 Signed",
+                                        text = if (backendMode == BackendConfig.MODE_CLOUD) "Dynamic HMAC-SHA256" else "Direct Local Subnet",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium,
-                                        color = Color(0xFF10B981)
+                                        color = if (backendMode == BackendConfig.MODE_CLOUD) Color(0xFF10B981) else Color(0xFF818CF8)
                                     )
                                 }
                                 Row(
@@ -535,7 +695,7 @@ fun FrostedSettingsSheet(
                                         color = subtitleColor
                                     )
                                     Text(
-                                        text = "Google Gemini 3.6 Flash",
+                                        text = if (backendMode == BackendConfig.MODE_CLOUD) "Google Gemini 3.6 Flash" else "Qwen 2.5 GGUF (Local Engine)",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium,
                                         color = textColor
@@ -548,12 +708,13 @@ fun FrostedSettingsSheet(
                         Button(
                             onClick = {
                                 isTestingAiKey = true
-                                keyStatusMessage = "Testing FastAPI Render backend connection..."
+                                val targetName = if (backendMode == BackendConfig.MODE_CLOUD) "Render Cloud" else "Local PC Server"
+                                keyStatusMessage = "Testing $targetName connection..."
                                 scope.launch {
                                     val res = openRouterService.generateChatCompletion("Ping test: confirm connection")
                                     isTestingAiKey = false
                                     keyStatusMessage = if (res.isSuccess) {
-                                        "✓ FastAPI Backend Online! Response: ${res.getOrNull()}"
+                                        "✓ $targetName Online! Response: ${res.getOrNull()}"
                                     } else {
                                         "✗ ${res.exceptionOrNull()?.localizedMessage}"
                                     }
@@ -563,18 +724,22 @@ fun FrostedSettingsSheet(
                             modifier = Modifier.fillMaxWidth().height(42.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = accentColor,
-                                contentColor = if (isDark) Color(0xFF121214) else Color.White
+                                containerColor = if (backendMode == BackendConfig.MODE_CLOUD) accentColor else Color(0xFF6366F1),
+                                contentColor = if (backendMode == BackendConfig.MODE_CLOUD) (if (isDark) Color(0xFF121214) else Color.White) else Color.White
                             )
                         ) {
                             if (isTestingAiKey) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(16.dp),
                                     strokeWidth = 2.dp,
-                                    color = if (isDark) Color(0xFF121214) else Color.White
+                                    color = Color.White
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Connecting to Render...", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    if (backendMode == BackendConfig.MODE_CLOUD) "Connecting to Render..." else "Connecting to Local PC...",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             } else {
                                 Icon(
                                     imageVector = Icons.Rounded.Refresh,
@@ -582,7 +747,11 @@ fun FrostedSettingsSheet(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Test Render Backend Connection", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    if (backendMode == BackendConfig.MODE_CLOUD) "Test Render Backend Connection" else "Test Local PC Server Connection",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
 
@@ -630,7 +799,7 @@ fun FrostedSettingsSheet(
                         // Diagnostic Row 1: AI Engine
                         DiagnosticItemRow(
                             title = "AI Intelligence Engine",
-                            subtitle = geminiDetail ?: "Cloud Reasoning Engine",
+                            subtitle = geminiDetail ?: if (BackendConfig.isLocalMode(context)) "Local PC Qwen Engine" else "Cloud Reasoning Engine",
                             icon = Icons.Rounded.AutoAwesome,
                             status = geminiStatus,
                             accentColor = accentColor,
@@ -782,12 +951,13 @@ fun FrostedSettingsSheet(
                                         weatherDetail = e.localizedMessage ?: "Network error"
                                     }
 
-                                    // 3. AI Intelligence Check (FastAPI Render only, no fallbacks)
+                                    // 3. AI Intelligence Check
                                     try {
                                         val geminiRes = openRouterService.generateChatCompletion("Ping test: confirm connection")
                                         if (geminiRes.isSuccess) {
                                             geminiStatus = DiagnosticStatus.SUCCESS
-                                            geminiDetail = "FastAPI Backend Online ✓"
+                                            val target = if (BackendConfig.isLocalMode(context)) "Local PC Engine" else "FastAPI Render"
+                                            geminiDetail = "$target Online ✓"
                                         } else {
                                             val err = geminiRes.exceptionOrNull()?.localizedMessage ?: "AI Service unavailable"
                                             geminiStatus = DiagnosticStatus.FAILED
@@ -795,7 +965,7 @@ fun FrostedSettingsSheet(
                                         }
                                     } catch (e: Exception) {
                                         geminiStatus = DiagnosticStatus.FAILED
-                                        geminiDetail = e.localizedMessage ?: "FastAPI connection failed"
+                                        geminiDetail = e.localizedMessage ?: "AI connection failed"
                                     }
 
                                     isTestingAll = false

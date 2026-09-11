@@ -30,7 +30,7 @@ class ChatSyncService(private val context: Context) {
         }
 
         val endpoint = "/api/chat/sync"
-        val url = "${BackendConfig.BASE_URL}$endpoint"
+        val url = "${BackendConfig.getBaseUrl(context)}$endpoint"
 
         val jsonArray = JSONArray()
         for (m in messages) {
@@ -83,7 +83,7 @@ class ChatSyncService(private val context: Context) {
         }
 
         val endpoint = "/api/chat/history"
-        val url = "${BackendConfig.BASE_URL}$endpoint?user_id=$userId"
+        val url = "${BackendConfig.getBaseUrl(context)}$endpoint?user_id=$userId"
 
         val headers = HmacSigner.generateSecurityHeaders(endpoint)
 
@@ -131,7 +131,7 @@ class ChatSyncService(private val context: Context) {
         if (userId.isBlank()) return@withContext Result.success(true)
 
         val endpoint = "/api/chat/history"
-        val url = "${BackendConfig.BASE_URL}$endpoint?user_id=$userId"
+        val url = "${BackendConfig.getBaseUrl(context)}$endpoint?user_id=$userId"
 
         val headers = HmacSigner.generateSecurityHeaders(endpoint)
 

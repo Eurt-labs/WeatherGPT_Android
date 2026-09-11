@@ -37,7 +37,7 @@ class AuthApiService(private val context: Context) {
         }
 
         val endpoint = "/api/auth/send-otp"
-        val url = "${BackendConfig.BASE_URL}$endpoint"
+        val url = "${BackendConfig.getBaseUrl(context)}$endpoint"
 
         val json = JSONObject().apply {
             put("contact", contact)
@@ -89,7 +89,7 @@ class AuthApiService(private val context: Context) {
         }
 
         val endpoint = "/api/auth/verify-otp"
-        val url = "${BackendConfig.BASE_URL}$endpoint"
+        val url = "${BackendConfig.getBaseUrl(context)}$endpoint"
 
         val json = JSONObject().apply {
             put("contact", contact)
@@ -145,7 +145,7 @@ class AuthApiService(private val context: Context) {
 
     suspend fun saveUserProfile(profile: UserProfile): Result<Boolean> = withContext(Dispatchers.IO) {
         val endpoint = "/api/user/profile"
-        val url = "${BackendConfig.BASE_URL}$endpoint"
+        val url = "${BackendConfig.getBaseUrl(context)}$endpoint"
 
         val json = JSONObject().apply {
             put("user_id", profile.userId)
