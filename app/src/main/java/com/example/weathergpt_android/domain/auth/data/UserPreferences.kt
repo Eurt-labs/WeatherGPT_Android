@@ -82,6 +82,29 @@ object UserPreferences {
         )
     }
 
+    fun updateSector(context: Context, sector: UserSector) {
+        getPrefs(context).edit()
+            .putString(KEY_SECTOR, sector.id)
+            .apply()
+    }
+
+    fun updateLanguage(context: Context, languageCode: String) {
+        getPrefs(context).edit()
+            .putString(KEY_LANGUAGE, languageCode)
+            .apply()
+    }
+
+    fun getSelectedVoice(context: Context, langCode: String): String {
+        val defaultVoice = com.example.weathergpt_android.domain.voice.model.VoicePersonaCatalog.getOptimalVoiceForLanguage(langCode).id
+        return getPrefs(context).getString("user_voice_$langCode", defaultVoice) ?: defaultVoice
+    }
+
+    fun setSelectedVoice(context: Context, langCode: String, voiceId: String) {
+        getPrefs(context).edit()
+            .putString("user_voice_$langCode", voiceId)
+            .apply()
+    }
+
     fun logout(context: Context) {
         getPrefs(context).edit().clear().apply()
     }
