@@ -69,11 +69,17 @@ import com.example.weathergpt_android.domain.auth.data.UserPreferences
 import com.example.weathergpt_android.domain.auth.model.UserProfile
 import com.example.weathergpt_android.domain.location.model.LocationData
 import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.example.weathergpt_android.domain.inference.model.InferenceMode
+import com.example.weathergpt_android.domain.voice.model.VoicePersonaCatalog
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Locale
 import java.util.UUID
 
@@ -171,6 +177,7 @@ fun ImmersiveVoiceScreen(
                 putExtra("android.speech.extra.EXTRA_ADDITIONAL_LANGUAGES", arrayOf("hi-IN", "en-IN", "mr-IN", "bn-IN", "ta-IN", "te-IN", "gu-IN"))
                 putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
                 putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+                putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
             }
             speechRecognizer?.startListening(intent)
             conversationState = VoiceConversationState.LISTENING
@@ -180,7 +187,7 @@ fun ImmersiveVoiceScreen(
         }
     }
 
-    // Process user query with Gemini 3.6 Flash
+    // Process user query with Gemini 3.6 Flash / On-Device SLM
     fun processVoiceQuery(query: String) {
         if (query.isBlank()) return
 
@@ -194,68 +201,84 @@ fun ImmersiveVoiceScreen(
         assistantResponse = ""
         conversationProgress = (conversationProgress + 0.12f).coerceAtMost(1f)
 
-        // Save user message to database
+        // Save user message to database with guaranteed NonCancellable write
         scope.launch {
-            dbHelper.saveMessage(
-                ChatMessage(
-                    id = UUID.randomUUID().toString(),
-                    text = query,
-                    isUser = true,
-                    timestamp = "Now"
-                ),
-                estimatedTokens = query.length / 4
-            )
+            withContext(NonCancellable + Dispatchers.IO) {
+                dbHelper.saveMessage(
+                    ChatMessage(
+                        id = UUID.randomUUID().toString(),
+                        text = query,
+                        isUser = true,
+                        timestamp = "Now",
+                        userId = userProfile.userId,
+                        sessionId = "default"
+                    ),
+                    estimatedTokens = query.length / 4,
+                    userId = userProfile.userId,
+                    sessionId = "default"
+                )
+            }
         }
 
         val weatherContext = liveWeatherData.toDenseMeteorologicalContext()
 
         voiceJob = scope.launch {
             var fullAnswer = ""
-            inferenceRouter.streamChat(
-                userMessage = query,
-                locationContext = locationData.denseLocationContext,
-                weatherContext = weatherContext,
-                isVoiceMode = true
-            ).catch { err ->
-                assistantResponse = "Connection error. Please try again."
-                conversationState = VoiceConversationState.LISTENING
-                startListening()
-            }.collect { token ->
-                val cleanToken = sanitizeVoiceToken(token)
-                if (cleanToken.isNotEmpty()) {
-                    fullAnswer += cleanToken
-                    val displayAnswer = stripRawJsonArtifacts(fullAnswer)
-                    assistantResponse = displayAnswer
-                }
-            }
-
-            val cleanToSpeak = stripRawJsonArtifacts(fullAnswer)
-            // Save assistant message to database
-            dbHelper.saveMessage(
-                ChatMessage(
-                    id = UUID.randomUUID().toString(),
-                    text = cleanToSpeak,
-                    isUser = false,
-                    timestamp = "Now"
-                ),
-                estimatedTokens = cleanToSpeak.length / 4
-            )
-
-            // Speak response using native Indian voice tuned to the language spoken
-            if (cleanToSpeak.isNotBlank()) {
-                if (conversationState != VoiceConversationState.MUTED) {
-                    conversationState = VoiceConversationState.SPEAKING
-                    textToSpeech?.let { ttsInstance ->
-                        val detectedLocale = detectVoiceLocale(cleanToSpeak, userProfile.preferredLanguage)
-                        applyNativeIndianVoice(ttsInstance, detectedLocale)
-                        val spokenText = prepareVoiceTextForSpeech(cleanToSpeak)
-                        ttsInstance.speak(spokenText, TextToSpeech.QUEUE_FLUSH, null, "WEATHER_VOICE_UTTERANCE")
-                    }
-                }
-            } else {
-                if (conversationState != VoiceConversationState.MUTED) {
+            try {
+                inferenceRouter.streamChat(
+                    userMessage = query,
+                    locationContext = locationData.denseLocationContext,
+                    weatherContext = weatherContext,
+                    isVoiceMode = true
+                ).catch { err ->
+                    assistantResponse = "Connection error. Please try again."
                     conversationState = VoiceConversationState.LISTENING
                     startListening()
+                }.collect { token ->
+                    val cleanToken = sanitizeVoiceToken(token)
+                    if (cleanToken.isNotEmpty()) {
+                        fullAnswer += cleanToken
+                        val displayAnswer = stripRawJsonArtifacts(fullAnswer)
+                        assistantResponse = displayAnswer
+                    }
+                }
+            } finally {
+                val cleanToSpeak = stripRawJsonArtifacts(fullAnswer)
+                // Save assistant message to database with guaranteed NonCancellable write
+                if (cleanToSpeak.isNotBlank()) {
+                    withContext(NonCancellable + Dispatchers.IO) {
+                        dbHelper.saveMessage(
+                            ChatMessage(
+                                id = UUID.randomUUID().toString(),
+                                text = cleanToSpeak,
+                                isUser = false,
+                                timestamp = "Now",
+                                userId = userProfile.userId,
+                                sessionId = "default"
+                            ),
+                            estimatedTokens = cleanToSpeak.length / 4,
+                            userId = userProfile.userId,
+                            sessionId = "default"
+                        )
+                    }
+                }
+
+                // Speak response using native Indian voice tuned to the language spoken
+                if (cleanToSpeak.isNotBlank()) {
+                    if (conversationState != VoiceConversationState.MUTED) {
+                        conversationState = VoiceConversationState.SPEAKING
+                        textToSpeech?.let { ttsInstance ->
+                            val detectedLocale = detectVoiceLocale(cleanToSpeak, userProfile.preferredLanguage)
+                            applyNativeIndianVoice(context, ttsInstance, detectedLocale, userProfile.preferredLanguage)
+                            val spokenText = prepareVoiceTextForSpeech(cleanToSpeak)
+                            ttsInstance.speak(spokenText, TextToSpeech.QUEUE_FLUSH, null, "WEATHER_VOICE_UTTERANCE")
+                        }
+                    }
+                } else {
+                    if (conversationState != VoiceConversationState.MUTED) {
+                        conversationState = VoiceConversationState.LISTENING
+                        startListening()
+                    }
                 }
             }
         }
@@ -324,7 +347,7 @@ fun ImmersiveVoiceScreen(
                 if (status == TextToSpeech.SUCCESS) {
                     isTtsReady = true
                     val initialLocale = detectVoiceLocale("", userProfile.preferredLanguage)
-                    applyNativeIndianVoice(tts, initialLocale)
+                    applyNativeIndianVoice(context, tts, initialLocale, userProfile.preferredLanguage)
 
                     tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                         override fun onStart(utteranceId: String?) {
@@ -393,7 +416,7 @@ fun ImmersiveVoiceScreen(
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Top Bar: Back Button & AI Sparkle Badge
+            // Top Bar: Back Button, Mode Badge & AI Sparkle Badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -409,6 +432,36 @@ fun ImmersiveVoiceScreen(
                     size = 42.dp,
                     isDark = isDark
                 )
+
+                // Active Inference & Voice Persona Indicator
+                val activeMode = remember { inferenceRouter.getActiveMode() }
+                val selectedVoiceId = remember { UserPreferences.getSelectedVoice(context, userProfile.preferredLanguage) }
+                val activePersona = remember {
+                    VoicePersonaCatalog.getVoiceById(selectedVoiceId)
+                        ?: VoicePersonaCatalog.getOptimalVoiceForLanguage(userProfile.preferredLanguage)
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(if (isDark) Color(0x3018181B) else Color(0x15000000))
+                        .padding(horizontal = 14.dp, vertical = 7.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(if (activeMode == InferenceMode.ON_DEVICE) Color(0xFFF59E0B) else Color(0xFF10B981))
+                    )
+                    Text(
+                        text = if (activeMode == InferenceMode.ON_DEVICE) "📱 Offline • ${activePersona.name}" else "☁️ Gemini • ${activePersona.name}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isDark) Color(0xFFE8E3D5) else Color(0xFF27272A)
+                    )
+                }
 
                 // Sparkle Badge
                 Box(
@@ -689,7 +742,7 @@ private fun detectVoiceLocale(text: String, preferredLangCode: String): Locale {
  * Finds Google TTS female neural voices for Indian languages (e.g. hi-in-x-hie-local, mr-in-x-mrd-local, en-in-x-cfl-local)
  * and applies warm, sweet female pitch and native human conversational pacing.
  */
-private fun applyNativeIndianVoice(tts: TextToSpeech?, targetLocale: Locale) {
+private fun applyNativeIndianVoice(context: Context, tts: TextToSpeech?, targetLocale: Locale, preferredLangCode: String) {
     if (tts == null) return
     try {
         val status = tts.isLanguageAvailable(targetLocale)
@@ -697,45 +750,35 @@ private fun applyNativeIndianVoice(tts: TextToSpeech?, targetLocale: Locale) {
             tts.language = targetLocale
         }
 
+        val selectedVoiceId = UserPreferences.getSelectedVoice(context, preferredLangCode)
+        val selectedPersona = VoicePersonaCatalog.getVoiceById(selectedVoiceId)
+            ?: VoicePersonaCatalog.getOptimalVoiceForLanguage(preferredLangCode)
+
         val matchingVoices = tts.voices?.filter { voice ->
             voice.locale.language.equals(targetLocale.language, ignoreCase = true)
         } ?: emptyList()
 
-        // Known high-fidelity Google female neural voices for Indian languages
-        val knownFemaleSignatures = listOf(
-            "x-hie", "x-hid", "x-hia", "x-hif", // Hindi female neural
-            "x-cfl", "x-ene", "x-end", "x-ena", // Indian English female
-            "x-mrd", "x-mra",                   // Marathi female
-            "x-bnd", "x-bna",                   // Bengali female
-            "x-tad", "x-taa",                   // Tamil female
-            "x-ted", "x-tea",                   // Telugu female
-            "x-gud", "x-gua",                   // Gujarati female
-            "x-pad", "x-paa"                    // Punjabi female
-        )
+        val wantsFemale = selectedPersona.gender.equals("Female", ignoreCase = true)
 
         val bestVoice = matchingVoices.maxByOrNull { voice ->
             var score = 0
             val vName = voice.name.lowercase(Locale.ROOT)
+            val isFemale = vName.contains("female") || vName.contains("woman") || vName.contains("fem") ||
+                           listOf("x-hie", "x-hid", "x-hia", "x-hif", "x-cfl", "x-ene", "x-end", "x-ena", "x-mrd", "x-mra", "x-bnd", "x-bna", "x-tad", "x-taa", "x-ted", "x-tea", "x-gud", "x-gua").any { vName.contains(it) }
+            val isMale = vName.contains("male") || vName.contains("man") ||
+                         listOf("x-hic", "x-enc", "x-mrc", "x-bnc", "x-tac", "x-tec", "x-guc", "x-pac").any { vName.contains(it) }
 
-            // 1. Strongly prioritize proven female neural profiles
-            if (knownFemaleSignatures.any { vName.contains(it) }) score += 80
-            if (vName.contains("female") || vName.contains("woman") || vName.contains("fem")) score += 50
-
-            // 2. Strongly penalize male profiles so male voices are never selected
-            if (vName.contains("male") || vName.contains("man") ||
-                vName.contains("x-hic") || vName.contains("x-enc") || vName.contains("x-mrc") ||
-                vName.contains("x-bnc") || vName.contains("x-tac") || vName.contains("x-tec") ||
-                vName.contains("x-guc") || vName.contains("x-pac")) {
-                score -= 100
+            if (wantsFemale) {
+                if (isFemale) score += 80
+                if (isMale) score -= 100
+            } else {
+                if (isMale) score += 80
+                if (isFemale) score -= 100
             }
 
-            // 3. Indian country accent priority (especially for English)
             if (voice.locale.country.equals("IN", ignoreCase = true)) score += 30
-
-            // 4. Prefer local on-device voice (no network latency)
-            if (!voice.isNetworkConnectionRequired) score += 20
-
-            // 5. Higher quality level
+            // Strongly prefer local on-device voice (offline, zero latency)
+            if (!voice.isNetworkConnectionRequired) score += 40
             if (voice.quality >= Voice.QUALITY_HIGH) score += 15
 
             score
@@ -747,12 +790,9 @@ private fun applyNativeIndianVoice(tts: TextToSpeech?, targetLocale: Locale) {
             tts.voice = bestVoice
         }
 
-        // Indian female voice cadence & natural inflection tuning:
-        // Slightly raised pitch (1.10f - 1.12f) ensures clear, warm female formant.
-        // Pacing (0.95f for Indian languages, 0.98f for English) provides fluent, native articulation.
-        val isIndianRegional = targetLocale.language != "en"
-        tts.setPitch(if (isIndianRegional) 1.12f else 1.08f)
-        tts.setSpeechRate(if (isIndianRegional) 0.95f else 0.98f)
+        // Apply persona-tailored pitch and articulation cadence
+        tts.setPitch(selectedPersona.pitch)
+        tts.setSpeechRate(selectedPersona.speechRate)
     } catch (_: Exception) {
         tts.language = targetLocale
     }

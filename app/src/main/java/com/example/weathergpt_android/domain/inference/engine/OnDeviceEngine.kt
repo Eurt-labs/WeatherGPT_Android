@@ -356,6 +356,16 @@ class OnDeviceEngine private constructor(
 
         val isAdviceQuery = detectAdviceIntent(userMessage)
 
+        val targetLangName = when (profile.preferredLanguage.lowercase()) {
+            "hi" -> "Hindi (हिंदी)"
+            "mr" -> "Marathi (मराठी)"
+            "bn" -> "Bengali (বাংলা)"
+            "ta" -> "Tamil (தமிழ்)"
+            "te" -> "Telugu (తెలుగు)"
+            "gu" -> "Gujarati (ગુજરાતી)"
+            else -> "English"
+        }
+
         val systemPrompt = buildString {
             append("You are WeatherGPT, India's on-device offline AI meteorologist.\n")
             append("DATA: $resolvedWeather\n")
@@ -363,10 +373,15 @@ class OnDeviceEngine private constructor(
             if (profile.sector == UserSector.FARMER) {
                 append(", Crops: ${profile.crops}, Area: ${profile.landArea}")
             }
-            append(", Lang: ${profile.preferredLanguage}\n")
+            append("\n")
+            if (profile.preferredLanguage.lowercase() != "en") {
+                append("CRITICAL LANGUAGE RULE: You MUST speak and answer entirely in $targetLangName. Do not use English words unless unavoidable meteorological units like °C.\n")
+            } else {
+                append("LANGUAGE: English.\n")
+            }
 
             if (isVoiceMode) {
-                append("RULES: Output 1-2 spoken sentences (max 30 words). Zero markdown, zero bullet points, zero emojis.\n")
+                append("VOICE AI MODE: Output strictly 1 to 2 warm, spoken sentences (maximum 30 words) for direct voice playback. Zero markdown, zero asterisks, zero bullet points, zero emojis.\n")
             } else {
                 append("RULES: Output exactly 1 cohesive paragraph (3-4 sentences, 50-70 words). Ground firmly in telemetry. ")
                 if (isAdviceQuery) {
