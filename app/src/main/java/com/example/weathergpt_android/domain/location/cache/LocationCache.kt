@@ -37,6 +37,29 @@ class LocationCache(context: Context) {
             .apply()
     }
 
+    fun getCacheAgeMinutes(): Long {
+        val timestamp = prefs.getLong(KEY_TIMESTAMP, 0L)
+        if (timestamp == 0L) return Long.MAX_VALUE
+        val diffMs = System.currentTimeMillis() - timestamp
+        return if (diffMs > 0) diffMs / (1000 * 60) else 0L
+    }
+
+    fun isCacheFresh(maxAgeMinutes: Long = 60): Boolean {
+        val age = getCacheAgeMinutes()
+        return age <= maxAgeMinutes
+    }
+
+    fun getCacheAgeString(): String {
+        val ageMin = getCacheAgeMinutes()
+        return when {
+            ageMin == Long.MAX_VALUE -> "No cached location"
+            ageMin < 1 -> "Updated just now"
+            ageMin < 60 -> "Updated $ageMin min ago"
+            ageMin < 1440 -> "Updated ${ageMin / 60}h ago"
+            else -> "Updated ${ageMin / 1440}d ago"
+        }
+    }
+
     companion object {
         private const val PREFS_NAME = "weathergpt_location_cache"
         private const val KEY_CITY = "cached_city"

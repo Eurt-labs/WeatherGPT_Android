@@ -107,6 +107,7 @@ class UnifiedWeatherRepository(private val context: Context) {
         val result = openMeteoRepo.fetchWeather(latitude, longitude)
         result.onSuccess { data ->
             cacheWeather(data)
+            com.example.weathergpt_android.domain.weather.cache.WeatherCache(context).saveWeatherSnapshot(data)
         }
         result
     }
