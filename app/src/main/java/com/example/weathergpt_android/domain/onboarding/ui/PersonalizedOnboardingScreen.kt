@@ -28,19 +28,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.ArrowForward
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.DirectionsWalk
+import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Flight
 import androidx.compose.material.icons.rounded.Grass
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.Thunderstorm
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import com.example.weathergpt_android.core.network.BackendConfig
+import com.example.weathergpt_android.domain.inference.download.ModelDownloadService
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -97,13 +101,14 @@ fun PersonalizedOnboardingScreen(
         AppThemeMode.SYSTEM -> isSystemInDarkTheme()
     }
 
-    var currentStep by remember { mutableIntStateOf(1) } // 1: Language First, 2: Sector, 3: Details
+    var currentStep by remember { mutableIntStateOf(1) } // 1: Language First, 2: Sector, 3: Details, 4: AI Mode
     var selectedLanguage by remember { mutableStateOf(initialProfile.preferredLanguage.ifBlank { "en" }) }
     var selectedSector by remember { mutableStateOf(initialProfile.sector) }
     var userName by remember { mutableStateOf(initialProfile.name.ifBlank { "Dhruv" }) }
     var selectedCrops by remember { mutableStateOf(initialProfile.crops.ifBlank { "Wheat, Mustard" }) }
     var landArea by remember { mutableStateOf(initialProfile.landArea.ifBlank { "5 Acres" }) }
     var monitoredRegion by remember { mutableStateOf(initialProfile.monitoredRegion.ifBlank { "Hathras, Uttar Pradesh" }) }
+    var preferOfflineAi by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
 
     val textColor = if (isDark) Color.White else Color(0xFF111113)
@@ -122,7 +127,7 @@ fun PersonalizedOnboardingScreen(
                 .padding(horizontal = 24.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Header with Progress Indicator (Step 1 of 3)
+            // Header with Progress Indicator (Step 1 of 4)
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -130,7 +135,7 @@ fun PersonalizedOnboardingScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Step $currentStep of 3",
+                        text = "Step $currentStep of 4",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = accentBeige,
@@ -144,7 +149,7 @@ fun PersonalizedOnboardingScreen(
                     )
                 }
 
-                // Visual Step Progress Bar
+                // Visual Step Progress Bar (4 segments)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -152,6 +157,7 @@ fun PersonalizedOnboardingScreen(
                     StepBarSegment(isActive = currentStep >= 1, modifier = Modifier.weight(1f))
                     StepBarSegment(isActive = currentStep >= 2, modifier = Modifier.weight(1f))
                     StepBarSegment(isActive = currentStep >= 3, modifier = Modifier.weight(1f))
+                    StepBarSegment(isActive = currentStep >= 4, modifier = Modifier.weight(1f))
                 }
             }
 
@@ -276,7 +282,7 @@ fun PersonalizedOnboardingScreen(
                             SectorSelectCard(
                                 title = UserSector.COMMUTER.title,
                                 subtitle = UserSector.COMMUTER.subtitle,
-                                icon = Icons.Rounded.DirectionsWalk,
+                                icon = Icons.AutoMirrored.Rounded.DirectionsWalk,
                                 isSelected = selectedSector == UserSector.COMMUTER,
                                 onClick = { selectedSector = UserSector.COMMUTER },
                                 isDark = isDark
@@ -437,6 +443,41 @@ fun PersonalizedOnboardingScreen(
                                 }
                             }
                         }
+
+                        4 -> {
+                            // Step 4: AI Operating Preference (Offline vs Cloud)
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = "AI Operating Mode",
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = textColor
+                                )
+                                Text(
+                                    text = "Choose whether you prefer cloud intelligence or offline on-device processing.",
+                                    fontSize = 13.sp,
+                                    color = subtitleColor
+                                )
+                            }
+
+                            SectorSelectCard(
+                                title = "Cloud AI (Google Gemini 3.6 Flash)",
+                                subtitle = "Zero storage required. Ultra-fast real-time inference via cloud API (Recommended if you have internet).",
+                                icon = Icons.Rounded.Cloud,
+                                isSelected = !preferOfflineAi,
+                                onClick = { preferOfflineAi = false },
+                                isDark = isDark
+                            )
+
+                            SectorSelectCard(
+                                title = "100% On-Device Offline AI",
+                                subtitle = "Zero network dependency. Downloads compact on-device SLM (~1.1 GB) in the background with live notification.",
+                                icon = Icons.Rounded.PhoneAndroid,
+                                isSelected = preferOfflineAi,
+                                onClick = { preferOfflineAi = true },
+                                isDark = isDark
+                            )
+                        }
                     }
                 }
             }
@@ -458,7 +499,7 @@ fun PersonalizedOnboardingScreen(
                             .background(FrostedGlassTokens.surfaceSubtle(isDark))
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = "Back",
                             tint = textColor
                         )
@@ -472,7 +513,7 @@ fun PersonalizedOnboardingScreen(
 
                 Button(
                     onClick = {
-                        if (currentStep < 3) {
+                        if (currentStep < 4) {
                             currentStep += 1
                         } else {
                             // Finish and Save Profile
@@ -486,6 +527,12 @@ fun PersonalizedOnboardingScreen(
                                 monitoredRegion = monitoredRegion,
                                 isOnboarded = true
                             )
+                            if (preferOfflineAi) {
+                                BackendConfig.setBackendMode(context, BackendConfig.MODE_ON_DEVICE)
+                                ModelDownloadService.start(context)
+                            } else {
+                                BackendConfig.setBackendMode(context, BackendConfig.MODE_CLOUD)
+                            }
                             scope.launch {
                                 UserPreferences.saveProfile(context, completedProfile)
                                 if (completedProfile.userId.isNotBlank()) {
@@ -513,12 +560,12 @@ fun PersonalizedOnboardingScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = if (currentStep == 3) "Launch WeatherGPT 🚀" else "Continue",
+                                text = if (currentStep == 4) "Launch WeatherGPT 🚀" else "Continue",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Icon(
-                                imageVector = if (currentStep == 3) Icons.Rounded.Check else Icons.Rounded.ArrowForward,
+                                imageVector = if (currentStep == 4) Icons.Rounded.Check else Icons.AutoMirrored.Rounded.ArrowForward,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
                             )
