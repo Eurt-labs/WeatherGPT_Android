@@ -37,7 +37,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import com.example.weathergpt_android.core.network.BackendConfig
 import com.example.weathergpt_android.core.theme.AppThemeMode
+import com.example.weathergpt_android.domain.inference.engine.OnDeviceEngine
 import com.example.weathergpt_android.core.theme.ThemePreferences
 import com.example.weathergpt_android.core.theme.WeatherGPTTheme
 import com.example.weathergpt_android.domain.assistant.ui.GptChatScreen
@@ -82,6 +84,22 @@ class MainActivity : ComponentActivity() {
                         ThemePreferences.saveTheme(context, newTheme)
                     }
                 )
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Release on-device LLM from RAM when activity is destroyed or cleared from Recents
+        OnDeviceEngine.getInstance(this).unloadModel()
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= TRIM_MEMORY_UI_HIDDEN) {
+            // App went to background; free on-device model weights if in cloud mode
+            if (BackendConfig.getBackendMode(this) == BackendConfig.MODE_CLOUD) {
+                OnDeviceEngine.getInstance(this).unloadModel()
             }
         }
     }

@@ -2,31 +2,34 @@ package com.example.weathergpt_android.domain.inference.download
 
 import android.content.Context
 import android.os.StatFs
+import android.util.Log
 import com.example.weathergpt_android.domain.inference.model.OnDeviceModelConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.io.FileOutputStream
-import java.io.RandomAccessFile
 import java.util.concurrent.TimeUnit
 
 /**
- * Robust, resumable download manager for on-device GGUF language models.
+ * Thread-safe, resumable singleton download manager for on-device GGUF language models.
  * Stores weights securely in internal app storage (context.filesDir/models/).
  */
-class ModelDownloadManager(
-    private val context: Context,
-    private val config: OnDeviceModelConfig = OnDeviceModelConfig.DEFAULT
+class ModelDownloadManager private constructor(
+    context: Context,
+    val config: OnDeviceModelConfig = OnDeviceModelConfig.DEFAULT
 ) {
+    private val appContext = context.applicationContext
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
@@ -41,12 +44,12 @@ class ModelDownloadManager(
     private var downloadJob: Job? = null
 
     val modelsDir: File
-        get() = File(context.filesDir, "models").apply { if (!exists()) mkdirs() }
+        get() = File(appContext.filesDir, "models").apply { if (!exists()) mkdirs() }
 
     val modelFile: File
         get() = File(modelsDir, config.modelFileName)
 
-    private val tempFile: File
+    val tempFile: File
         get() = File(modelsDir, "${config.modelFileName}.part")
 
     fun isModelDownloaded(): Boolean {
@@ -62,7 +65,7 @@ class ModelDownloadManager(
 
     fun getAvailableStorageBytes(): Long {
         return try {
-            val stat = StatFs(context.filesDir.absolutePath)
+            val stat = StatFs(appContext.filesDir.absolutePath)
             stat.availableBlocksLong * stat.blockSizeLong
         } catch (_: Exception) {
             Long.MAX_VALUE
@@ -71,8 +74,10 @@ class ModelDownloadManager(
 
     /**
      * Initiates or resumes downloading the model file.
+     * Can be invoked from UI or Background ForegroundService.
      */
-    fun startDownload(scope: CoroutineScope) {
+    @Synchronized
+    fun startDownload() {
         if (isModelDownloaded()) {
             _downloadState.value = DownloadState.Completed
             return
@@ -83,23 +88,23 @@ class ModelDownloadManager(
         }
 
         downloadJob?.cancel()
-        downloadJob = scope.launch(Dispatchers.IO) {
+        downloadJob = scope.launch {
             try {
                 _downloadState.value = DownloadState.CheckingSpace
 
-                // 1. Verify internal storage space (model size + 500 MB buffer)
+                // 1. Verify internal storage space (model size + 500 MB safety buffer)
                 val requiredBytes = config.fileSizeBytes + (500L * 1024 * 1024)
                 val availableBytes = getAvailableStorageBytes()
                 if (availableBytes < requiredBytes) {
                     val availableMB = availableBytes / (1024 * 1024)
                     val requiredMB = requiredBytes / (1024 * 1024)
                     _downloadState.value = DownloadState.Failed(
-                        "Insufficient storage space: $availableMB MB available, $requiredMB MB required."
+                        "Insufficient storage: $availableMB MB available, $requiredMB MB required."
                     )
                     return@launch
                 }
 
-                // 2. Resume handling
+                // 2. Resume handling via HTTP Range header
                 val startByte = if (tempFile.exists()) tempFile.length() else 0L
 
                 val requestBuilder = Request.Builder()
@@ -183,29 +188,63 @@ class ModelDownloadManager(
                     if (modelFile.exists()) modelFile.delete()
                     val renameSuccess = tempFile.renameTo(modelFile)
                     if (renameSuccess) {
+                        Log.i("ModelDownloadManager", "Model file finalized successfully at ${modelFile.absolutePath}")
                         _downloadState.value = DownloadState.Completed
                     } else {
-                        _downloadState.value = DownloadState.Failed("Failed to finalize downloaded model file.")
+                        _downloadState.value = DownloadState.Failed("Failed to rename temporary model file.")
                     }
                 } else {
                     _downloadState.value = DownloadState.Failed("Downloaded file is incomplete or corrupted.")
                 }
 
-            } catch (e: CancellationException) {
-                // Interrupted / paused by user or app lifecycle
-                _downloadState.value = DownloadState.Idle
+            } catch (_: CancellationException) {
+                // Preserved as Paused if bytes exist
+                val currentDownloaded = if (tempFile.exists()) tempFile.length() else 0L
+                if (currentDownloaded > 0) {
+                    val percent = ((currentDownloaded * 100) / config.fileSizeBytes).toInt().coerceIn(0, 99)
+                    _downloadState.value = DownloadState.Paused(
+                        progressPercent = percent,
+                        downloadedBytes = currentDownloaded,
+                        totalBytes = config.fileSizeBytes
+                    )
+                } else {
+                    _downloadState.value = DownloadState.Idle
+                }
             } catch (e: Exception) {
+                Log.e("ModelDownloadManager", "Download error", e)
                 _downloadState.value = DownloadState.Failed(e.localizedMessage ?: "Unknown download error")
             }
         }
     }
 
+    @Synchronized
     fun pauseDownload() {
         downloadJob?.cancel()
         downloadJob = null
+        val currentDownloaded = if (tempFile.exists()) tempFile.length() else 0L
+        if (currentDownloaded > 0) {
+            val percent = ((currentDownloaded * 100) / config.fileSizeBytes).toInt().coerceIn(0, 99)
+            _downloadState.value = DownloadState.Paused(
+                progressPercent = percent,
+                downloadedBytes = currentDownloaded,
+                totalBytes = config.fileSizeBytes
+            )
+        } else {
+            _downloadState.value = DownloadState.Idle
+        }
+    }
+
+    @Synchronized
+    fun cancelDownload() {
+        downloadJob?.cancel()
+        downloadJob = null
+        if (tempFile.exists()) {
+            tempFile.delete()
+        }
         _downloadState.value = DownloadState.Idle
     }
 
+    @Synchronized
     fun deleteModel(): Boolean {
         downloadJob?.cancel()
         downloadJob = null
@@ -218,5 +257,16 @@ class ModelDownloadManager(
         }
         _downloadState.value = DownloadState.Idle
         return deleted
+    }
+
+    companion object {
+        @Volatile
+        private var instance: ModelDownloadManager? = null
+
+        fun getInstance(context: Context, config: OnDeviceModelConfig = OnDeviceModelConfig.DEFAULT): ModelDownloadManager {
+            return instance ?: synchronized(this) {
+                instance ?: ModelDownloadManager(context.applicationContext, config).also { instance = it }
+            }
+        }
     }
 }

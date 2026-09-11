@@ -59,11 +59,14 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.runtime.collectAsState
 import com.example.weathergpt_android.domain.inference.download.ModelDownloadManager
+import com.example.weathergpt_android.domain.inference.download.ModelDownloadService
 import com.example.weathergpt_android.domain.inference.download.DownloadState
+import com.example.weathergpt_android.domain.inference.engine.OnDeviceEngine
 import com.example.weathergpt_android.domain.inference.model.OnDeviceModelConfig
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -147,8 +150,10 @@ fun FrostedSettingsSheet(
     var isTestingAiKey by remember { mutableStateOf(false) }
     var backendMode by remember { mutableStateOf(BackendConfig.getBackendMode(context)) }
     var customLocalUrl by remember { mutableStateOf(BackendConfig.getCustomUrl(context)) }
-    val downloadManager = remember { ModelDownloadManager(context) }
+    val downloadManager = remember { ModelDownloadManager.getInstance(context) }
+    val onDeviceEngine = remember { OnDeviceEngine.getInstance(context) }
     val downloadState by downloadManager.downloadState.collectAsState()
+    var isMemoryLoaded by remember { mutableStateOf(onDeviceEngine.isMemoryLoaded) }
     var isAutoFallback by remember { mutableStateOf(BackendConfig.isAutoFallbackEnabled(context)) }
 
     LaunchedEffect(Unit) {
@@ -703,7 +708,7 @@ fun FrostedSettingsSheet(
                                             color = textColor
                                         )
                                         Text(
-                                            text = "Quantized GGUF Q4_K_M (Zero RAM/Cloud requirement on PC)",
+                                            text = "Quantized GGUF Q4_K_M (Runs 100% offline on phone ARM64 silicon)",
                                             fontSize = 10.sp,
                                             color = subtitleColor
                                         )
@@ -727,74 +732,186 @@ fun FrostedSettingsSheet(
                                 // Download Manager Status & Controls
                                 when (val state = downloadState) {
                                     is DownloadState.Completed -> {
-                                        Row(
+                                        Column(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            Text(
-                                                text = "Model file: ${downloadManager.getModelFileSizeMB()} MB in internal storage",
-                                                fontSize = 11.sp,
-                                                color = Color(0xFF10B981)
-                                            )
-                                            OutlinedButton(
-                                                onClick = {
-                                                    downloadManager.deleteModel()
-                                                    if (backendMode == BackendConfig.MODE_ON_DEVICE) {
-                                                        backendMode = BackendConfig.MODE_CLOUD
-                                                        BackendConfig.setBackendMode(context, BackendConfig.MODE_CLOUD)
-                                                    }
-                                                },
-                                                shape = RoundedCornerShape(8.dp),
-                                                border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f)),
-                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444))
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Icon(
-                                                    imageVector = Icons.Rounded.Delete,
-                                                    contentDescription = "Delete",
-                                                    modifier = Modifier.size(13.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text("Delete", fontSize = 10.sp)
+                                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                    Text(
+                                                        text = "Model file: ${downloadManager.getModelFileSizeMB()} MB in internal storage",
+                                                        fontSize = 11.sp,
+                                                        color = Color(0xFF10B981),
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                    Text(
+                                                        text = if (isMemoryLoaded) "Status: Loaded in Memory (~1.3 GB RAM)" else "Status: In Storage (Loads on demand)",
+                                                        fontSize = 10.sp,
+                                                        color = if (isMemoryLoaded) Color(0xFFF59E0B) else subtitleColor
+                                                    )
+                                                }
+
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        onDeviceEngine.unloadModel()
+                                                        isMemoryLoaded = false
+                                                        downloadManager.deleteModel()
+                                                        if (backendMode == BackendConfig.MODE_ON_DEVICE) {
+                                                            backendMode = BackendConfig.MODE_CLOUD
+                                                            BackendConfig.setBackendMode(context, BackendConfig.MODE_CLOUD)
+                                                        }
+                                                    },
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f)),
+                                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444))
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Rounded.Delete,
+                                                        contentDescription = "Delete",
+                                                        modifier = Modifier.size(13.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text("Delete", fontSize = 10.sp)
+                                                }
+                                            }
+
+                                            if (isMemoryLoaded) {
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        onDeviceEngine.unloadModel()
+                                                        isMemoryLoaded = false
+                                                    },
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.5f)),
+                                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFF59E0B))
+                                                ) {
+                                                    Text("Unload Model to Free RAM", fontSize = 11.sp)
+                                                }
                                             }
                                         }
                                     }
                                     is DownloadState.Downloading -> {
                                         Column(
                                             modifier = Modifier.fillMaxWidth(),
-                                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 Text(
                                                     text = "Downloading: ${state.downloadedBytes / (1024 * 1024)} MB / ${state.totalBytes / (1024 * 1024)} MB (${state.progressPercent}%)",
                                                     fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Medium,
+                                                    fontWeight = FontWeight.SemiBold,
                                                     color = textColor
                                                 )
-                                                Text(
-                                                    text = "${"%.1f".format(state.downloadSpeedMBs)} MB/s",
-                                                    fontSize = 11.sp,
-                                                    color = subtitleColor
-                                                )
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = Color(0x30F59E0B)
+                                                ) {
+                                                    Text(
+                                                        text = "${"%.1f".format(state.downloadSpeedMBs)} MB/s",
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFFF59E0B),
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    )
+                                                }
                                             }
+
                                             LinearProgressIndicator(
                                                 progress = { state.progressPercent / 100f },
-                                                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                                                modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
                                                 color = Color(0xFFF59E0B),
                                                 trackColor = Color(0x30F59E0B)
                                             )
-                                            OutlinedButton(
-                                                onClick = { downloadManager.pauseDownload() },
-                                                shape = RoundedCornerShape(8.dp),
+
+                                            Row(
                                                 modifier = Modifier.fillMaxWidth(),
-                                                border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                                             ) {
-                                                Icon(Icons.Rounded.Pause, contentDescription = null, modifier = Modifier.size(13.dp))
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text("Pause Download", fontSize = 11.sp, color = textColor)
+                                                OutlinedButton(
+                                                    onClick = { ModelDownloadService.pause(context) },
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    modifier = Modifier.weight(1f),
+                                                    border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
+                                                ) {
+                                                    Icon(Icons.Rounded.Pause, contentDescription = null, modifier = Modifier.size(13.dp))
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text("Pause", fontSize = 11.sp, color = textColor)
+                                                }
+                                                OutlinedButton(
+                                                    onClick = { ModelDownloadService.cancel(context) },
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    modifier = Modifier.weight(1f),
+                                                    border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.4f)),
+                                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444))
+                                                ) {
+                                                    Text("Cancel", fontSize = 11.sp)
+                                                }
+                                            }
+                                        }
+                                    }
+                                    is DownloadState.Paused -> {
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "Paused: ${state.downloadedBytes / (1024 * 1024)} MB / ${state.totalBytes / (1024 * 1024)} MB (${state.progressPercent}%)",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = Color(0xFFF59E0B)
+                                                )
+                                                Text(
+                                                    text = "Paused",
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = subtitleColor
+                                                )
+                                            }
+
+                                            LinearProgressIndicator(
+                                                progress = { state.progressPercent / 100f },
+                                                modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
+                                                color = Color(0xFFF59E0B),
+                                                trackColor = Color(0x30F59E0B)
+                                            )
+
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Button(
+                                                    onClick = { ModelDownloadService.resume(context) },
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    modifier = Modifier.weight(1f),
+                                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B))
+                                                ) {
+                                                    Icon(Icons.Rounded.PlayArrow, contentDescription = null, tint = Color.Black, modifier = Modifier.size(14.dp))
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text("Resume", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                                                }
+                                                OutlinedButton(
+                                                    onClick = { ModelDownloadService.cancel(context) },
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    modifier = Modifier.weight(1f),
+                                                    border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.4f)),
+                                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444))
+                                                ) {
+                                                    Text("Cancel", fontSize = 11.sp)
+                                                }
                                             }
                                         }
                                     }
@@ -813,14 +930,14 @@ fun FrostedSettingsSheet(
                                         }
                                     }
                                     is DownloadState.Failed -> {
-                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                             Text(
                                                 text = "⚠️ ${state.error}",
                                                 fontSize = 11.sp,
                                                 color = Color(0xFFEF4444)
                                             )
                                             Button(
-                                                onClick = { downloadManager.startDownload(scope) },
+                                                onClick = { ModelDownloadService.start(context) },
                                                 shape = RoundedCornerShape(8.dp),
                                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B))
                                             ) {
@@ -836,7 +953,7 @@ fun FrostedSettingsSheet(
                                                 color = subtitleColor
                                             )
                                             Button(
-                                                onClick = { downloadManager.startDownload(scope) },
+                                                onClick = { ModelDownloadService.start(context) },
                                                 shape = RoundedCornerShape(10.dp),
                                                 modifier = Modifier.fillMaxWidth(),
                                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B))

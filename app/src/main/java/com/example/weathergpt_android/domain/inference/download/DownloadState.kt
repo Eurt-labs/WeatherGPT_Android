@@ -12,6 +12,11 @@ sealed class DownloadState {
         val totalBytes: Long,
         val downloadSpeedMBs: Float = 0f
     ) : DownloadState()
+    data class Paused(
+        val progressPercent: Int,
+        val downloadedBytes: Long,
+        val totalBytes: Long
+    ) : DownloadState()
     data object Verifying : DownloadState()
     data object Completed : DownloadState()
     data class Failed(val error: String) : DownloadState()

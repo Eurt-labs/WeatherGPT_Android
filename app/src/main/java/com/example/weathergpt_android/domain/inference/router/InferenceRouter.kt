@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.flow
  */
 class InferenceRouter(private val context: Context) {
     val openRouterService = OpenRouterService(context)
-    val onDeviceEngine = OnDeviceEngine(context)
+    val onDeviceEngine = OnDeviceEngine.getInstance(context)
 
     fun isNetworkAvailable(): Boolean {
         return try {
