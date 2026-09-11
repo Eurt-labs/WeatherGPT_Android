@@ -221,6 +221,29 @@ class OnDeviceEngine private constructor(
     }
 
     /**
+     * Immediately terminates active token completion and stops native model thinking.
+     */
+    fun stopGeneration() {
+        try {
+            activeTokenEmitter = null
+            val engine = synchronized(this@OnDeviceEngine) { llama }
+            val activeContextId = synchronized(this@OnDeviceEngine) { contextId }
+            if (engine != null && activeContextId != null) {
+                scope.launch {
+                    try {
+                        engine.stopCompletion(activeContextId)
+                        Log.i("OnDeviceEngine", "Native completion stopped on context $activeContextId")
+                    } catch (e: Throwable) {
+                        Log.w("OnDeviceEngine", "stopCompletion failed", e)
+                    }
+                }
+            }
+        } catch (e: Throwable) {
+            Log.w("OnDeviceEngine", "stopGeneration failed", e)
+        }
+    }
+
+    /**
      * Threshold check: If app is currently in Online/Cloud mode and the model has been
      * resident in memory without use for >= 3 minutes, unload to free system RAM.
      */

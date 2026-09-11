@@ -243,6 +243,11 @@ class OpenRouterService(private val context: Context) {
                     val currentLine = line ?: continue
                     if (currentLine.isBlank()) continue
 
+                    // Ignore SSE comments and pings (lines starting with ':' such as ': ping - 2026-09-11...')
+                    if (currentLine.startsWith(":") || currentLine.startsWith("event: ping") || currentLine.contains("ping -", ignoreCase = true)) {
+                        continue
+                    }
+
                     if (currentLine.contains("402") || currentLine.contains("insufficient credits", ignoreCase = true)) {
                         emit("⚠️ Render Backend Notice (HTTP 402): OpenRouter quota depleted on Render server. Please update OPENROUTER_API_KEY in the Render dashboard.")
                         return@flow

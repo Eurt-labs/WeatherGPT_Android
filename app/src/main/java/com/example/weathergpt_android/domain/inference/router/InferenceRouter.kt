@@ -118,4 +118,15 @@ class InferenceRouter(private val context: Context) {
             }
         }
     }
+
+    /**
+     * Terminate ongoing generation on the active engine.
+     */
+    fun stopGeneration() {
+        try {
+            onDeviceEngine.stopGeneration()
+        } catch (e: Throwable) {
+            Log.w("InferenceRouter", "Error stopping generation", e)
+        }
+    }
 }

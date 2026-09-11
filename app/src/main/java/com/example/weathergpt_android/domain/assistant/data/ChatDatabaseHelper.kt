@@ -153,7 +153,10 @@ class ChatDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
             cursor.use {
                 while (it.moveToNext()) {
                     val id = it.getString(0)
-                    val text = it.getString(1)
+                    val text = it.getString(1) ?: ""
+                    // Skip any empty or pure whitespace messages to eliminate zombie thinking bubbles
+                    if (text.isBlank()) continue
+
                     val isUser = it.getInt(2) == 1
                     val timestamp = it.getString(3)
                     val uId = it.getString(4) ?: ""
@@ -326,6 +329,24 @@ class ChatDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
             }
         } catch (e: Exception) {
             android.util.Log.e("ChatDatabaseHelper", "clearHistory failed", e)
+        }
+    }
+
+    suspend fun deleteMessage(id: String) = withContext(Dispatchers.IO) {
+        try {
+            val db = writableDatabase
+            db.delete(TABLE_MESSAGES, "$COL_ID = ?", arrayOf(id))
+        } catch (e: Exception) {
+            android.util.Log.e("ChatDatabaseHelper", "deleteMessage failed", e)
+        }
+    }
+
+    suspend fun purgeBlankMessages() = withContext(Dispatchers.IO) {
+        try {
+            val db = writableDatabase
+            db.delete(TABLE_MESSAGES, "TRIM($COL_TEXT) = ''", null)
+        } catch (e: Exception) {
+            android.util.Log.e("ChatDatabaseHelper", "purgeBlankMessages failed", e)
         }
     }
 }

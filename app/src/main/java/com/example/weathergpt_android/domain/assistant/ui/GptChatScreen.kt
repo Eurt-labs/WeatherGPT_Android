@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import android.widget.Toast
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
@@ -44,7 +46,10 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Mic
@@ -57,6 +62,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.Job
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -147,20 +160,79 @@ fun GptChatScreen(
     var isGenerating by remember { mutableStateOf(false) }
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val clipboardManager = LocalClipboardManager.current
+    val inputFocusRequester = remember { FocusRequester() }
+    val messages = remember { mutableStateListOf<ChatMessage>() }
+    var generationJob by remember { mutableStateOf<Job?>(null) }
+    var selectedMessageForOptions by remember { mutableStateOf<ChatMessage?>(null) }
+    var isEditingPrompt by remember { mutableStateOf(false) }
 
     // Sherpa On-Device Voice Engine for 100% Offline Dictation (0 Tokens Used)
     val sherpaEngine = remember { SherpaOnnxEngine(context, scope) }
     val isSherpaSpeaking by sherpaEngine.isSpeaking.collectAsStateWithLifecycle()
     val speakingMessageId by sherpaEngine.currentlySpeakingId.collectAsStateWithLifecycle()
 
+    val stopActiveGeneration: () -> Unit = {
+        if (isGenerating) {
+            generationJob?.cancel()
+            generationJob = null
+            inferenceRouter.stopGeneration()
+            isGenerating = false
+
+            val lastIndex = messages.indexOfLast { !it.isUser }
+            if (lastIndex != -1) {
+                val lastMsg = messages[lastIndex]
+                if (lastMsg.text.isBlank()) {
+                    val remId = lastMsg.id
+                    messages.removeAt(lastIndex)
+                    scope.launch {
+                        withContext(NonCancellable + Dispatchers.IO) {
+                            dbHelper.deleteMessage(remId)
+                        }
+                    }
+                } else {
+                    scope.launch {
+                        withContext(NonCancellable + Dispatchers.IO) {
+                            dbHelper.saveMessage(lastMsg, lastMsg.text.length / 4, userId = userProfile.userId, sessionId = activeSessionId)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    val handleBack: () -> Unit = {
+        stopActiveGeneration()
+        onBack()
+    }
+
+    fun copyToClipboard(text: String) {
+        val clean = text.trim()
+        if (clean.isBlank()) return
+        clipboardManager.setText(AnnotatedString(clean))
+        Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+    }
+
+    fun editPrompt(promptText: String) {
+        stopActiveGeneration()
+        isEditingPrompt = true
+        inputText = promptText
+        inputFocusRequester.requestFocus()
+        scope.launch {
+            if (messages.isNotEmpty()) {
+                listState.animateScrollToItem(messages.size - 1)
+            }
+        }
+    }
+
     DisposableEffect(Unit) {
         onDispose {
+            generationJob?.cancel()
+            inferenceRouter.stopGeneration()
             sherpaEngine.stopSpeaking()
             sherpaEngine.release()
         }
     }
-
-    val messages = remember { mutableStateListOf<ChatMessage>() }
 
     fun isRawJsonArtifact(t: String): Boolean {
         val trimmed = t.trim()
@@ -185,10 +257,13 @@ fun GptChatScreen(
     }
 
     /**
-     * Sanitizes tokens so raw JSON SSE chunks never appear in the chat bubble.
+     * Sanitizes tokens so raw JSON SSE chunks and keep-alive ping comments never appear in the chat bubble.
      */
     fun sanitizeChunk(raw: String): String {
         if (raw.contains("Error HTTP 402") || raw.contains("HTTP 402") || raw.contains("insufficient credits", ignoreCase = true)) {
+            return ""
+        }
+        if (raw.startsWith(":") || raw.startsWith("event: ping") || raw.contains("ping -", ignoreCase = true)) {
             return ""
         }
         if (raw.isBlank() && raw.isNotEmpty()) {
@@ -214,6 +289,8 @@ fun GptChatScreen(
 
     fun stripRawJsonArtifacts(text: String): String {
         return text
+            .replace(Regex("(?m)^\\s*:\\s*ping.*?$", RegexOption.MULTILINE), "")
+            .replace(Regex(":\\s*ping\\s*-\\s*[^\\n]+", RegexOption.IGNORE_CASE), "")
             .replace(Regex("data:\\s*\\{.*?\\}", RegexOption.DOT_MATCHES_ALL), "")
             .replace(Regex("\\{\"id\":.*?\\}", RegexOption.DOT_MATCHES_ALL), "")
             .replace(Regex("\"format\"\\s*:\\s*\"[^\"]*\".*?\\}\\]?\\}?", RegexOption.DOT_MATCHES_ALL), "")
@@ -229,7 +306,11 @@ fun GptChatScreen(
     }
 
     fun sendMessage(userText: String) {
-        if (userText.isBlank() || isGenerating) return
+        if (userText.isBlank()) return
+        if (isGenerating) {
+            stopActiveGeneration()
+        }
+        isEditingPrompt = false
         val currentSessionId = activeSessionId.ifBlank { "default" }
 
         val userMessage = ChatMessage(
@@ -268,14 +349,7 @@ fun GptChatScreen(
             listState.animateScrollToItem(messages.size - 1)
         }
 
-        // Persist initial assistant stub immediately so the row is guaranteed in SQLite
-        scope.launch {
-            withContext(NonCancellable + Dispatchers.IO) {
-                dbHelper.saveMessage(assistantMessage, 0, userId = userProfile.userId, sessionId = currentSessionId)
-            }
-        }
-
-        scope.launch {
+        generationJob = scope.launch {
             val history = messages
                 .filter { it.id != assistantMessageId && it.text.isNotBlank() }
                 .takeLast(6)
@@ -337,9 +411,8 @@ fun GptChatScreen(
                     }
                 }
             } finally {
-                // Guaranteed persistence block with NonCancellable: runs even if user navigates away
                 withContext(NonCancellable + Dispatchers.IO) {
-                    val finalizedText = stripRawJsonArtifacts(accumulatedResponse)
+                    val finalizedText = stripRawJsonArtifacts(accumulatedResponse).trim()
                     if (finalizedText.isNotBlank()) {
                         val finalMsg = ChatMessage(
                             id = assistantMessageId,
@@ -358,9 +431,17 @@ fun GptChatScreen(
                         if (userProfile.userId.isNotBlank()) {
                             syncService.syncMessagesToCloud(userProfile.userId, listOf(finalMsg))
                         }
+                    } else {
+                        // Stopped / cancelled while thinking: clean up the blank bubble
+                        val index = messages.indexOfFirst { it.id == assistantMessageId }
+                        if (index != -1) {
+                            messages.removeAt(index)
+                        }
+                        dbHelper.deleteMessage(assistantMessageId)
                     }
                 }
                 isGenerating = false
+                generationJob = null
             }
         }
     }
@@ -368,10 +449,11 @@ fun GptChatScreen(
     // Load persisted chat history from SQLite / Cloud on launch, then consume initial prompt
     LaunchedEffect(activeSessionId, userProfile.userId) {
         val targetSessionId = activeSessionId.ifBlank { "default" }
+        dbHelper.purgeBlankMessages()
         val savedHistory = dbHelper.getAllMessages(userProfile.userId, targetSessionId)
         messages.clear()
         if (savedHistory.isNotEmpty()) {
-            messages.addAll(savedHistory)
+            messages.addAll(savedHistory.filter { it.text.isNotBlank() })
         } else if (userProfile.userId.isNotBlank()) {
             // Check cloud if local is empty (e.g. after reinstall)
             val cloudRes = syncService.fetchCloudHistory(userProfile.userId)
@@ -379,7 +461,7 @@ fun GptChatScreen(
                 if (cloudMsgs.isNotEmpty()) {
                     dbHelper.insertBatchFromCloud(cloudMsgs, userProfile.userId)
                     val restored = dbHelper.getAllMessages(userProfile.userId, targetSessionId)
-                    messages.addAll(restored)
+                    messages.addAll(restored.filter { it.text.isNotBlank() })
                 }
             }
         }
@@ -437,7 +519,7 @@ fun GptChatScreen(
             ) {
                 FrostedIconButton(
                     icon = Icons.AutoMirrored.Rounded.ArrowBack,
-                    onClick = onBack,
+                    onClick = handleBack,
                     size = 40.dp,
                     isDark = isDark
                 )
@@ -482,20 +564,20 @@ fun GptChatScreen(
                         isDark = isDark
                     )
 
-                    // Clear History Button
+                    // Clear Active Chat Button
                     FrostedIconButton(
                         icon = Icons.Rounded.DeleteOutline,
                         onClick = {
+                            stopActiveGeneration()
+                            messages.clear()
                             scope.launch {
-                                dbHelper.clearHistory(userProfile.userId)
-                                if (userProfile.userId.isNotBlank()) {
-                                    syncService.clearCloudHistory(userProfile.userId)
+                                withContext(NonCancellable + Dispatchers.IO) {
+                                    dbHelper.clearHistory(userProfile.userId)
                                 }
                             }
-                            messages.clear()
                             val reset = ChatMessage(
-                                id = "cleared",
-                                text = "Conversation history cleared. Ask me anything about the weather!",
+                                id = UUID.randomUUID().toString(),
+                                text = "Conversation reset. How can WeatherGPT assist your sector today?",
                                 isUser = false,
                                 timestamp = "Just now",
                                 userId = userProfile.userId,
@@ -544,7 +626,10 @@ fun GptChatScreen(
                                     languageCode = userProfile.preferredLanguage
                                 )
                             }
-                        }
+                        },
+                        onCopy = { copyToClipboard(msg.text) },
+                        onEdit = { editPrompt(msg.text) },
+                        onLongPress = { selectedMessageForOptions = msg }
                     )
                 }
             }
@@ -601,6 +686,58 @@ fun GptChatScreen(
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
                             )
                         }
+                    }
+                }
+            }
+
+            // Editing indicator banner
+            AnimatedVisibility(
+                visible = isEditingPrompt,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    color = FrostedGlassTokens.surfaceRaised(isDark),
+                    border = BorderStroke(1.dp, accentBeige.copy(alpha = 0.35f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Edit,
+                                contentDescription = null,
+                                tint = accentBeige,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "Editing prompt • Tap Send to submit",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = textColor
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Rounded.Close,
+                            contentDescription = "Cancel edit",
+                            tint = subtitleColor,
+                            modifier = Modifier
+                                .size(18.dp)
+                                .clip(CircleShape)
+                                .clickable {
+                                    isEditingPrompt = false
+                                    inputText = ""
+                                }
+                        )
                     }
                 }
             }
@@ -668,17 +805,21 @@ fun GptChatScreen(
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                             keyboardActions = KeyboardActions(onSend = {
-                                if (inputText.isNotBlank()) {
+                                if (isGenerating) {
+                                    stopActiveGeneration()
+                                } else if (inputText.isNotBlank()) {
                                     val t = inputText
                                     inputText = ""
                                     sendMessage(t)
                                 }
                             }),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(inputFocusRequester)
                         )
                     }
 
-                    // Send Button with Monochromatic Champagne / High-contrast Charcoal Gradient
+                    // Send / Stop Button with Monochromatic Champagne / High-contrast Charcoal Gradient
                     val sendGradient = if (isDark) {
                         Brush.radialGradient(
                             listOf(Color(0xFFFFFFFF), Color(0xFFE8E3D5), Color(0xFFD0C9BA))
@@ -695,8 +836,10 @@ fun GptChatScreen(
                             .size(42.dp)
                             .clip(CircleShape)
                             .background(sendGradient)
-                            .clickable(enabled = !isGenerating && inputText.isNotBlank()) {
-                                if (inputText.isNotBlank()) {
+                            .clickable {
+                                if (isGenerating) {
+                                    stopActiveGeneration()
+                                } else if (inputText.isNotBlank()) {
                                     val t = inputText
                                     inputText = ""
                                     sendMessage(t)
@@ -705,17 +848,43 @@ fun GptChatScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         if (isGenerating) {
-                            CircularProgressIndicator(color = sendTint, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            // Sleek Stop square (ChatGPT / Claude style terminate button)
+                            Box(
+                                modifier = Modifier
+                                    .size(14.dp)
+                                    .clip(RoundedCornerShape(3.dp))
+                                    .background(sendTint)
+                            )
                         } else {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Rounded.Send,
                                 contentDescription = "Send",
-                                tint = sendTint,
+                                tint = if (inputText.isNotBlank()) sendTint else sendTint.copy(alpha = 0.4f),
                                 modifier = Modifier.size(18.dp)
                             )
                         }
                     }
                 }
+            }
+
+            // Touch & hold message options modal dialog
+            if (selectedMessageForOptions != null) {
+                val targetMsg = selectedMessageForOptions!!
+                MessageOptionsModal(
+                    message = targetMsg,
+                    isDark = isDark,
+                    onDismiss = { selectedMessageForOptions = null },
+                    onCopy = {
+                        copyToClipboard(targetMsg.text)
+                        selectedMessageForOptions = null
+                    },
+                    onEdit = if (targetMsg.isUser) {
+                        {
+                            selectedMessageForOptions = null
+                            editPrompt(targetMsg.text)
+                        }
+                    } else null
+                )
             }
         }
     }
@@ -726,7 +895,10 @@ private fun ChatBubbleItem(
     message: ChatMessage,
     isDark: Boolean,
     isSpeaking: Boolean = false,
-    onToggleSpeak: () -> Unit = {}
+    onToggleSpeak: () -> Unit = {},
+    onCopy: () -> Unit = {},
+    onEdit: () -> Unit = {},
+    onLongPress: () -> Unit = {}
 ) {
     val isUser = message.isUser
     val alignment = if (isUser) Alignment.End else Alignment.Start
@@ -749,7 +921,10 @@ private fun ChatBubbleItem(
             Surface(
                 modifier = Modifier
                     .widthIn(max = 295.dp)
-                    .shadow(FrostedGlassTokens.ElevationDefault, RoundedCornerShape(22.dp, 22.dp, 4.dp, 22.dp), ambientColor = FrostedGlassTokens.ShadowColor, spotColor = FrostedGlassTokens.ShadowColor),
+                    .shadow(FrostedGlassTokens.ElevationDefault, RoundedCornerShape(22.dp, 22.dp, 4.dp, 22.dp), ambientColor = FrostedGlassTokens.ShadowColor, spotColor = FrostedGlassTokens.ShadowColor)
+                    .pointerInput(message.id) {
+                        detectTapGestures(onLongPress = { onLongPress() })
+                    },
                 shape = RoundedCornerShape(22.dp, 22.dp, 4.dp, 22.dp),
                 color = Color.Transparent,
                 border = BorderStroke(1.dp, userBorderColor)
@@ -768,12 +943,74 @@ private fun ChatBubbleItem(
                     )
                 }
             }
+
+            // Action row under user bubble: timestamp + Edit + Copy
+            Row(
+                modifier = Modifier.padding(top = 4.dp, end = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = message.timestamp,
+                    color = if (isDark) Color.White.copy(alpha = 0.40f) else Color(0xFF94A3B8),
+                    fontSize = 10.sp
+                )
+
+                // Edit Button
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onEdit)
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Edit,
+                        contentDescription = "Edit Prompt",
+                        tint = accentBeige.copy(alpha = 0.85f),
+                        modifier = Modifier.size(11.dp)
+                    )
+                    Text(
+                        text = "Edit",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = accentBeige.copy(alpha = 0.85f)
+                    )
+                }
+
+                // Copy Button
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onCopy)
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.ContentCopy,
+                        contentDescription = "Copy Prompt",
+                        tint = accentBeige.copy(alpha = 0.85f),
+                        modifier = Modifier.size(11.dp)
+                    )
+                    Text(
+                        text = "Copy",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = accentBeige.copy(alpha = 0.85f)
+                    )
+                }
+            }
         } else {
             // Assistant frosted glass message bubble with monochromatic/beige accents
             Surface(
                 modifier = Modifier
                     .widthIn(max = 330.dp)
-                    .shadow(FrostedGlassTokens.ElevationDefault, RoundedCornerShape(4.dp, 22.dp, 22.dp, 22.dp), ambientColor = FrostedGlassTokens.ShadowColor, spotColor = FrostedGlassTokens.ShadowColor),
+                    .shadow(FrostedGlassTokens.ElevationDefault, RoundedCornerShape(4.dp, 22.dp, 22.dp, 22.dp), ambientColor = FrostedGlassTokens.ShadowColor, spotColor = FrostedGlassTokens.ShadowColor)
+                    .pointerInput(message.id) {
+                        detectTapGestures(onLongPress = { onLongPress() })
+                    },
                 shape = RoundedCornerShape(4.dp, 22.dp, 22.dp, 22.dp),
                 color = FrostedGlassTokens.surface(isDark),
                 border = BorderStroke(
@@ -820,35 +1057,71 @@ private fun ChatBubbleItem(
                             )
                         }
 
-                        // On-Device Voice Readout & Stop Button (0 Tokens)
-                        Surface(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable(onClick = onToggleSpeak),
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isSpeaking) Color(0x30EF4444) else FrostedGlassTokens.surfaceSubtle(isDark),
-                            border = BorderStroke(
-                                1.dp,
-                                if (isSpeaking) Color(0xFFEF4444).copy(alpha = 0.8f) else FrostedGlassTokens.borderSubtle(isDark)
-                            )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            // Copy button in header
+                            if (message.text.isNotEmpty()) {
+                                Surface(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable(onClick = onCopy),
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = FrostedGlassTokens.surfaceSubtle(isDark),
+                                    border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.ContentCopy,
+                                            contentDescription = "Copy Response",
+                                            tint = if (isDark) Color.White.copy(alpha = 0.8f) else Color(0xFF64748B),
+                                            modifier = Modifier.size(11.dp)
+                                        )
+                                        Text(
+                                            text = "Copy",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = if (isDark) Color.White.copy(alpha = 0.8f) else Color(0xFF64748B)
+                                        )
+                                    }
+                                }
+                            }
+
+                            // On-Device Voice Readout & Stop Button (0 Tokens)
+                            Surface(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable(onClick = onToggleSpeak),
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSpeaking) Color(0x30EF4444) else FrostedGlassTokens.surfaceSubtle(isDark),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isSpeaking) Color(0xFFEF4444).copy(alpha = 0.8f) else FrostedGlassTokens.borderSubtle(isDark)
+                                )
                             ) {
-                                Icon(
-                                    imageVector = if (isSpeaking) Icons.Rounded.Stop else Icons.AutoMirrored.Rounded.VolumeUp,
-                                    contentDescription = if (isSpeaking) "Stop Dictation" else "Listen Aloud (0 Tokens)",
-                                    tint = if (isSpeaking) Color(0xFFEF4444) else (if (isDark) Color.White.copy(alpha = 0.8f) else Color(0xFF64748B)),
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Text(
-                                    text = if (isSpeaking) "Stop" else "Listen",
-                                    fontSize = 10.sp,
-                                    fontWeight = if (isSpeaking) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSpeaking) Color(0xFFFF5252) else (if (isDark) Color.White.copy(alpha = 0.8f) else Color(0xFF64748B))
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isSpeaking) Icons.Rounded.Stop else Icons.AutoMirrored.Rounded.VolumeUp,
+                                        contentDescription = if (isSpeaking) "Stop Dictation" else "Listen Aloud (0 Tokens)",
+                                        tint = if (isSpeaking) Color(0xFFEF4444) else (if (isDark) Color.White.copy(alpha = 0.8f) else Color(0xFF64748B)),
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Text(
+                                        text = if (isSpeaking) "Stop" else "Listen",
+                                        fontSize = 10.sp,
+                                        fontWeight = if (isSpeaking) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSpeaking) Color(0xFFFF5252) else (if (isDark) Color.White.copy(alpha = 0.8f) else Color(0xFF64748B))
+                                    )
+                                }
                             }
                         }
                     }
@@ -889,6 +1162,166 @@ private fun ChatBubbleItem(
                         color = if (isDark) Color.White.copy(alpha = 0.40f) else Color(0xFF94A3B8),
                         fontSize = 10.sp
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MessageOptionsModal(
+    message: ChatMessage,
+    isDark: Boolean,
+    onDismiss: () -> Unit,
+    onCopy: () -> Unit,
+    onEdit: (() -> Unit)? = null
+) {
+    val accentBeige = if (isDark) Color(0xFFE8E3D5) else Color(0xFFC4BCAF)
+    val textColor = if (isDark) Color.White else Color(0xFF111113)
+    val subtitleColor = if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A)
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0x80000000))
+                .clickable(onClick = onDismiss),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 24.dp)
+                    .clip(RoundedCornerShape(26.dp))
+                    .clickable(enabled = false) {},
+                shape = RoundedCornerShape(26.dp),
+                color = FrostedGlassTokens.surfaceRaised(isDark),
+                border = BorderStroke(1.dp, FrostedGlassTokens.border(isDark))
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // Pill handle
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .size(width = 36.dp, height = 4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(subtitleColor.copy(alpha = 0.4f))
+                    )
+
+                    // Message preview snippet
+                    val snippet = message.text.take(90).let { if (message.text.length > 90) "$it..." else it }
+                    if (snippet.isNotBlank()) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            color = FrostedGlassTokens.surfaceSubtle(isDark)
+                        ) {
+                            Text(
+                                text = "\"$snippet\"",
+                                fontSize = 12.sp,
+                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                color = subtitleColor,
+                                maxLines = 2,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
+
+                    // Edit & Resend Option (User Message)
+                    if (message.isUser && onEdit != null) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .clickable(onClick = onEdit),
+                            shape = RoundedCornerShape(16.dp),
+                            color = FrostedGlassTokens.surfaceSubtle(isDark)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(accentBeige.copy(alpha = 0.18f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Edit,
+                                        contentDescription = "Edit Prompt",
+                                        tint = if (isDark) accentBeige else Color(0xFF18181B),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "Edit & Resend",
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 14.sp,
+                                        color = textColor
+                                    )
+                                    Text(
+                                        text = "Stops AI thinking and prepares prompt for resending",
+                                        fontSize = 11.sp,
+                                        color = subtitleColor
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Copy Option
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable(onClick = onCopy),
+                        shape = RoundedCornerShape(16.dp),
+                        color = FrostedGlassTokens.surfaceSubtle(isDark)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(FrostedGlassTokens.surface(isDark)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.ContentCopy,
+                                    contentDescription = "Copy",
+                                    tint = textColor,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = if (message.isUser) "Copy Message" else "Copy Response",
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
+                                    color = textColor
+                                )
+                                Text(
+                                    text = "Copy text to clipboard",
+                                    fontSize = 11.sp,
+                                    color = subtitleColor
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
