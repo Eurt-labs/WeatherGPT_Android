@@ -68,6 +68,7 @@ import com.example.weathergpt_android.domain.auth.data.UserPreferences
 import com.example.weathergpt_android.domain.auth.model.UserProfile
 import com.example.weathergpt_android.domain.location.model.LocationData
 import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.isActive
@@ -115,6 +116,7 @@ fun ImmersiveVoiceScreen(
     var isTtsReady by remember { mutableStateOf(false) }
     var speechEnergy by remember { mutableFloatStateOf(0f) }
     var conversationProgress by remember { mutableFloatStateOf(0.10f) }
+    var voiceJob by remember { mutableStateOf<Job?>(null) }
 
     // Linear Edge Light: dynamically expands from center bezel outwards as conversation goes
     LaunchedEffect(conversationState) {
@@ -179,6 +181,13 @@ fun ImmersiveVoiceScreen(
     // Process user query with Gemini 3.6 Flash
     fun processVoiceQuery(query: String) {
         if (query.isBlank()) return
+
+        // Cancel previous streaming query and stop speech to prevent overlapping voices/transcripts
+        voiceJob?.cancel()
+        try {
+            textToSpeech?.stop()
+        } catch (_: Throwable) {}
+
         conversationState = VoiceConversationState.THINKING
         assistantResponse = ""
         conversationProgress = (conversationProgress + 0.12f).coerceAtMost(1f)
@@ -198,7 +207,7 @@ fun ImmersiveVoiceScreen(
 
         val weatherContext = liveWeatherData.toDenseMeteorologicalContext()
 
-        scope.launch {
+        voiceJob = scope.launch {
             var fullAnswer = ""
             openRouterService.streamChatCompletion(
                 userMessage = query,
@@ -350,6 +359,7 @@ fun ImmersiveVoiceScreen(
         }
 
         onDispose {
+            voiceJob?.cancel()
             try {
                 recognizer?.destroy()
             } catch (_: Throwable) {}
@@ -389,7 +399,11 @@ fun ImmersiveVoiceScreen(
             ) {
                 FrostedIconButton(
                     icon = Icons.AutoMirrored.Rounded.ArrowBack,
-                    onClick = onClose,
+                    onClick = {
+                        voiceJob?.cancel()
+                        try { textToSpeech?.stop() } catch (_: Throwable) {}
+                        onClose()
+                    },
                     size = 42.dp,
                     isDark = isDark
                 )
@@ -568,28 +582,60 @@ private fun VoiceWaveLineAnimation(
     }
 }
 
+private fun isRawJsonArtifact(t: String): Boolean {
+    val trimmed = t.trim()
+    return trimmed.isEmpty() ||
+           trimmed == "[DONE]" ||
+           trimmed.startsWith("{") ||
+           trimmed.startsWith("data:") ||
+           trimmed.startsWith("}") ||
+           trimmed.startsWith("]") ||
+           trimmed.endsWith("}") ||
+           trimmed.endsWith("]") ||
+           trimmed.contains("\"format\":") ||
+           trimmed.contains("google-gemini") ||
+           trimmed.contains("finish_reason") ||
+           trimmed.contains("native_finish_reason") ||
+           trimmed.contains("\"signature\":") ||
+           trimmed.contains("\"reasoning\":") ||
+           trimmed.contains("\"reasoning_details\":") ||
+           trimmed.contains("\"choices\":") ||
+           trimmed.contains("\"delta\":") ||
+           trimmed.contains("\"candidates\":")
+}
+
 private fun sanitizeVoiceToken(raw: String): String {
     if (raw.contains("Error HTTP 402") || raw.contains("HTTP 402") || raw.contains("insufficient credits", ignoreCase = true)) {
         return ""
     }
-    if (!raw.contains("{\"id\":") && !raw.contains("data:") && !raw.contains("\"choices\":") && !raw.contains("\"object\":")) {
-        return raw
-    }
-    return try {
+    val trimmed = raw.trim()
+    if (isRawJsonArtifact(trimmed)) {
         val match = Regex("\"content\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").find(raw)
-        match?.groupValues?.get(1)
-            ?.replace("\\n", "\n")
-            ?.replace("\\\"", "\"")
-            ?.replace("\\\\", "\\") ?: ""
-    } catch (_: Exception) {
-        ""
+            ?: Regex("\"text\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").find(raw)
+        if (match != null) {
+            val extracted = match.groupValues[1]
+                .replace("\\n", "\n")
+                .replace("\\r", "\r")
+                .replace("\\t", "\t")
+                .replace("\\\"", "\"")
+                .replace("\\\\", "\\")
+            return if (isRawJsonArtifact(extracted)) "" else extracted
+        }
+        return ""
     }
+    return raw
 }
 
 private fun stripRawJsonArtifacts(text: String): String {
     return text
         .replace(Regex("data:\\s*\\{.*?\\}", RegexOption.DOT_MATCHES_ALL), "")
         .replace(Regex("\\{\"id\":.*?\\}", RegexOption.DOT_MATCHES_ALL), "")
+        .replace(Regex("\"format\"\\s*:\\s*\"[^\"]*\".*?\\}\\]?\\}?", RegexOption.DOT_MATCHES_ALL), "")
+        .replace(Regex("(?:\",\\s*)?\"format\":.*", RegexOption.DOT_MATCHES_ALL), "")
+        .replace(Regex("\\{\"candidates\".*?\\}\\]?\\}?", RegexOption.DOT_MATCHES_ALL), "")
+        .replace(Regex("\\{\"choices\".*?\\}\\]?\\}?", RegexOption.DOT_MATCHES_ALL), "")
+        .replace(Regex("(?:\",\\s*)?\"(?:finish_reason|native_finish_reason|signature|reasoning).*?\\}\\]?\\}?", RegexOption.DOT_MATCHES_ALL), "")
+        .replace(Regex("[\"'\\]\\}]{2,}"), "")
         .replace("Error HTTP 402", "")
         .replace("HTTP 402", "")
         .replace("data:", "")
@@ -714,7 +760,8 @@ private fun applyNativeIndianVoice(tts: TextToSpeech?, targetLocale: Locale) {
  * Expands meteorological units and cleans markdown so text-to-speech speaks fluent, natural sentences.
  */
 private fun prepareVoiceTextForSpeech(raw: String): String {
-    var text = raw
+    val clean = stripRawJsonArtifacts(raw)
+    var text = clean
         .replace(Regex("[*_~#`]"), "")
         .replace(Regex("data:\\s*\\{.*?\\}", RegexOption.DOT_MATCHES_ALL), "")
         .replace("data:", "")

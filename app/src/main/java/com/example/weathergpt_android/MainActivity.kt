@@ -259,6 +259,7 @@ fun WeatherGPTApp(
                     locationData = locationData,
                     liveWeatherData = liveWeatherData,
                     initialPrompt = activeChatPrompt,
+                    onPromptConsumed = { activeChatPrompt = null },
                     activeSessionId = activeChatSessionId,
                     onBack = { currentScreen = AppScreen.MAIN_HUB },
                     onOpenPreviousChats = { showPreviousChatsSheet = true },

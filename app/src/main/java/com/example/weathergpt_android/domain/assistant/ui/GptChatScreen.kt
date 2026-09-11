@@ -103,6 +103,7 @@ fun GptChatScreen(
     locationData: LocationData = LocationData.DEFAULT,
     liveWeatherData: LiveWeatherData = LiveWeatherData.DEFAULT,
     initialPrompt: String? = null,
+    onPromptConsumed: () -> Unit = {},
     activeSessionId: String = "default",
     onBack: () -> Unit,
     onOpenPreviousChats: () -> Unit = {},
@@ -145,44 +146,26 @@ fun GptChatScreen(
 
     val messages = remember { mutableStateListOf<ChatMessage>() }
 
-    // Load persisted chat history from SQLite / Cloud on launch
-    LaunchedEffect(activeSessionId, userProfile.userId) {
-        val savedHistory = dbHelper.getAllMessages(userProfile.userId, if (activeSessionId != "default") activeSessionId else null)
-        messages.clear()
-        if (savedHistory.isNotEmpty()) {
-            messages.addAll(savedHistory)
-        } else if (userProfile.userId.isNotBlank()) {
-            // Check cloud if local is empty (e.g. after reinstall)
-            val cloudRes = syncService.fetchCloudHistory(userProfile.userId)
-            cloudRes.onSuccess { cloudMsgs ->
-                if (cloudMsgs.isNotEmpty()) {
-                    dbHelper.insertBatchFromCloud(cloudMsgs, userProfile.userId)
-                    val restored = dbHelper.getAllMessages(userProfile.userId, if (activeSessionId != "default") activeSessionId else null)
-                    messages.addAll(restored)
-                }
-            }
-        }
-
-        if (messages.isEmpty()) {
-            val greeting = when (userProfile.sector) {
-                UserSector.FARMER -> "नमस्ते ${userProfile.name}! I am WeatherGPT Kisan AI.\n\nCurrently in ${locationData.cityName}, temperature is ${liveWeatherData.temperature} with ${liveWeatherData.condition}. Soil moisture is ${liveWeatherData.soilMoisture}. Ask about irrigation, sowing, or weather advisories for ${userProfile.crops}!"
-                UserSector.DISASTER_OFFICER -> "Hello Officer ${userProfile.name}. WeatherGPT Disaster Command active.\n\nCurrent Flood Risk is ${liveWeatherData.floodRiskLevel}. River discharge & storm alert models standing by for ${userProfile.monitoredRegion}."
-                UserSector.COMMUTER -> "Hi ${userProfile.name}! Currently in ${locationData.cityName}: ${liveWeatherData.temperature}, ${liveWeatherData.condition}, and AQI is ${liveWeatherData.aqi}. Ask for rain windows and travel advisories!"
-                UserSector.AVIATION_LOGISTICS -> "Aviation WeatherGPT online. Surface wind ${liveWeatherData.windSpeed}, visibility good. Ask for cloud ceilings, crosswinds, or route briefings."
-            }
-            val welcomeMsg = ChatMessage(
-                id = "welcome_msg",
-                text = greeting,
-                isUser = false,
-                timestamp = "Just now",
-                userId = userProfile.userId,
-                sessionId = activeSessionId
-            )
-            messages.add(welcomeMsg)
-            scope.launch {
-                dbHelper.saveMessage(welcomeMsg, 0, userId = userProfile.userId, sessionId = activeSessionId)
-            }
-        }
+    fun isRawJsonArtifact(t: String): Boolean {
+        val trimmed = t.trim()
+        return trimmed.isEmpty() ||
+               trimmed == "[DONE]" ||
+               trimmed.startsWith("{") ||
+               trimmed.startsWith("data:") ||
+               trimmed.startsWith("}") ||
+               trimmed.startsWith("]") ||
+               trimmed.endsWith("}") ||
+               trimmed.endsWith("]") ||
+               trimmed.contains("\"format\":") ||
+               trimmed.contains("google-gemini") ||
+               trimmed.contains("finish_reason") ||
+               trimmed.contains("native_finish_reason") ||
+               trimmed.contains("\"signature\":") ||
+               trimmed.contains("\"reasoning\":") ||
+               trimmed.contains("\"reasoning_details\":") ||
+               trimmed.contains("\"choices\":") ||
+               trimmed.contains("\"delta\":") ||
+               trimmed.contains("\"candidates\":")
     }
 
     /**
@@ -192,48 +175,34 @@ fun GptChatScreen(
         if (raw.contains("Error HTTP 402") || raw.contains("HTTP 402") || raw.contains("insufficient credits", ignoreCase = true)) {
             return ""
         }
-        if (!raw.contains("{\"id\":") && !raw.contains("data:") && !raw.contains("\"choices\":") && !raw.contains("\"object\":")) {
-            return raw
-        }
-        return try {
-            val segments = raw.split("data:").map { it.trim() }.filter { it.isNotEmpty() }
-            val sb = StringBuilder()
-            for (clean in segments) {
-                if (clean == "[DONE]" || clean.contains("402")) continue
-                try {
-                    val json = JSONObject(clean)
-                    val choices = json.optJSONArray("choices")
-                    if (choices != null && choices.length() > 0) {
-                        val delta = choices.getJSONObject(0).optJSONObject("delta")
-                        val content = delta?.optString("content", "") ?: choices.getJSONObject(0).optString("text", "")
-                        if (content.isNotEmpty()) {
-                            sb.append(content)
-                        }
-                    }
-                } catch (_: Exception) {
-                    val match = Regex("\"content\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").find(clean)
-                    if (match != null) {
-                        sb.append(
-                            match.groupValues[1]
-                                .replace("\\n", "\n")
-                                .replace("\\r", "\r")
-                                .replace("\\t", "\t")
-                                .replace("\\\"", "\"")
-                                .replace("\\\\", "\\")
-                        )
-                    }
-                }
+        val trimmed = raw.trim()
+        if (isRawJsonArtifact(trimmed)) {
+            val match = Regex("\"content\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").find(raw)
+                ?: Regex("\"text\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").find(raw)
+            if (match != null) {
+                val extracted = match.groupValues[1]
+                    .replace("\\n", "\n")
+                    .replace("\\r", "\r")
+                    .replace("\\t", "\t")
+                    .replace("\\\"", "\"")
+                    .replace("\\\\", "\\")
+                return if (isRawJsonArtifact(extracted)) "" else extracted
             }
-            sb.toString()
-        } catch (_: Exception) {
-            "" // NEVER return raw JSON string!
+            return ""
         }
+        return raw
     }
 
     fun stripRawJsonArtifacts(text: String): String {
         return text
             .replace(Regex("data:\\s*\\{.*?\\}", RegexOption.DOT_MATCHES_ALL), "")
             .replace(Regex("\\{\"id\":.*?\\}", RegexOption.DOT_MATCHES_ALL), "")
+            .replace(Regex("\"format\"\\s*:\\s*\"[^\"]*\".*?\\}\\]?\\}?", RegexOption.DOT_MATCHES_ALL), "")
+            .replace(Regex("(?:\",\\s*)?\"format\":.*", RegexOption.DOT_MATCHES_ALL), "")
+            .replace(Regex("\\{\"candidates\".*?\\}\\]?\\}?", RegexOption.DOT_MATCHES_ALL), "")
+            .replace(Regex("\\{\"choices\".*?\\}\\]?\\}?", RegexOption.DOT_MATCHES_ALL), "")
+            .replace(Regex("(?:\",\\s*)?\"(?:finish_reason|native_finish_reason|signature|reasoning).*?\\}\\]?\\}?", RegexOption.DOT_MATCHES_ALL), "")
+            .replace(Regex("[\"'\\]\\}]{2,}"), "")
             .replace("Error HTTP 402", "")
             .replace("HTTP 402", "")
             .replace("data:", "")
@@ -336,10 +305,50 @@ fun GptChatScreen(
         }
     }
 
-    // Auto-send initial prompt if provided
-    LaunchedEffect(initialPrompt) {
+    // Load persisted chat history from SQLite / Cloud on launch, then consume initial prompt
+    LaunchedEffect(activeSessionId, userProfile.userId) {
+        val savedHistory = dbHelper.getAllMessages(userProfile.userId, if (activeSessionId != "default") activeSessionId else null)
+        messages.clear()
+        if (savedHistory.isNotEmpty()) {
+            messages.addAll(savedHistory)
+        } else if (userProfile.userId.isNotBlank()) {
+            // Check cloud if local is empty (e.g. after reinstall)
+            val cloudRes = syncService.fetchCloudHistory(userProfile.userId)
+            cloudRes.onSuccess { cloudMsgs ->
+                if (cloudMsgs.isNotEmpty()) {
+                    dbHelper.insertBatchFromCloud(cloudMsgs, userProfile.userId)
+                    val restored = dbHelper.getAllMessages(userProfile.userId, if (activeSessionId != "default") activeSessionId else null)
+                    messages.addAll(restored)
+                }
+            }
+        }
+
+        if (messages.isEmpty()) {
+            val greeting = when (userProfile.sector) {
+                UserSector.FARMER -> "नमस्ते ${userProfile.name}! I am WeatherGPT Kisan AI.\n\nCurrently in ${locationData.cityName}, temperature is ${liveWeatherData.temperature} with ${liveWeatherData.condition}. Soil moisture is ${liveWeatherData.soilMoisture}. Ask about irrigation, sowing, or weather advisories for ${userProfile.crops}!"
+                UserSector.DISASTER_OFFICER -> "Hello Officer ${userProfile.name}. WeatherGPT Disaster Command active.\n\nCurrent Flood Risk is ${liveWeatherData.floodRiskLevel}. River discharge & storm alert models standing by for ${userProfile.monitoredRegion}."
+                UserSector.COMMUTER -> "Hi ${userProfile.name}! Currently in ${locationData.cityName}: ${liveWeatherData.temperature}, ${liveWeatherData.condition}, and AQI is ${liveWeatherData.aqi}. Ask for rain windows and travel advisories!"
+                UserSector.AVIATION_LOGISTICS -> "Aviation WeatherGPT online. Surface wind ${liveWeatherData.windSpeed}, visibility good. Ask for cloud ceilings, crosswinds, or route briefings."
+            }
+            val welcomeMsg = ChatMessage(
+                id = "welcome_msg",
+                text = greeting,
+                isUser = false,
+                timestamp = "Just now",
+                userId = userProfile.userId,
+                sessionId = activeSessionId
+            )
+            messages.add(welcomeMsg)
+            scope.launch {
+                dbHelper.saveMessage(welcomeMsg, 0, userId = userProfile.userId, sessionId = activeSessionId)
+            }
+        }
+
+        // Auto-send initial prompt only AFTER history has finished loading into messages!
         if (!initialPrompt.isNullOrBlank()) {
-            sendMessage(initialPrompt)
+            val promptToSend = initialPrompt
+            onPromptConsumed()
+            sendMessage(promptToSend)
         }
     }
 

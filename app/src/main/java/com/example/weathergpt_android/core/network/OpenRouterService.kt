@@ -47,6 +47,12 @@ class OpenRouterService(private val context: Context) {
         for (segment in segments) {
             if (segment == "[DONE]") continue
 
+            // If segment is clean plain text token directly from Render backend
+            if (!isRawJsonPayload(segment)) {
+                sb.append(segment)
+                continue
+            }
+
             var extractedContent: String? = null
 
             // 1. Try structured JSONObject parsing
@@ -93,13 +99,10 @@ class OpenRouterService(private val context: Context) {
                 }
             }
 
-            if (extractedContent != null) {
+            if (extractedContent != null && !isRawJsonPayload(extractedContent)) {
                 sb.append(extractedContent)
-            } else {
-                if (!isRawJsonPayload(segment)) {
-                    sb.append(segment)
-                }
             }
+            // CRITICAL: NEVER fallback to appending raw segment if it was detected as raw JSON!
         }
 
         val result = sb.toString()
@@ -110,12 +113,21 @@ class OpenRouterService(private val context: Context) {
         val trimmed = text.trim()
         return trimmed.startsWith("{") ||
                trimmed.startsWith("data:") ||
+               trimmed.startsWith("}") ||
+               trimmed.startsWith("]") ||
+               trimmed.endsWith("}") ||
                trimmed.contains("\"id\":") ||
                trimmed.contains("\"choices\":") ||
                trimmed.contains("\"candidates\":") ||
                trimmed.contains("\"delta\":") ||
                trimmed.contains("\"usage\":") ||
                trimmed.contains("\"object\":") ||
+               trimmed.contains("\"format\":") ||
+               trimmed.contains("google-gemini") ||
+               trimmed.contains("reasoning") ||
+               trimmed.contains("signature") ||
+               trimmed.contains("finish_reason") ||
+               trimmed.contains("native_finish_reason") ||
                trimmed.contains("chat.completion")
     }
 
