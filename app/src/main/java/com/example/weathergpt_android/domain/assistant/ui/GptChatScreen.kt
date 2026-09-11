@@ -96,6 +96,7 @@ import com.example.weathergpt_android.domain.location.model.LocationData
 import com.example.weathergpt_android.domain.weather.model.LiveWeatherData
 import com.example.weathergpt_android.domain.weather.repository.UnifiedWeatherRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -190,6 +191,9 @@ fun GptChatScreen(
         if (raw.contains("Error HTTP 402") || raw.contains("HTTP 402") || raw.contains("insufficient credits", ignoreCase = true)) {
             return ""
         }
+        if (raw.isBlank() && raw.isNotEmpty()) {
+            return raw // Preserve whitespace/newlines emitted by offline SLM
+        }
         val trimmed = raw.trim()
         if (isRawJsonArtifact(trimmed)) {
             val match = Regex("\"content\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").find(raw)
@@ -226,6 +230,7 @@ fun GptChatScreen(
 
     fun sendMessage(userText: String) {
         if (userText.isBlank() || isGenerating) return
+        val currentSessionId = activeSessionId.ifBlank { "default" }
 
         val userMessage = ChatMessage(
             id = UUID.randomUUID().toString(),
@@ -233,14 +238,16 @@ fun GptChatScreen(
             isUser = true,
             timestamp = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date()),
             userId = userProfile.userId,
-            sessionId = activeSessionId,
+            sessionId = currentSessionId,
             createdAt = System.currentTimeMillis()
         )
         messages.add(userMessage)
         scope.launch {
-            dbHelper.saveMessage(userMessage, userMessage.text.length / 4, userId = userProfile.userId, sessionId = activeSessionId)
-            if (userProfile.userId.isNotBlank()) {
-                syncService.syncMessagesToCloud(userProfile.userId, listOf(userMessage))
+            withContext(NonCancellable + Dispatchers.IO) {
+                dbHelper.saveMessage(userMessage, userMessage.text.length / 4, userId = userProfile.userId, sessionId = currentSessionId)
+                if (userProfile.userId.isNotBlank()) {
+                    syncService.syncMessagesToCloud(userProfile.userId, listOf(userMessage))
+                }
             }
         }
 
@@ -251,7 +258,7 @@ fun GptChatScreen(
             isUser = false,
             timestamp = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date()),
             userId = userProfile.userId,
-            sessionId = activeSessionId,
+            sessionId = currentSessionId,
             createdAt = System.currentTimeMillis()
         )
         messages.add(assistantMessage)
@@ -259,6 +266,13 @@ fun GptChatScreen(
 
         scope.launch {
             listState.animateScrollToItem(messages.size - 1)
+        }
+
+        // Persist initial assistant stub immediately so the row is guaranteed in SQLite
+        scope.launch {
+            withContext(NonCancellable + Dispatchers.IO) {
+                dbHelper.saveMessage(assistantMessage, 0, userId = userProfile.userId, sessionId = currentSessionId)
+            }
         }
 
         scope.launch {
@@ -273,59 +287,88 @@ fun GptChatScreen(
             val weatherContext = currentFreshWeather.toDenseMeteorologicalContext()
 
             var accumulatedResponse = ""
+            var lastPersistedLength = 0
 
-            inferenceRouter.streamChat(
-                userMessage = userText,
-                locationContext = locationData.denseLocationContext,
-                weatherContext = weatherContext,
-                history = history,
-                isVoiceMode = false
-            ).catch { error ->
-                val index = messages.indexOfFirst { it.id == assistantMessageId }
-                if (index != -1) {
-                    val errorMsg = "Connection error: ${error.localizedMessage ?: "Please check internet connection."}"
-                    messages[index] = messages[index].copy(text = errorMsg)
-                    dbHelper.saveMessage(messages[index], 0)
-                }
-                isGenerating = false
-            }.collect { token ->
-                val cleanToken = sanitizeChunk(token)
-                if (cleanToken.isNotEmpty()) {
-                    accumulatedResponse += cleanToken
-                    val cleanFull = stripRawJsonArtifacts(accumulatedResponse)
+            try {
+                inferenceRouter.streamChat(
+                    userMessage = userText,
+                    locationContext = locationData.denseLocationContext,
+                    weatherContext = weatherContext,
+                    history = history,
+                    isVoiceMode = false
+                ).catch { error ->
                     val index = messages.indexOfFirst { it.id == assistantMessageId }
                     if (index != -1) {
-                        messages[index] = messages[index].copy(text = cleanFull)
-                        listState.scrollToItem(messages.size - 1)
+                        val errorMsg = "Connection error: ${error.localizedMessage ?: "Please check internet connection."}"
+                        messages[index] = messages[index].copy(text = errorMsg)
+                        withContext(NonCancellable + Dispatchers.IO) {
+                            dbHelper.saveMessage(messages[index], 0, userId = userProfile.userId, sessionId = currentSessionId)
+                        }
                     }
-                }
-            }
+                    isGenerating = false
+                }.collect { token ->
+                    val cleanToken = sanitizeChunk(token)
+                    if (cleanToken.isNotEmpty()) {
+                        accumulatedResponse += cleanToken
+                        val cleanFull = stripRawJsonArtifacts(accumulatedResponse)
+                        val index = messages.indexOfFirst { it.id == assistantMessageId }
+                        if (index != -1) {
+                            messages[index] = messages[index].copy(text = cleanFull)
+                            listState.scrollToItem(messages.size - 1)
+                        }
 
-            // Save final assistant message to SQLite & Cloud
-            val finalizedText = stripRawJsonArtifacts(accumulatedResponse)
-            if (finalizedText.isNotBlank()) {
-                val index = messages.indexOfFirst { it.id == assistantMessageId }
-                if (index != -1) {
-                    val finalMsg = messages[index].copy(
-                        text = finalizedText,
-                        userId = userProfile.userId,
-                        sessionId = activeSessionId,
-                        createdAt = System.currentTimeMillis()
-                    )
-                    messages[index] = finalMsg
-                    dbHelper.saveMessage(finalMsg, finalizedText.length / 4, userId = userProfile.userId, sessionId = activeSessionId)
-                    if (userProfile.userId.isNotBlank()) {
-                        syncService.syncMessagesToCloud(userProfile.userId, listOf(finalMsg))
+                        // Periodic incremental checkpoint every ~40 chars to protect against sudden exit
+                        if (accumulatedResponse.length - lastPersistedLength >= 40) {
+                            lastPersistedLength = accumulatedResponse.length
+                            val checkpointText = cleanFull
+                            withContext(NonCancellable + Dispatchers.IO) {
+                                val checkpointMsg = ChatMessage(
+                                    id = assistantMessageId,
+                                    text = checkpointText,
+                                    isUser = false,
+                                    timestamp = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date()),
+                                    userId = userProfile.userId,
+                                    sessionId = currentSessionId,
+                                    createdAt = assistantMessage.createdAt
+                                )
+                                dbHelper.saveMessage(checkpointMsg, checkpointText.length / 4, userId = userProfile.userId, sessionId = currentSessionId)
+                            }
+                        }
                     }
                 }
+            } finally {
+                // Guaranteed persistence block with NonCancellable: runs even if user navigates away
+                withContext(NonCancellable + Dispatchers.IO) {
+                    val finalizedText = stripRawJsonArtifacts(accumulatedResponse)
+                    if (finalizedText.isNotBlank()) {
+                        val finalMsg = ChatMessage(
+                            id = assistantMessageId,
+                            text = finalizedText,
+                            isUser = false,
+                            timestamp = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date()),
+                            userId = userProfile.userId,
+                            sessionId = currentSessionId,
+                            createdAt = assistantMessage.createdAt
+                        )
+                        val index = messages.indexOfFirst { it.id == assistantMessageId }
+                        if (index != -1) {
+                            messages[index] = finalMsg
+                        }
+                        dbHelper.saveMessage(finalMsg, finalizedText.length / 4, userId = userProfile.userId, sessionId = currentSessionId)
+                        if (userProfile.userId.isNotBlank()) {
+                            syncService.syncMessagesToCloud(userProfile.userId, listOf(finalMsg))
+                        }
+                    }
+                }
+                isGenerating = false
             }
-            isGenerating = false
         }
     }
 
     // Load persisted chat history from SQLite / Cloud on launch, then consume initial prompt
     LaunchedEffect(activeSessionId, userProfile.userId) {
-        val savedHistory = dbHelper.getAllMessages(userProfile.userId, if (activeSessionId != "default") activeSessionId else null)
+        val targetSessionId = activeSessionId.ifBlank { "default" }
+        val savedHistory = dbHelper.getAllMessages(userProfile.userId, targetSessionId)
         messages.clear()
         if (savedHistory.isNotEmpty()) {
             messages.addAll(savedHistory)
@@ -335,7 +378,7 @@ fun GptChatScreen(
             cloudRes.onSuccess { cloudMsgs ->
                 if (cloudMsgs.isNotEmpty()) {
                     dbHelper.insertBatchFromCloud(cloudMsgs, userProfile.userId)
-                    val restored = dbHelper.getAllMessages(userProfile.userId, if (activeSessionId != "default") activeSessionId else null)
+                    val restored = dbHelper.getAllMessages(userProfile.userId, targetSessionId)
                     messages.addAll(restored)
                 }
             }
@@ -354,11 +397,13 @@ fun GptChatScreen(
                 isUser = false,
                 timestamp = "Just now",
                 userId = userProfile.userId,
-                sessionId = activeSessionId
+                sessionId = targetSessionId
             )
             messages.add(welcomeMsg)
             scope.launch {
-                dbHelper.saveMessage(welcomeMsg, 0, userId = userProfile.userId, sessionId = activeSessionId)
+                withContext(NonCancellable + Dispatchers.IO) {
+                    dbHelper.saveMessage(welcomeMsg, 0, userId = userProfile.userId, sessionId = targetSessionId)
+                }
             }
         }
 

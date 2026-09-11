@@ -101,7 +101,7 @@ class ChatDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
     ) = withContext(Dispatchers.IO) {
         try {
             val effectiveUserId = if (userId.isNotBlank()) userId else message.userId
-            val effectiveSessionId = if (sessionId != "default") sessionId else message.sessionId
+            val effectiveSessionId = if (sessionId.isNotBlank()) sessionId else message.sessionId.ifBlank { "default" }
             val createdAt = if (message.createdAt > 0) message.createdAt else System.currentTimeMillis()
 
             val db = writableDatabase
@@ -132,10 +132,16 @@ class ChatDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
             val db = readableDatabase
             val query: String
             val args: Array<String>?
-            if (!userId.isNullOrBlank() && !sessionId.isNullOrBlank()) {
+            val hasUserId = !userId.isNullOrBlank()
+            val hasSessionId = !sessionId.isNullOrBlank()
+
+            if (hasUserId && hasSessionId) {
                 query = "SELECT $COL_ID, $COL_TEXT, $COL_IS_USER, $COL_TIMESTAMP, $COL_USER_ID, $COL_SESSION_ID, $COL_CREATED_AT FROM $TABLE_MESSAGES WHERE ($COL_USER_ID = ? OR $COL_USER_ID = '') AND $COL_SESSION_ID = ? ORDER BY $COL_CREATED_AT ASC, rowid ASC"
                 args = arrayOf(userId, sessionId)
-            } else if (!userId.isNullOrBlank()) {
+            } else if (hasSessionId) {
+                query = "SELECT $COL_ID, $COL_TEXT, $COL_IS_USER, $COL_TIMESTAMP, $COL_USER_ID, $COL_SESSION_ID, $COL_CREATED_AT FROM $TABLE_MESSAGES WHERE $COL_SESSION_ID = ? ORDER BY $COL_CREATED_AT ASC, rowid ASC"
+                args = arrayOf(sessionId)
+            } else if (hasUserId) {
                 query = "SELECT $COL_ID, $COL_TEXT, $COL_IS_USER, $COL_TIMESTAMP, $COL_USER_ID, $COL_SESSION_ID, $COL_CREATED_AT FROM $TABLE_MESSAGES WHERE $COL_USER_ID = ? OR $COL_USER_ID = '' ORDER BY $COL_CREATED_AT ASC, rowid ASC"
                 args = arrayOf(userId)
             } else {
