@@ -39,13 +39,21 @@ class OpenRouterService(private val context: Context) {
      * and Google Gemini candidates format from the Render FastAPI stream.
      */
     private fun extractTokenFromSseChunk(data: String): String {
-        if (data.isBlank() || data == "[DONE]") return ""
+        if (data.isBlank() || data.trim() == "[DONE]") return ""
 
         val sb = StringBuilder()
-        val segments = data.split("data:").map { it.trim() }.filter { it.isNotEmpty() }
+        // Extract content after "data:" prefix preserving any leading/trailing whitespace of the token
+        val rawSegments = if (data.contains("data:")) {
+            data.split("data:").filter { it.isNotEmpty() }.map {
+                // If segment begins with a single space that was part of "data: <token>", strip only the single protocol space
+                if (it.startsWith(" ")) it.substring(1) else it
+            }
+        } else {
+            listOf(data)
+        }
 
-        for (segment in segments) {
-            if (segment == "[DONE]") continue
+        for (segment in rawSegments) {
+            if (segment.trim() == "[DONE]") continue
 
             // If segment is clean plain text token directly from Render backend
             if (!isRawJsonPayload(segment)) {
@@ -57,7 +65,7 @@ class OpenRouterService(private val context: Context) {
 
             // 1. Try structured JSONObject parsing
             try {
-                val json = JSONObject(segment)
+                val json = JSONObject(segment.trim())
 
                 // OpenRouter / OpenAI format
                 val choices = json.optJSONArray("choices")
@@ -86,6 +94,7 @@ class OpenRouterService(private val context: Context) {
             } catch (_: Exception) {
                 // 2. Fallback: regex search for "content": "..." within segment
                 val match = Regex("\"content\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").find(segment)
+                    ?: Regex("\"text\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").find(segment)
                 if (match != null) {
                     val unescaped = match.groupValues[1]
                         .replace("\\n", "\n")
@@ -102,7 +111,6 @@ class OpenRouterService(private val context: Context) {
             if (extractedContent != null && !isRawJsonPayload(extractedContent)) {
                 sb.append(extractedContent)
             }
-            // CRITICAL: NEVER fallback to appending raw segment if it was detected as raw JSON!
         }
 
         val result = sb.toString()

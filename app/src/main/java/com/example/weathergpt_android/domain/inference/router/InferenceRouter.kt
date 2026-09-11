@@ -39,14 +39,7 @@ class InferenceRouter(private val context: Context) {
      */
     fun getActiveMode(): InferenceMode {
         val configuredMode = BackendConfig.getBackendMode(context)
-
-        return when (configuredMode) {
-            BackendConfig.MODE_ON_DEVICE -> InferenceMode.ON_DEVICE
-            BackendConfig.MODE_LOCAL_USB,
-            BackendConfig.MODE_LOCAL_EMULATOR,
-            BackendConfig.MODE_LOCAL_CUSTOM -> InferenceMode.PC_SERVER
-            else -> InferenceMode.CLOUD
-        }
+        return if (configuredMode == BackendConfig.MODE_ON_DEVICE) InferenceMode.ON_DEVICE else InferenceMode.CLOUD
     }
 
     /**
@@ -74,17 +67,6 @@ class InferenceRouter(private val context: Context) {
         when (activeMode) {
             InferenceMode.ON_DEVICE -> {
                 onDeviceEngine.generateStream(
-                    userMessage = userMessage,
-                    locationContext = locationContext,
-                    weatherContext = weatherContext,
-                    history = history,
-                    isVoiceMode = isVoiceMode
-                ).collect { token ->
-                    emit(token)
-                }
-            }
-            InferenceMode.PC_SERVER -> {
-                openRouterService.streamChatCompletion(
                     userMessage = userMessage,
                     locationContext = locationContext,
                     weatherContext = weatherContext,
