@@ -489,12 +489,9 @@ fun FrostedSettingsSheet(
                         ) {
                             Column(
                                 modifier = Modifier.fillMaxWidth().padding(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                     Text(
                                         text = "Target Endpoint",
                                         fontSize = 11.sp,
@@ -510,7 +507,8 @@ fun FrostedSettingsSheet(
                                 }
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         text = "Security Protocol",
@@ -527,7 +525,8 @@ fun FrostedSettingsSheet(
                                 }
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         text = "Target AI Model",
@@ -541,75 +540,6 @@ fun FrostedSettingsSheet(
                                         fontWeight = FontWeight.Medium,
                                         color = textColor
                                     )
-                                }
-                            }
-                        }
-
-                        // Render Environment Key Setup Box
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isDark) Color(0x18F59E0B) else Color(0x12F59E0B),
-                            border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.35f))
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Key,
-                                        contentDescription = null,
-                                        tint = Color(0xFFF59E0B),
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Text(
-                                        text = "Render Dashboard Setup",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFF59E0B)
-                                    )
-                                }
-
-                                Text(
-                                    text = "To enable free live Gemini 3.6 Flash inference via BYOK, set OPENROUTER_API_KEY in your Render environment:",
-                                    fontSize = 11.sp,
-                                    lineHeight = 15.sp,
-                                    color = textColor
-                                )
-
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = FrostedGlassTokens.surfaceSubtle(isDark),
-                                    border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "sk-or-v1-95c2885d...0674a2a",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = textColor
-                                        )
-                                        OutlinedButton(
-                                            onClick = {
-                                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                                val clip = ClipData.newPlainText("OpenRouter Key", "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")
-                                                clipboard.setPrimaryClip(clip)
-                                                keyStatusMessage = "✓ Key copied to clipboard! Paste into Render Dashboard."
-                                            },
-                                            shape = RoundedCornerShape(8.dp),
-                                            border = BorderStroke(1.dp, FrostedGlassTokens.border(isDark)),
-                                            modifier = Modifier.height(30.dp)
-                                        ) {
-                                            Text("Copy Key", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = textColor)
-                                        }
-                                    }
                                 }
                             }
                         }

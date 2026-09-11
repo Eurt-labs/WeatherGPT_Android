@@ -24,83 +24,28 @@ object AiPreferences {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun getProviderMode(context: Context): AiProviderMode {
-        val prefs = getPrefs(context)
-        if (prefs.contains(KEY_PROVIDER_MODE)) {
-            val raw = prefs.getString(KEY_PROVIDER_MODE, AiProviderMode.CLOUD_BACKEND.id)
-            return AiProviderMode.values().firstOrNull { it.id == raw } ?: AiProviderMode.CLOUD_BACKEND
-        }
-        // If an OpenRouter key is provided via BuildConfig / local.properties, default to OPENROUTER_DIRECT!
-        if (getOpenRouterApiKey(context).isNotBlank()) {
-            return AiProviderMode.OPENROUTER_DIRECT
-        }
-        // If a Gemini key is provided, default to GEMINI_DIRECT!
-        if (getGeminiApiKey(context).isNotBlank()) {
-            return AiProviderMode.GEMINI_DIRECT
-        }
         return AiProviderMode.CLOUD_BACKEND
     }
 
     fun saveProviderMode(context: Context, mode: AiProviderMode) {
-        getPrefs(context).edit().putString(KEY_PROVIDER_MODE, mode.id).apply()
+        getPrefs(context).edit().putString(KEY_PROVIDER_MODE, AiProviderMode.CLOUD_BACKEND.id).apply()
     }
 
-    fun getGeminiApiKey(context: Context): String {
-        val saved = getPrefs(context).getString(KEY_GEMINI_API_KEY, "") ?: ""
-        if (saved.isNotBlank() && !saved.startsWith("sk-or-")) return saved
-        val buildConfigKey = com.example.weathergpt_android.BuildConfig.GEMINI_API_KEY
-        if (buildConfigKey.isNotBlank() && !buildConfigKey.startsWith("sk-or-")) return buildConfigKey
-        // Smart fallback: if user accidentally placed an AIzaSy Google key in OpenRouter field
-        val openRouterSaved = getPrefs(context).getString(KEY_OPENROUTER_API_KEY, "") ?: ""
-        if (openRouterSaved.startsWith("AIzaSy")) return openRouterSaved
-        val openRouterBc = com.example.weathergpt_android.BuildConfig.OPENROUTER_API_KEY
-        if (openRouterBc.startsWith("AIzaSy")) return openRouterBc
-        return ""
-    }
+    fun getGeminiApiKey(context: Context): String = ""
 
-    fun saveGeminiApiKey(context: Context, key: String) {
-        val trimmed = key.trim()
-        getPrefs(context).edit().putString(KEY_GEMINI_API_KEY, trimmed).apply()
-        if (trimmed.startsWith("sk-or-")) {
-            getPrefs(context).edit().putString(KEY_OPENROUTER_API_KEY, trimmed).apply()
-        }
-    }
+    fun saveGeminiApiKey(context: Context, key: String) {}
 
-    fun getOpenRouterApiKey(context: Context): String {
-        val saved = getPrefs(context).getString(KEY_OPENROUTER_API_KEY, "") ?: ""
-        if (saved.isNotBlank() && !saved.startsWith("AIzaSy")) return saved
-        val buildConfigKey = com.example.weathergpt_android.BuildConfig.OPENROUTER_API_KEY
-        if (buildConfigKey.isNotBlank() && !buildConfigKey.startsWith("AIzaSy")) return buildConfigKey
-        // Smart fallback: if user accidentally placed an sk-or- key in Gemini field
-        val geminiSaved = getPrefs(context).getString(KEY_GEMINI_API_KEY, "") ?: ""
-        if (geminiSaved.startsWith("sk-or-")) return geminiSaved
-        val geminiBc = com.example.weathergpt_android.BuildConfig.GEMINI_API_KEY
-        if (geminiBc.startsWith("sk-or-")) return geminiBc
-        return ""
-    }
+    fun getOpenRouterApiKey(context: Context): String = ""
 
-    fun saveOpenRouterApiKey(context: Context, key: String) {
-        val trimmed = key.trim()
-        getPrefs(context).edit().putString(KEY_OPENROUTER_API_KEY, trimmed).apply()
-        if (trimmed.startsWith("AIzaSy")) {
-            getPrefs(context).edit().putString(KEY_GEMINI_API_KEY, trimmed).apply()
-        }
-    }
+    fun saveOpenRouterApiKey(context: Context, key: String) {}
 
-    fun getGeminiModel(context: Context): String =
-        getPrefs(context).getString(KEY_GEMINI_MODEL, DEFAULT_GEMINI_MODEL) ?: DEFAULT_GEMINI_MODEL
+    fun getGeminiModel(context: Context): String = DEFAULT_GEMINI_MODEL
 
-    fun saveGeminiModel(context: Context, model: String) {
-        getPrefs(context).edit().putString(KEY_GEMINI_MODEL, model.trim()).apply()
-    }
+    fun saveGeminiModel(context: Context, model: String) {}
 
-    fun getOpenRouterModel(context: Context): String =
-        getPrefs(context).getString(KEY_OPENROUTER_MODEL, DEFAULT_OPENROUTER_MODEL) ?: DEFAULT_OPENROUTER_MODEL
+    fun getOpenRouterModel(context: Context): String = DEFAULT_OPENROUTER_MODEL
 
-    fun saveOpenRouterModel(context: Context, model: String) {
-        getPrefs(context).edit().putString(KEY_OPENROUTER_MODEL, model.trim()).apply()
-    }
+    fun saveOpenRouterModel(context: Context, model: String) {}
 
-    fun hasCustomKey(context: Context): Boolean {
-        return getGeminiApiKey(context).isNotBlank() || getOpenRouterApiKey(context).isNotBlank()
-    }
+    fun hasCustomKey(context: Context): Boolean = false
 }

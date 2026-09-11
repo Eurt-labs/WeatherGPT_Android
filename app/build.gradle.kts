@@ -13,8 +13,6 @@ val localProperties = Properties().apply {
     }
 }
 val openWeatherApiKey = localProperties.getProperty("OPENWEATHER_API_KEY", "")
-val openRouterApiKey = localProperties.getProperty("OPENROUTER_API_KEY", "")
-val geminiApiKey = localProperties.getProperty("GEMINI_API_KEY", "")
 
 android {
     namespace = "com.example.weathergpt_android"
@@ -28,8 +26,8 @@ android {
         versionName = "1.0"
 
         buildConfigField("String", "OPENWEATHER_API_KEY", "\"$openWeatherApiKey\"")
-        buildConfigField("String", "OPENROUTER_API_KEY", "\"$openRouterApiKey\"")
-        buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
+        buildConfigField("String", "OPENROUTER_API_KEY", "\"\"")
+        buildConfigField("String", "GEMINI_API_KEY", "\"\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
