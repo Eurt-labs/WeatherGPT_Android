@@ -63,6 +63,20 @@ import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material.icons.rounded.RecordVoiceOver
+import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.text.font.FontStyle
+import android.speech.tts.TextToSpeech
+import java.util.Locale
+import androidx.compose.runtime.DisposableEffect
+import com.example.weathergpt_android.domain.auth.model.UserSector
+import com.example.weathergpt_android.domain.voice.model.VoicePersona
+import com.example.weathergpt_android.domain.voice.model.VoicePersonaCatalog
 import androidx.compose.runtime.collectAsState
 import com.example.weathergpt_android.domain.inference.download.ModelDownloadManager
 import com.example.weathergpt_android.domain.inference.download.ModelDownloadService
@@ -116,12 +130,14 @@ enum class DiagnosticStatus {
  * Ultra-high contrast Frosted Settings Modal.
  * Cloud-managed backend architecture, Persona switcher, Language selector, and Token Stats.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FrostedSettingsSheet(
     currentTheme: AppThemeMode,
     userProfile: UserProfile,
     onThemeSelected: (AppThemeMode) -> Unit,
     onLanguageSelected: (String) -> Unit = {},
+    onSectorSelected: (UserSector) -> Unit = {},
     onEditPersona: () -> Unit,
     onSignOut: () -> Unit,
     onDismiss: () -> Unit,
@@ -148,10 +164,10 @@ fun FrostedSettingsSheet(
     var weatherDetail by remember { mutableStateOf<String?>(null) }
     var dbDetail by remember { mutableStateOf<String?>(null) }
     var currentLanguageCode by remember(userProfile.preferredLanguage) { mutableStateOf(userProfile.preferredLanguage) }
-    var keyStatusMessage by remember { mutableStateOf<String?>(null) }
-    var isTestingAiKey by remember { mutableStateOf(false) }
+    var currentSector by remember(userProfile.sector) { mutableStateOf(userProfile.sector) }
+    var showVoicePersonaDialog by remember { mutableStateOf(false) }
+    var voiceDialogLanguageCode by remember { mutableStateOf(userProfile.preferredLanguage) }
     var backendMode by remember { mutableStateOf(BackendConfig.getBackendMode(context)) }
-    var customLocalUrl by remember { mutableStateOf(BackendConfig.getCustomUrl(context)) }
     val downloadManager = remember { ModelDownloadManager.getInstance(context) }
     val onDeviceEngine = remember { OnDeviceEngine.getInstance(context) }
     val downloadState by downloadManager.downloadState.collectAsState()
@@ -315,6 +331,56 @@ fun FrostedSettingsSheet(
                                 }
                             }
                         }
+
+                        HorizontalDivider(
+                            color = FrostedGlassTokens.borderSubtle(isDark),
+                            thickness = 1.dp
+                        )
+
+                        Text(
+                            text = "SELECT OPERATIONAL SECTOR",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = subtitleColor,
+                            letterSpacing = 0.5.sp
+                        )
+
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            UserSector.entries.forEach { sector ->
+                                val isSelected = currentSector == sector
+                                val chipBg = if (isSelected) accentColor.copy(alpha = 0.25f) else FrostedGlassTokens.surfaceSubtle(isDark)
+                                val chipBorder = if (isSelected) accentColor else FrostedGlassTokens.borderSubtle(isDark)
+                                val chipText = if (isSelected) accentColor else textColor
+
+                                Surface(
+                                    modifier = Modifier.clickable {
+                                        currentSector = sector
+                                        UserPreferences.updateSector(context, sector)
+                                        onSectorSelected(sector)
+                                    },
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = chipBg,
+                                    border = BorderStroke(1.dp, chipBorder)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = sector.tag,
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = chipText
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -387,6 +453,9 @@ fun FrostedSettingsSheet(
                                         onClick = {
                                             currentLanguageCode = code
                                             onLanguageSelected(code)
+                                            UserPreferences.updateLanguage(context, code)
+                                            voiceDialogLanguageCode = code
+                                            showVoicePersonaDialog = true
                                         },
                                         modifier = Modifier.weight(1f),
                                         isDark = isDark
@@ -395,6 +464,85 @@ fun FrostedSettingsSheet(
                                 if (rowItems.size == 1) {
                                     Spacer(modifier = Modifier.weight(1f))
                                 }
+                            }
+                        }
+
+                        HorizontalDivider(
+                            color = FrostedGlassTokens.borderSubtle(isDark),
+                            thickness = 1.dp
+                        )
+
+                        val currentVoiceId = UserPreferences.getSelectedVoice(context, currentLanguageCode)
+                        val currentVoice = VoicePersonaCatalog.getVoiceById(currentVoiceId) ?: VoicePersonaCatalog.getOptimalVoiceForLanguage(currentLanguageCode)
+
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    voiceDialogLanguageCode = currentLanguageCode
+                                    showVoicePersonaDialog = true
+                                },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isDark) Color(0x18E8E3D5) else Color(0xFFF4F4F6),
+                            border = BorderStroke(1.dp, FrostedGlassTokens.borderSubtle(isDark))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.RecordVoiceOver,
+                                        contentDescription = null,
+                                        tint = accentColor,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(
+                                                text = "${currentVoice.name} (${currentVoice.gender})",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = textColor
+                                            )
+                                            if (currentVoice.isOptimal) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = Color(0x2510B981)
+                                                ) {
+                                                    Text(
+                                                        text = "Optimal / Recommended",
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFF10B981),
+                                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        Text(
+                                            text = currentVoice.styleDescription,
+                                            fontSize = 10.sp,
+                                            color = subtitleColor
+                                        )
+                                    }
+                                }
+
+                                Text(
+                                    text = "Preview / Change 🎙️",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = accentColor
+                                )
                             }
                         }
                     }
@@ -473,9 +621,8 @@ fun FrostedSettingsSheet(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 val (headerIcon, headerTint, headerTitle) = when (backendMode) {
-                                    BackendConfig.MODE_CLOUD -> Triple(Icons.Rounded.CloudDone, Color(0xFF10B981), "FastAPI on Render")
                                     BackendConfig.MODE_ON_DEVICE -> Triple(Icons.Rounded.PhoneAndroid, Color(0xFFF59E0B), "On-Device SLM (Phone)")
-                                    else -> Triple(Icons.Rounded.Memory, Color(0xFF6366F1), "WeatherGPT Local PC")
+                                    else -> Triple(Icons.Rounded.CloudDone, Color(0xFF10B981), "FastAPI on Render")
                                 }
                                 Icon(
                                     imageVector = headerIcon,
@@ -490,26 +637,10 @@ fun FrostedSettingsSheet(
                                     color = textColor
                                 )
                             }
-                            val badgeBg = when (backendMode) {
-                                BackendConfig.MODE_CLOUD -> Color(0x2010B981)
-                                BackendConfig.MODE_ON_DEVICE -> Color(0x20F59E0B)
-                                else -> Color(0x206366F1)
-                            }
-                            val badgeBorder = when (backendMode) {
-                                BackendConfig.MODE_CLOUD -> Color(0xFF10B981).copy(alpha = 0.4f)
-                                BackendConfig.MODE_ON_DEVICE -> Color(0xFFF59E0B).copy(alpha = 0.4f)
-                                else -> Color(0xFF6366F1).copy(alpha = 0.4f)
-                            }
-                            val badgeText = when (backendMode) {
-                                BackendConfig.MODE_CLOUD -> "Cloud Active"
-                                BackendConfig.MODE_ON_DEVICE -> "100% Offline"
-                                else -> "Offline Edge PC"
-                            }
-                            val badgeTextColor = when (backendMode) {
-                                BackendConfig.MODE_CLOUD -> Color(0xFF10B981)
-                                BackendConfig.MODE_ON_DEVICE -> Color(0xFFF59E0B)
-                                else -> Color(0xFF818CF8)
-                            }
+                            val badgeBg = if (backendMode == BackendConfig.MODE_ON_DEVICE) Color(0x20F59E0B) else Color(0x2010B981)
+                            val badgeBorder = if (backendMode == BackendConfig.MODE_ON_DEVICE) Color(0xFFF59E0B).copy(alpha = 0.4f) else Color(0xFF10B981).copy(alpha = 0.4f)
+                            val badgeText = if (backendMode == BackendConfig.MODE_ON_DEVICE) "100% Offline" else "Cloud Active"
+                            val badgeTextColor = if (backendMode == BackendConfig.MODE_ON_DEVICE) Color(0xFFF59E0B) else Color(0xFF10B981)
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
                                 color = badgeBg,
@@ -526,17 +657,16 @@ fun FrostedSettingsSheet(
                         }
 
                         Text(
-                            text = when (backendMode) {
-                                BackendConfig.MODE_CLOUD -> "Streaming via high-speed Render cloud backend with Google Gemini reasoning."
-                                BackendConfig.MODE_ON_DEVICE -> "Running 100% offline directly on phone ARM64 silicon via llama.cpp (zero network dependency)."
-                                else -> "Streaming via offline local PC AI engine (Qwen 2.5 GGUF) with zero cloud dependencies."
-                            },
+                            text = if (backendMode == BackendConfig.MODE_ON_DEVICE)
+                                "Running 100% offline directly on phone ARM64 silicon via llama.cpp (zero network dependency)."
+                            else
+                                "Streaming via high-speed Render cloud backend with Google Gemini 3.6 Flash reasoning.",
                             fontSize = 12.sp,
                             lineHeight = 16.sp,
                             color = subtitleColor
                         )
 
-                        // Mode Selector Chips - Row 1: Primary Production Modes
+                        // Mode Selector Chips - Primary Production Modes (Cloud vs On-Device)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -549,7 +679,6 @@ fun FrostedSettingsSheet(
                                     .clickable {
                                         backendMode = BackendConfig.MODE_CLOUD
                                         BackendConfig.setBackendMode(context, BackendConfig.MODE_CLOUD)
-                                        keyStatusMessage = null
                                         onDeviceEngine.checkOnlineIdleThreshold()
                                     },
                                 shape = RoundedCornerShape(10.dp),
@@ -585,7 +714,6 @@ fun FrostedSettingsSheet(
                                     .clickable {
                                         backendMode = BackendConfig.MODE_ON_DEVICE
                                         BackendConfig.setBackendMode(context, BackendConfig.MODE_ON_DEVICE)
-                                        keyStatusMessage = null
                                         if (downloadManager.isModelDownloaded()) {
                                             onDeviceEngine.ensureModelLoaded { success ->
                                                 isMemoryLoaded = success
@@ -613,82 +741,6 @@ fun FrostedSettingsSheet(
                                         fontSize = 11.sp,
                                         fontWeight = if (isOnDevice) FontWeight.Bold else FontWeight.Medium,
                                         color = if (isOnDevice) Color.Black else textColor
-                                    )
-                                }
-                            }
-                        }
-
-                        // Mode Selector Chips - Row 2: Developer PC Testing Modes
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            // PC USB
-                            val isUsb = backendMode == BackendConfig.MODE_LOCAL_USB
-                            Surface(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable {
-                                        backendMode = BackendConfig.MODE_LOCAL_USB
-                                        BackendConfig.setBackendMode(context, BackendConfig.MODE_LOCAL_USB)
-                                        keyStatusMessage = null
-                                    },
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (isUsb) Color(0xFF6366F1) else FrostedGlassTokens.surfaceSubtle(isDark),
-                                border = BorderStroke(1.dp, if (isUsb) Color(0xFF6366F1) else FrostedGlassTokens.borderSubtle(isDark))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Bolt,
-                                        contentDescription = null,
-                                        tint = if (isUsb) Color.White else subtitleColor,
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(3.dp))
-                                    Text(
-                                        text = "Dev: PC (USB)",
-                                        fontSize = 10.sp,
-                                        fontWeight = if (isUsb) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isUsb) Color.White else textColor
-                                    )
-                                }
-                            }
-
-                            // PC Wi-Fi
-                            val isWifi = backendMode == BackendConfig.MODE_LOCAL_CUSTOM
-                            Surface(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable {
-                                        backendMode = BackendConfig.MODE_LOCAL_CUSTOM
-                                        BackendConfig.setBackendMode(context, BackendConfig.MODE_LOCAL_CUSTOM, customLocalUrl)
-                                        keyStatusMessage = null
-                                    },
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (isWifi) Color(0xFF8B5CF6) else FrostedGlassTokens.surfaceSubtle(isDark),
-                                border = BorderStroke(1.dp, if (isWifi) Color(0xFF8B5CF6) else FrostedGlassTokens.borderSubtle(isDark))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Memory,
-                                        contentDescription = null,
-                                        tint = if (isWifi) Color.White else subtitleColor,
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(3.dp))
-                                    Text(
-                                        text = "Dev: PC (Wi-Fi)",
-                                        fontSize = 10.sp,
-                                        fontWeight = if (isWifi) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isWifi) Color.White else textColor
                                     )
                                 }
                             }
@@ -1114,50 +1166,6 @@ fun FrostedSettingsSheet(
                             }
                         }
 
-                        // If Local PC USB selected: Show quick command hint
-                        if (backendMode == BackendConfig.MODE_LOCAL_USB) {
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = Color(0x156366F1),
-                                border = BorderStroke(1.dp, Color(0xFF6366F1).copy(alpha = 0.3f))
-                            ) {
-                                Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
-                                    Text(
-                                        text = "USB Zero-Latency Setup:",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF818CF8)
-                                    )
-                                    Text(
-                                        text = "Run: adb reverse tcp:8000 tcp:8000 on your PC terminal, then start run_pc_server.bat",
-                                        fontSize = 10.sp,
-                                        color = subtitleColor
-                                    )
-                                }
-                            }
-                        }
-
-                        // If Local PC Wi-Fi selected: Show IP editor
-                        if (backendMode == BackendConfig.MODE_LOCAL_CUSTOM) {
-                            OutlinedTextField(
-                                value = customLocalUrl,
-                                onValueChange = {
-                                    customLocalUrl = it
-                                    BackendConfig.setBackendMode(context, BackendConfig.MODE_LOCAL_CUSTOM, it)
-                                },
-                                label = { Text("PC Local URL (e.g. http://192.168.1.15:8000)") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(10.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = Color(0xFF8B5CF6),
-                                    unfocusedBorderColor = FrostedGlassTokens.borderSubtle(isDark),
-                                    focusedTextColor = textColor,
-                                    unfocusedTextColor = textColor
-                                )
-                            )
-                        }
-
                         // Endpoint & Protocol Info Card
                         Surface(
                             shape = RoundedCornerShape(12.dp),
@@ -1194,14 +1202,10 @@ fun FrostedSettingsSheet(
                                         color = subtitleColor
                                     )
                                     Text(
-                                        text = when (backendMode) {
-                                            BackendConfig.MODE_ON_DEVICE -> "Air-Gapped (Zero Network)"
-                                            BackendConfig.MODE_CLOUD -> "Dynamic HMAC-SHA256"
-                                            else -> "Direct Local Subnet"
-                                        },
+                                        text = if (backendMode == BackendConfig.MODE_ON_DEVICE) "Air-Gapped (Zero Network)" else "Dynamic HMAC-SHA256",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium,
-                                        color = if (backendMode == BackendConfig.MODE_ON_DEVICE) Color(0xFF10B981) else if (backendMode == BackendConfig.MODE_CLOUD) Color(0xFF10B981) else Color(0xFF818CF8)
+                                        color = Color(0xFF10B981)
                                     )
                                 }
                                 Row(
@@ -1216,119 +1220,12 @@ fun FrostedSettingsSheet(
                                         color = subtitleColor
                                     )
                                     Text(
-                                        text = when (backendMode) {
-                                            BackendConfig.MODE_ON_DEVICE -> "SmolLM2 360M Q4_K_M (Local)"
-                                            BackendConfig.MODE_CLOUD -> "Google Gemini 3.6 Flash"
-                                            else -> "Qwen 2.5 GGUF (Local Engine)"
-                                        },
+                                        text = if (backendMode == BackendConfig.MODE_ON_DEVICE) "SmolLM2 360M Q4_K_M (Local)" else "Google Gemini 3.6 Flash",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium,
                                         color = textColor
                                     )
                                 }
-                            }
-                        }
-
-                        // Test Backend / Engine Connection Button
-                        val btnBgColor = when (backendMode) {
-                            BackendConfig.MODE_ON_DEVICE -> Color(0xFF10B981)
-                            BackendConfig.MODE_CLOUD -> accentColor
-                            else -> Color(0xFF6366F1)
-                        }
-                        val btnContentColor = if (backendMode == BackendConfig.MODE_CLOUD && isDark) Color(0xFF121214) else Color.White
-
-                        Button(
-                            onClick = {
-                                isTestingAiKey = true
-                                val targetName = when (backendMode) {
-                                    BackendConfig.MODE_ON_DEVICE -> "On-Device Engine"
-                                    BackendConfig.MODE_CLOUD -> "Render Cloud"
-                                    else -> "Local PC Server"
-                                }
-                                keyStatusMessage = "Testing $targetName..."
-                                scope.launch {
-                                    if (backendMode == BackendConfig.MODE_ON_DEVICE) {
-                                        val isLoaded = onDeviceEngine.isMemoryLoaded
-                                        isTestingAiKey = false
-                                        keyStatusMessage = if (isLoaded) {
-                                            "✓ On-Device Model Active in RAM (${onDeviceEngine.config.modelDisplayName})"
-                                        } else if (downloadManager.isModelDownloaded()) {
-                                            "✓ On-Device Model Ready on Disk (Kernel mmap ready)"
-                                        } else {
-                                            "✗ Model not downloaded. Please download above."
-                                        }
-                                    } else {
-                                        val res = openRouterService.generateChatCompletion("Ping test: confirm connection")
-                                        isTestingAiKey = false
-                                        keyStatusMessage = if (res.isSuccess) {
-                                            "✓ $targetName Online! Response: ${res.getOrNull()}"
-                                        } else {
-                                            "✗ ${res.exceptionOrNull()?.localizedMessage}"
-                                        }
-                                    }
-                                }
-                            },
-                            enabled = !isTestingAiKey,
-                            modifier = Modifier.fillMaxWidth().height(42.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = btnBgColor,
-                                contentColor = btnContentColor
-                            )
-                        ) {
-                            if (isTestingAiKey) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    strokeWidth = 2.dp,
-                                    color = btnContentColor
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    when (backendMode) {
-                                        BackendConfig.MODE_ON_DEVICE -> "Testing Kernel..."
-                                        BackendConfig.MODE_CLOUD -> "Connecting to Render..."
-                                        else -> "Connecting to Local PC..."
-                                    },
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = btnContentColor
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Rounded.Refresh,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
-                                    tint = btnContentColor
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    when (backendMode) {
-                                        BackendConfig.MODE_ON_DEVICE -> "Test On-Device AI Engine"
-                                        BackendConfig.MODE_CLOUD -> "Test Render Backend Connection"
-                                        else -> "Test Local PC Server Connection"
-                                    },
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = btnContentColor
-                                )
-                            }
-                        }
-
-                        if (keyStatusMessage != null) {
-                            val isOk = keyStatusMessage!!.startsWith("✓")
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (isOk) Color(0x2010B981) else Color(0x25EF4444),
-                                border = BorderStroke(1.dp, if (isOk) Color(0xFF10B981).copy(alpha = 0.4f) else Color(0xFFEF4444).copy(alpha = 0.4f))
-                            ) {
-                                Text(
-                                    text = keyStatusMessage!!,
-                                    fontSize = 11.sp,
-                                    lineHeight = 15.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = if (isOk) Color(0xFF10B981) else Color(0xFFEF4444),
-                                    modifier = Modifier.padding(10.dp)
-                                )
                             }
                         }
                     }
@@ -1358,7 +1255,7 @@ fun FrostedSettingsSheet(
                         // Diagnostic Row 1: AI Engine
                         DiagnosticItemRow(
                             title = "AI Intelligence Engine",
-                            subtitle = geminiDetail ?: if (BackendConfig.isLocalMode(context)) "Local PC Qwen Engine" else "Cloud Reasoning Engine",
+                            subtitle = geminiDetail ?: if (backendMode == BackendConfig.MODE_ON_DEVICE) "Offline Kernel Engine" else "Cloud Reasoning Engine",
                             icon = Icons.Rounded.AutoAwesome,
                             status = geminiStatus,
                             accentColor = accentColor,
@@ -1527,10 +1424,9 @@ fun FrostedSettingsSheet(
                                             val geminiRes = openRouterService.generateChatCompletion("Ping test: confirm connection")
                                             if (geminiRes.isSuccess) {
                                                 geminiStatus = DiagnosticStatus.SUCCESS
-                                                val target = if (BackendConfig.isLocalMode(context)) "Local PC Engine" else "FastAPI Render"
-                                                geminiDetail = "$target Online ✓"
+                                                geminiDetail = "Render Cloud Online ✓"
                                             } else {
-                                                val err = geminiRes.exceptionOrNull()?.localizedMessage ?: "AI Service unavailable"
+                                                val err = geminiRes.exceptionOrNull()?.localizedMessage ?: "Cloud AI Service unavailable"
                                                 geminiStatus = DiagnosticStatus.FAILED
                                                 geminiDetail = err
                                             }
@@ -1562,7 +1458,7 @@ fun FrostedSettingsSheet(
                                         color = btnContentColor,
                                         strokeWidth = 2.dp
                                     )
-                                    Text("Testing All Services...", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = btnContentColor)
+                                    Text("Checking System Health...", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = btnContentColor)
                                 }
                             } else {
                                 Row(
@@ -1570,12 +1466,12 @@ fun FrostedSettingsSheet(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Rounded.Refresh,
+                                        imageVector = Icons.Rounded.CheckCircle,
                                         contentDescription = null,
                                         tint = btnContentColor,
                                         modifier = Modifier.size(16.dp)
                                     )
-                                    Text("Test All Connections", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = btnContentColor)
+                                    Text("Check System Health & Connectivity", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = btnContentColor)
                                 }
                             }
                         }
@@ -1695,6 +1591,19 @@ fun FrostedSettingsSheet(
                 }
             }
         }
+    }
+
+    if (showVoicePersonaDialog) {
+        val currentVoiceId = UserPreferences.getSelectedVoice(context, voiceDialogLanguageCode)
+        VoicePersonaSelectionDialog(
+            languageCode = voiceDialogLanguageCode,
+            currentVoiceId = currentVoiceId,
+            onVoiceSelected = { persona ->
+                UserPreferences.setSelectedVoice(context, voiceDialogLanguageCode, persona.id)
+            },
+            onDismiss = { showVoicePersonaDialog = false },
+            isDark = isDark
+        )
     }
 }
 
@@ -1928,6 +1837,274 @@ private fun LanguageOptionCard(
                         tint = checkTint,
                         modifier = Modifier.size(11.dp)
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VoicePersonaSelectionDialog(
+    languageCode: String,
+    currentVoiceId: String,
+    onVoiceSelected: (VoicePersona) -> Unit,
+    onDismiss: () -> Unit,
+    isDark: Boolean
+) {
+    val context = LocalContext.current
+    val voices = remember(languageCode) { VoicePersonaCatalog.getVoicesForLanguage(languageCode) }
+    var selectedId by remember { mutableStateOf(currentVoiceId) }
+    var playingVoiceId by remember { mutableStateOf<String?>(null) }
+
+    var tts: TextToSpeech? by remember { mutableStateOf(null) }
+    var ttsReady by remember { mutableStateOf(false) }
+
+    DisposableEffect(Unit) {
+        val ttsInstance = TextToSpeech(context.applicationContext) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                ttsReady = true
+            }
+        }
+        tts = ttsInstance
+        onDispose {
+            ttsInstance.stop()
+            ttsInstance.shutdown()
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = if (isDark) Color(0xFF18181B) else Color(0xFFFFFFFF),
+            border = BorderStroke(1.2.dp, if (isDark) Color(0xFF27272A) else Color(0xFFE4E4E7)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp)
+                .shadow(32.dp, RoundedCornerShape(24.dp))
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color(0x20F59E0B)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.RecordVoiceOver,
+                                contentDescription = null,
+                                tint = Color(0xFFF59E0B),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "Select Gemini Voice",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) Color.White else Color(0xFF18181B)
+                            )
+                            val langName = when (languageCode) {
+                                "hi" -> "Hindi (हिन्दी)"
+                                "mr" -> "Marathi (मराठी)"
+                                "bn" -> "Bengali (বাংলা)"
+                                "ta" -> "Tamil (தமிழ்)"
+                                "te" -> "Telugu (తెలుగు)"
+                                "gu" -> "Gujarati (ગુજરાતી)"
+                                else -> "English"
+                            }
+                            Text(
+                                text = "$langName Voice Tuning",
+                                fontSize = 11.sp,
+                                color = if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A)
+                            )
+                        }
+                    }
+
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            imageVector = Icons.Rounded.Close,
+                            contentDescription = "Close",
+                            tint = if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                Text(
+                    text = "Listen to live audio samples (▶️) and select your preferred voice persona. Optimal voices are scientifically tuned for regional clarity.",
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                    color = if (isDark) Color(0xFFA1A1AA) else Color(0xFF71717A)
+                )
+
+                HorizontalDivider(color = if (isDark) Color(0xFF27272A) else Color(0xFFF4F4F6))
+
+                // Voice Persona Cards
+                voices.forEach { persona ->
+                    val isSelected = persona.id == selectedId
+                    val isPlaying = playingVoiceId == persona.id
+
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .clickable {
+                                selectedId = persona.id
+                                onVoiceSelected(persona)
+                            },
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (isSelected) {
+                            if (isDark) Color(0x25F59E0B) else Color(0xFFFFFBEB)
+                        } else {
+                            if (isDark) Color(0xFF202024) else Color(0xFFF9FAFB)
+                        },
+                        border = BorderStroke(
+                            if (isSelected) 1.5.dp else 1.dp,
+                            if (isSelected) Color(0xFFF59E0B) else (if (isDark) Color(0xFF2E2E33) else Color(0xFFE5E7EB))
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = persona.name,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isSelected) Color(0xFFF59E0B) else (if (isDark) Color.White else Color(0xFF111827))
+                                    )
+                                    if (persona.isOptimal) {
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = Color(0x20F59E0B),
+                                            border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.5f))
+                                        ) {
+                                            Text(
+                                                text = "★ Optimal",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFFF59E0B),
+                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Text(
+                                    text = "${persona.gender} • ${persona.styleDescription}",
+                                    fontSize = 10.sp,
+                                    color = if (isDark) Color(0xFFA1A1AA) else Color(0xFF6B7280),
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                                Text(
+                                    text = "\"${persona.samplePhrase}\"",
+                                    fontSize = 10.sp,
+                                    fontStyle = FontStyle.Italic,
+                                    maxLines = 1,
+                                    color = if (isDark) Color(0xFF71717A) else Color(0xFF9CA3AF),
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                // Sample Preview Button
+                                Surface(
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .clip(CircleShape)
+                                        .clickable {
+                                            if (isPlaying) {
+                                                tts?.stop()
+                                                playingVoiceId = null
+                                            } else {
+                                                playingVoiceId = persona.id
+                                                tts?.let { engine ->
+                                                    try {
+                                                        engine.setLanguage(Locale.forLanguageTag(persona.languageCode))
+                                                    } catch (_: Exception) {}
+                                                    engine.setPitch(persona.pitch)
+                                                    engine.setSpeechRate(persona.speechRate)
+                                                    engine.speak(persona.samplePhrase, TextToSpeech.QUEUE_FLUSH, null, "sample_${persona.id}")
+                                                }
+                                            }
+                                        },
+                                    shape = CircleShape,
+                                    color = if (isPlaying) Color(0xFFF59E0B) else (if (isDark) Color(0xFF2E2E33) else Color(0xFFE5E7EB))
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = if (isPlaying) Icons.Rounded.Stop else Icons.Rounded.PlayArrow,
+                                            contentDescription = if (isPlaying) "Stop" else "Play",
+                                            tint = if (isPlaying) Color.Black else (if (isDark) Color.White else Color(0xFF374151)),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+
+                                // Selection Radio Pill
+                                Box(
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (isSelected) Color(0xFFF59E0B)
+                                            else (if (isDark) Color(0xFF3F3F46) else Color(0xFFD1D5DB))
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Check,
+                                            contentDescription = null,
+                                            tint = Color.Black,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth().height(42.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFF59E0B),
+                        contentColor = Color.Black
+                    )
+                ) {
+                    Text("Apply & Close", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

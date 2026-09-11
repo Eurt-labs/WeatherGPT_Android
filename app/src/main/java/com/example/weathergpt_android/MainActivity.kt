@@ -37,8 +37,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.compose.runtime.collectAsState
 import com.example.weathergpt_android.core.network.BackendConfig
+import com.example.weathergpt_android.core.network.NetworkMonitor
 import com.example.weathergpt_android.core.theme.AppThemeMode
+import com.example.weathergpt_android.domain.auth.model.UserSector
 import com.example.weathergpt_android.domain.inference.engine.OnDeviceEngine
 import com.example.weathergpt_android.core.theme.ThemePreferences
 import com.example.weathergpt_android.core.theme.WeatherGPTTheme
@@ -146,6 +149,28 @@ fun WeatherGPTApp(
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showPreviousChatsSheet by remember { mutableStateOf(false) }
 
+    val flowLocation by locationProvider.locationFlow.collectAsState()
+    val flowWeather by weatherRepository.weatherFlow.collectAsState()
+
+    LaunchedEffect(flowLocation) {
+        locationData = flowLocation
+        weatherRepository.ensureFreshWeather(flowLocation.latitude, flowLocation.longitude, forceRefresh = false)
+    }
+
+    LaunchedEffect(flowWeather) {
+        liveWeatherData = flowWeather
+    }
+
+    // Monitor connectivity: whenever connected, refresh telemetry & update offline disk cache
+    LaunchedEffect(Unit) {
+        NetworkMonitor.isOnlineFlow(context).collect { isOnline ->
+            if (isOnline) {
+                locationProvider.requestFreshLocation()
+                weatherRepository.ensureFreshWeather(locationData.latitude, locationData.longitude, forceRefresh = true)
+            }
+        }
+    }
+
     fun refreshLiveWeather(loc: LocationData) {
         scope.launch {
             weatherRepository.fetchLiveWeather(loc.latitude, loc.longitude).onSuccess { data ->
@@ -155,18 +180,9 @@ fun WeatherGPTApp(
     }
 
     suspend fun refreshAllWeatherData() {
-        // 1. Fetch live weather for current coordinates immediately
-        weatherRepository.fetchLiveWeather(locationData.latitude, locationData.longitude).onSuccess { data ->
-            liveWeatherData = data
-        }
-        // 2. Request fresh GPS location fix and update weather with fresh coordinates
-        locationProvider.fetchRealtimeLocation(scope) { resolved ->
-            locationData = resolved
-            refreshLiveWeather(resolved)
-        }
-        // 3. Refresh user profile
+        locationProvider.requestFreshLocation()
+        weatherRepository.ensureFreshWeather(locationData.latitude, locationData.longitude, forceRefresh = true)
         userProfile = UserPreferences.getProfile(context)
-        // 4. Smooth minimum animation delay for pull-to-refresh
         delay(650)
     }
 
@@ -199,9 +215,9 @@ fun WeatherGPTApp(
         val locationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
                 permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
         if (locationGranted) {
-            locationProvider.fetchRealtimeLocation(scope) { resolved ->
-                locationData = resolved
-                refreshLiveWeather(resolved)
+            locationProvider.startContinuousLocationUpdates(scope)
+            scope.launch {
+                locationProvider.requestFreshLocation()
             }
         }
     }
@@ -223,10 +239,8 @@ fun WeatherGPTApp(
         if (missingPermissions.isNotEmpty()) {
             permissionsLauncher.launch(missingPermissions.toTypedArray())
         } else {
-            locationProvider.fetchRealtimeLocation(scope) { resolved ->
-                locationData = resolved
-                refreshLiveWeather(resolved)
-            }
+            locationProvider.startContinuousLocationUpdates(scope)
+            locationProvider.requestFreshLocation()
         }
     }
 
@@ -361,6 +375,11 @@ fun WeatherGPTApp(
                     currentTheme = currentTheme,
                     userProfile = userProfile,
                     onThemeSelected = onThemeChange,
+                    onSectorSelected = { newSector ->
+                        val updated = userProfile.copy(sector = newSector)
+                        userProfile = updated
+                        UserPreferences.saveProfile(context, updated)
+                    },
                     onLanguageSelected = { newLang ->
                         val updated = userProfile.copy(preferredLanguage = newLang)
                         userProfile = updated
