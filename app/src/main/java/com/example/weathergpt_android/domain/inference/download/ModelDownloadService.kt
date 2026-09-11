@@ -151,6 +151,11 @@ class ModelDownloadService : Service() {
                         )
                     }
                     is DownloadState.Completed -> {
+                        // Pre-load on-device AI weights into memory ASAP upon download completion
+                        com.example.weathergpt_android.domain.inference.engine.OnDeviceEngine
+                            .getInstance(this@ModelDownloadService)
+                            .ensureModelLoaded()
+
                         stopForeground(STOP_FOREGROUND_REMOVE)
                         showCompletionNotification()
                         stopSelf()

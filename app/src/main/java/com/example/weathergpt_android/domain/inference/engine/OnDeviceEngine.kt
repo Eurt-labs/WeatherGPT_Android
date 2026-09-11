@@ -1,9 +1,11 @@
 package com.example.weathergpt_android.domain.inference.engine
 
 import android.content.Context
+import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.util.Log
+import com.example.weathergpt_android.core.network.BackendConfig
 import com.example.weathergpt_android.domain.auth.data.UserPreferences
 import com.example.weathergpt_android.domain.auth.model.UserSector
 import com.example.weathergpt_android.domain.inference.download.ModelDownloadManager
@@ -14,13 +16,18 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.nehuatl.llamacpp.LlamaHelper
 
 /**
@@ -29,11 +36,10 @@ import org.nehuatl.llamacpp.LlamaHelper
  * 
  * Features:
  * - Direct token streaming via Kotlin Flow matching OpenRouterService interface
- * - Async-safe model loading with zero race conditions (fixes "Model was not loaded yet")
- * - Automatic RAM release when cleared from Recents or idle
- * - Deep meteorological & multi-sector agricultural telemetry grounding
- * - Enhanced advisory reasoning engine (irrigation, spraying, flood, travel)
- * - Proactive profile-driven follow-up generation
+ * - Eager pre-loading on download completion and mode selection (no chat-time loading delays)
+ * - Safe File Descriptor resolution via Uri.fromFile
+ * - Online idle threshold guard (automatically frees ~1.3 GB RAM after 3 minutes in Cloud mode)
+ * - Pure Chat UI: zero intermediate loading text in conversation bubbles (only thinking indicator)
  * - Thermal throttling guard (automatically adapts threads & context under thermal load)
  * - Brevity enforcement (3-4 sentences standard chat, 1-2 sentences voice AI)
  */
@@ -45,6 +51,10 @@ class OnDeviceEngine private constructor(
     private var llamaHelper: LlamaHelper? = null
     private var isLoaded = false
     private var loadDeferred: CompletableDeferred<Boolean>? = null
+    private var lastOfflineInferenceTimestamp: Long = 0L
+
+    private val _engineState = MutableStateFlow<EngineLoadState>(EngineLoadState.Unloaded)
+    val engineState: StateFlow<EngineLoadState> = _engineState.asStateFlow()
 
     private val downloadManager = ModelDownloadManager.getInstance(context, config)
     private val weatherCache = WeatherCache(context)
@@ -77,52 +87,109 @@ class OnDeviceEngine private constructor(
      * Prevents race condition where predict() is called before load() finishes.
      */
     suspend fun ensureModelLoadedSuspend(): Boolean = withContext(Dispatchers.IO) {
-        synchronized(this@OnDeviceEngine) {
+        val existingDeferred = synchronized(this@OnDeviceEngine) {
             if (isLoaded && llamaHelper != null) {
+                _engineState.value = EngineLoadState.Ready
                 return@withContext true
             }
-            loadDeferred?.let { existingDeferred ->
-                return@synchronized existingDeferred
-            }
+            loadDeferred
+        }
 
-            val file = downloadManager.modelFile
-            if (!file.exists() || !downloadManager.isModelDownloaded()) {
-                Log.w("OnDeviceEngine", "Cannot load model: file does not exist or download incomplete.")
-                return@withContext false
-            }
+        if (existingDeferred != null) {
+            return@withContext existingDeferred.await()
+        }
 
-            val deferred = CompletableDeferred<Boolean>()
+        val file = downloadManager.modelFile
+        if (!file.exists() || !downloadManager.isModelDownloaded()) {
+            Log.w("OnDeviceEngine", "Cannot load model: file does not exist or download incomplete.")
+            _engineState.value = EngineLoadState.Unloaded
+            return@withContext false
+        }
+
+        val deferred = CompletableDeferred<Boolean>()
+        synchronized(this@OnDeviceEngine) {
             loadDeferred = deferred
+            _engineState.value = EngineLoadState.Loading
+        }
 
-            try {
-                Log.i("OnDeviceEngine", "Loading on-device model from ${file.absolutePath} (ctx=${config.nCtx})...")
-                val sharedFlow = MutableSharedFlow<LlamaHelper.LLMEvent>()
-                val helper = LlamaHelper(context.contentResolver, scope, sharedFlow)
+        var errorCollectorJob: Job? = null
 
-                helper.load(file.absolutePath, config.nCtx, "chatml") {
-                    Log.i("OnDeviceEngine", "Model loaded successfully into RAM.")
-                    synchronized(this@OnDeviceEngine) {
-                        isLoaded = true
-                        llamaHelper = helper
-                        loadDeferred = null
+        try {
+            val modelUri = Uri.fromFile(file).toString()
+            Log.i("OnDeviceEngine", "Loading on-device model from $modelUri (ctx=${config.nCtx})...")
+
+            val sharedFlow = MutableSharedFlow<LlamaHelper.LLMEvent>(
+                replay = 1,
+                extraBufferCapacity = 128,
+                onBufferOverflow = BufferOverflow.DROP_OLDEST
+            )
+            val helper = LlamaHelper(context.contentResolver, scope, sharedFlow)
+
+            // Listen for immediate initialization errors from LlamaHelper
+            errorCollectorJob = scope.launch {
+                sharedFlow.collect { event ->
+                    if (event is LlamaHelper.LLMEvent.Error) {
+                        Log.e("OnDeviceEngine", "LlamaHelper load event error: ${event.message}")
+                        synchronized(this@OnDeviceEngine) {
+                            isLoaded = false
+                            llamaHelper = null
+                            loadDeferred = null
+                            _engineState.value = EngineLoadState.Failed(event.message)
+                        }
+                        deferred.complete(false)
                     }
-                    deferred.complete(true)
                 }
-            } catch (e: Throwable) {
-                Log.e("OnDeviceEngine", "Exception while initiating model load", e)
+            }
+
+            helper.load(
+                path = modelUri,
+                contextLength = config.nCtx,
+                mmprojPath = null
+            ) { contextId ->
+                Log.i("OnDeviceEngine", "Model loaded successfully into RAM with contextId: $contextId")
+                errorCollectorJob.cancel()
                 synchronized(this@OnDeviceEngine) {
-                    isLoaded = false
+                    isLoaded = true
+                    llamaHelper = helper
+                    loadDeferred = null
+                    lastOfflineInferenceTimestamp = System.currentTimeMillis()
+                    _engineState.value = EngineLoadState.Ready
+                }
+                deferred.complete(true)
+            }
+        } catch (e: Throwable) {
+            Log.e("OnDeviceEngine", "Exception while initiating model load", e)
+            errorCollectorJob?.cancel()
+            synchronized(this@OnDeviceEngine) {
+                isLoaded = false
+                llamaHelper = null
+                loadDeferred = null
+                _engineState.value = EngineLoadState.Failed(e.localizedMessage ?: "Unknown load error")
+            }
+            deferred.complete(false)
+        }
+
+        // Enforce 45s safety timeout so coroutine NEVER hangs indefinitely
+        val success = withTimeoutOrNull(45_000L) {
+            deferred.await()
+        } ?: false
+
+        if (!success) {
+            errorCollectorJob?.cancel()
+            synchronized(this@OnDeviceEngine) {
+                if (!isLoaded) {
                     llamaHelper = null
                     loadDeferred = null
+                    _engineState.value = EngineLoadState.Failed("Model loading timed out")
                 }
-                deferred.complete(false)
             }
-            deferred
-        }.await()
+        }
+
+        success
     }
 
     /**
-     * Asynchronous callback-based load for pre-warming if needed.
+     * Asynchronous callback-based load for eager pre-warming (on download complete or offline mode switch).
      */
     fun ensureModelLoaded(onComplete: ((Boolean) -> Unit)? = null) {
         scope.launch {
@@ -143,6 +210,7 @@ class OnDeviceEngine private constructor(
             llamaHelper = null
             isLoaded = false
             loadDeferred = null
+            _engineState.value = EngineLoadState.Unloaded
             System.gc()
         } catch (e: Throwable) {
             Log.e("OnDeviceEngine", "Error releasing on-device model", e)
@@ -150,7 +218,23 @@ class OnDeviceEngine private constructor(
     }
 
     /**
+     * Threshold check: If app is currently in Online/Cloud mode and the model has been
+     * resident in memory without use for >= 3 minutes, unload to free system RAM.
+     */
+    fun checkOnlineIdleThreshold() {
+        val configuredMode = BackendConfig.getBackendMode(context)
+        if (configuredMode != BackendConfig.MODE_ON_DEVICE && isLoaded && llamaHelper != null) {
+            val idleMs = System.currentTimeMillis() - lastOfflineInferenceTimestamp
+            if (idleMs >= ONLINE_IDLE_THRESHOLD_MS) {
+                Log.i("OnDeviceEngine", "Online idle threshold reached (${idleMs / 1000}s). Unloading model from RAM.")
+                unloadModel()
+            }
+        }
+    }
+
+    /**
      * Token-by-token streaming inference flow matching the OpenRouterService signature.
+     * Chat window displays only thinking state: zero intermediate progress text is injected.
      */
     fun generateStream(
         userMessage: String,
@@ -161,19 +245,16 @@ class OnDeviceEngine private constructor(
     ): Flow<String> = callbackFlow {
         val modelFile = downloadManager.modelFile
         if (!modelFile.exists() || !downloadManager.isModelDownloaded()) {
-            trySend("⚠️ On-Device model is not downloaded. Please open Settings ⚙️ to download it (1.1 GB) for offline AI chat.")
+            trySend("⚠️ On-Device model is not downloaded. Please open Settings ⚙️ to download the offline AI model (1.04 GB).")
             close()
             return@callbackFlow
         }
 
-        // 1. Ensure the model is completely loaded into memory before predicting
+        // 1. If not pre-loaded, await model loading silently (no raw chat progress messages)
         if (!isLoaded || llamaHelper == null) {
-            if (!isVoiceMode) {
-                trySend("⏳ *[Loading on-device AI model into memory...]*\n\n")
-            }
             val loadSuccess = ensureModelLoadedSuspend()
             if (!loadSuccess) {
-                trySend("⚠️ Failed to load on-device model into memory. Please ensure your device has sufficient free RAM.")
+                trySend("⚠️ Failed to initialize on-device model. Please check device available RAM in Settings ⚙️.")
                 close()
                 return@callbackFlow
             }
@@ -181,10 +262,12 @@ class OnDeviceEngine private constructor(
 
         val helper = synchronized(this@OnDeviceEngine) { llamaHelper }
         if (helper == null) {
-            trySend("⚠️ On-device AI engine is not available.")
+            trySend("⚠️ On-device AI engine is currently unavailable.")
             close()
             return@callbackFlow
         }
+
+        lastOfflineInferenceTimestamp = System.currentTimeMillis()
 
         val prompt = buildFormattedPrompt(
             userMessage = userMessage,
@@ -218,19 +301,26 @@ class OnDeviceEngine private constructor(
                         close()
                     }
                     is LlamaHelper.LLMEvent.Error -> {
-                        trySend("\n[Offline Inference Warning: ${event.message}]")
+                        Log.e("OnDeviceEngine", "Offline inference error: ${event.message}")
+                        trySend("\n[Offline Inference Note: ${event.message}]")
                         close()
                     }
                     is LlamaHelper.LLMEvent.Loaded -> {
-                        // Model loaded event
+                        // Model loaded
                     }
                 }
             }
         }
 
         try {
-            helper.predict(prompt, "chatml", false)
+            // imagePath = null, partialCompletion = true (enables live token-by-token streaming!)
+            helper.predict(
+                prompt = prompt,
+                imagePath = null,
+                partialCompletion = true
+            )
         } catch (e: Throwable) {
+            Log.e("OnDeviceEngine", "Offline predict exception", e)
             trySend("⚠️ Offline model execution error: ${e.localizedMessage}")
             close()
         }
@@ -322,6 +412,8 @@ class OnDeviceEngine private constructor(
     }
 
     companion object {
+        const val ONLINE_IDLE_THRESHOLD_MS = 3 * 60 * 1000L // 3 minutes
+
         @Volatile
         private var instance: OnDeviceEngine? = null
 
@@ -332,3 +424,14 @@ class OnDeviceEngine private constructor(
         }
     }
 }
+
+/**
+ * State representing on-device AI model residence in memory.
+ */
+sealed class EngineLoadState {
+    object Unloaded : EngineLoadState()
+    object Loading : EngineLoadState()
+    object Ready : EngineLoadState()
+    data class Failed(val error: String) : EngineLoadState()
+}
+

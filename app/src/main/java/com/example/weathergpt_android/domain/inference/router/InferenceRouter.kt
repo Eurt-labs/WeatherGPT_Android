@@ -97,6 +97,9 @@ class InferenceRouter(private val context: Context) {
                 }
             }
             InferenceMode.CLOUD -> {
+                // Online mode active: check if idle offline model should be released from RAM
+                onDeviceEngine.checkOnlineIdleThreshold()
+
                 var emittedAny = false
                 var failedWithNetwork = false
 
@@ -119,9 +122,6 @@ class InferenceRouter(private val context: Context) {
                 if (!emittedAny && (failedWithNetwork || !isNetworkAvailable())) {
                     if (BackendConfig.isAutoFallbackEnabled(context) && onDeviceEngine.isModelReady) {
                         Log.i("InferenceRouter", "Triggering seamless offline auto-fallback to OnDeviceEngine.")
-                        if (!isVoiceMode) {
-                            emit("📱 *[Switched to Offline On-Device AI]*\n\n")
-                        }
                         onDeviceEngine.generateStream(
                             userMessage = userMessage,
                             locationContext = locationContext,
