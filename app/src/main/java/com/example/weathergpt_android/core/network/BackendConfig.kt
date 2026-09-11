@@ -16,10 +16,12 @@ object BackendConfig {
     const val MODE_LOCAL_USB = "local_usb"
     const val MODE_LOCAL_EMULATOR = "local_emulator"
     const val MODE_LOCAL_CUSTOM = "local_custom"
+    const val MODE_ON_DEVICE = "on_device"
 
     private const val PREFS_NAME = "weathergpt_backend_prefs"
     private const val KEY_BACKEND_MODE = "selected_backend_mode"
     private const val KEY_CUSTOM_URL = "custom_local_url"
+    private const val KEY_AUTO_FALLBACK = "auto_fallback_enabled"
 
     fun getBaseUrl(context: Context? = null): String {
         if (context == null) return BASE_URL
@@ -58,7 +60,21 @@ object BackendConfig {
 
     fun isLocalMode(context: Context): Boolean {
         val mode = getBackendMode(context)
-        return mode != MODE_CLOUD
+        return mode != MODE_CLOUD && mode != MODE_ON_DEVICE
+    }
+
+    fun isOnDeviceMode(context: Context): Boolean {
+        return getBackendMode(context) == MODE_ON_DEVICE
+    }
+
+    fun isAutoFallbackEnabled(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getBoolean(KEY_AUTO_FALLBACK, true) // Enabled by default
+    }
+
+    fun setAutoFallback(context: Context, enabled: Boolean) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(KEY_AUTO_FALLBACK, enabled).apply()
     }
 }
 

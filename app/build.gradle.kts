@@ -16,7 +16,7 @@ val openWeatherApiKey = localProperties.getProperty("OPENWEATHER_API_KEY", "")
 
 android {
     namespace = "com.example.weathergpt_android"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.weathergpt_android"
@@ -24,6 +24,10 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+
+        ndk {
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
 
         buildConfigField("String", "OPENWEATHER_API_KEY", "\"$openWeatherApiKey\"")
         buildConfigField("String", "OPENROUTER_API_KEY", "\"\"")
@@ -65,6 +69,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.onnxruntime.android)
     implementation(libs.okhttp)
+    implementation("io.github.ljcamargo:llamacpp-kotlin:0.4.0")
     
     // Compose
     implementation(platform(libs.androidx.compose.bom))
